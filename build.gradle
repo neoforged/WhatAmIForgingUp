@@ -1,0 +1,57 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.matyrobbrt.stats'
+archivesBaseName = 'stats'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(20)
+
+println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
+
+application {
+    mainClass.set('com.matyrobbrt.stats.BotMain')
+}
+
+tasks.named('run', JavaExec) {
+    it.jvmArgs('--add-modules', 'ALL-MODULE-PATH', '--add-opens', 'java.base/java.util.jar=ALL-UNNAMED', '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED', '--add-exports', 'java.base/sun.security.util=ALL-UNNAMED', '--enable-preview')
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url 'https://maven.minecraftforge.net/'
+    }
+}
+
+dependencies {
+    implementation 'com.google.guava:guava:31.1-jre'
+    implementation 'com.google.code.gson:gson:2.10.1'
+
+    implementation 'org.ow2.asm:asm:9.5'
+    implementation 'org.ow2.asm:asm-tree:9.5'
+    implementation 'org.ow2.asm:asm-util:9.5'
+
+    implementation 'cpw.mods:securejarhandler:1.0.8'
+    implementation 'net.minecraftforge:srgutils:0.4.3'
+    implementation 'com.electronwill.night-config:toml:3.6.6'
+
+    implementation 'org.flywaydb:flyway-core:9.18.0'
+    implementation 'org.jdbi:jdbi3-core:3.32.0'
+    implementation 'org.jdbi:jdbi3-sqlobject:3.32.0'
+    implementation 'org.xerial:sqlite-jdbc:3.40.0.0'
+    implementation 'org.postgresql:postgresql:42.6.0'
+
+    implementation 'io.github.matyrobbrt:curseforgeapi:1.7.5'
+    implementation 'net.dv8tion:JDA:5.0.0-beta.9'
+    implementation project(':metabase-api')
+
+    implementation 'org.slf4j:slf4j-simple:2.0.7'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs.add('--enable-preview')
+}
