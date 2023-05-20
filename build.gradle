@@ -20,7 +20,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(20)
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
 
 application {
-    mainClass.set('com.matyrobbrt.stats.BotMain')
+    mainClass.set('net.minecraftforge.waifu.BotMain')
 }
 
 base {

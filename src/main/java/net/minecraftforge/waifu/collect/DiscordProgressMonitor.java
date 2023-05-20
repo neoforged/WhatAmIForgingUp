@@ -6,6 +6,7 @@
 package net.minecraftforge.waifu.collect;
 
 import com.google.common.base.Stopwatch;
+import io.github.matyrobbrt.curseforgeapi.schemas.file.File;
 import net.dv8tion.jda.api.entities.Message;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,6 +32,9 @@ public class DiscordProgressMonitor implements ProgressMonitor {
     private final AtomicInteger completed;
     private final List<String> currentMods;
     private final Map<String, Exception> exceptionally;
+
+    private final AtomicInteger toDownload = new AtomicInteger();
+    private final AtomicInteger downloaded = new AtomicInteger(-1);
 
     public DiscordProgressMonitor(Message loggingMessage, BiConsumer<String, Exception> exceptionallyConsumer) {
         this.loggingMessage = loggingMessage;
@@ -58,20 +62,28 @@ public class DiscordProgressMonitor implements ProgressMonitor {
                 last.set(System.currentTimeMillis());
 
                 final int num = numberOfMods.get();
-                if (num == -1) continue; // We haven't started yet
                 final int com = completed.get();
                 final StringBuilder content = new StringBuilder()
                         .append(initialMessage).append(":\n");
-                if (num == com) {
-                    content.append("Completed scanning of ").append(num).append(" mods in ").append(start.stop().elapsed(TimeUnit.SECONDS)).append(" seconds!");
+
+                if (num == -1) {
+                    final int toDown = toDownload.get();
+                    if (toDown == -1 || toDown == downloaded.get())
+                        continue; // We haven't started yet
+
+                    content.append("Downloading mods... Currently downloaded ").append(downloaded.get()).append("/").append(toDown).append(".");
                 } else {
-                    synchronized (currentMods) {
-                        if (currentMods.isEmpty()) {
-                            content.append("Currently idling...");
-                        } else {
-                            content.append(IntStream.range(0, currentMods.size())
-                                    .mapToObj(i -> "- " + currentMods.get(i) + " (" + (com + i + 1) + "/" + num + ")")
-                                    .collect(Collectors.joining("\n")));
+                    if (num == com) {
+                        content.append("Completed scanning of ").append(num).append(" mods in ").append(start.stop().elapsed(TimeUnit.SECONDS)).append(" seconds!");
+                    } else {
+                        synchronized (currentMods) {
+                            if (currentMods.isEmpty()) {
+                                content.append("Currently idling...");
+                            } else {
+                                content.append(IntStream.range(0, currentMods.size())
+                                        .mapToObj(i -> "- " + currentMods.get(i) + " (" + (com + i + 1) + "/" + num + ")")
+                                        .collect(Collectors.joining("\n")));
+                            }
                         }
                     }
                 }
@@ -116,5 +128,15 @@ public class DiscordProgressMonitor implements ProgressMonitor {
                 }
             }
         }
+    }
+
+    @Override
+    public void downloadEnded(File file) {
+        downloaded.incrementAndGet();
+    }
+
+    @Override
+    public void setDownloadTarget(int downloadTarget) {
+        toDownload.set(downloadTarget);
     }
 }

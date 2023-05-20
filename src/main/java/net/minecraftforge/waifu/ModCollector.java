@@ -12,12 +12,13 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraftforge.waifu.collect.ModPointer;
 import cpw.mods.jarhandling.SecureJar;
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.File;
 import io.github.matyrobbrt.curseforgeapi.util.CurseForgeException;
 import io.github.matyrobbrt.curseforgeapi.util.gson.RecordTypeAdapterFactory;
+import net.minecraftforge.waifu.collect.ModPointer;
+import net.minecraftforge.waifu.collect.ProgressMonitor;
 
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
@@ -31,6 +32,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ModCollector {
     private static final TomlParser PARSER = new TomlParser();
@@ -48,11 +51,11 @@ public class ModCollector {
         return jars;
     }
 
-    public void fromModpack(int packId, int fileId) throws CurseForgeException, IOException {
-        fromModpack(api.getHelper().getModFile(packId, fileId).orElseThrow());
+    public void fromModpack(int packId, int fileId, ProgressMonitor monitor) throws CurseForgeException, IOException {
+        fromModpack(api.getHelper().getModFile(packId, fileId).orElseThrow(), monitor);
     }
 
-    public void fromModpack(File packFile) throws CurseForgeException, IOException {
+    public void fromModpack(File packFile, ProgressMonitor monitor) throws CurseForgeException, IOException {
         final Path modpackFile = download(packFile);
         if (modpackFile == null) return;
 
@@ -67,9 +70,25 @@ public class ModCollector {
 
         final List<File> files = api.getHelper()
                 .getFiles(mf.files.stream().mapToInt(FilePointer::fileID).toArray())
-                .orElseThrow();
-        for (final File file : files) {
-            considerFile(file);
+                .orElseThrow()
+                .stream().filter(f -> f.downloadUrl() != null)
+                .filter(BotMain.distinct(File::id))
+                .toList();
+        monitor.setDownloadTarget(files.size());
+        try (final ExecutorService executor = Executors.newFixedThreadPool(3, Thread.ofPlatform()
+                .name("mod-downloader", 0)
+                .daemon(true)
+                .factory())) {
+            for (final File file : files) {
+                executor.submit(() -> {
+                    try {
+                        considerFile(file);
+                    } finally {
+                        monitor.downloadEnded(file);
+                    }
+                    return null;
+                });
+            }
         }
     }
 

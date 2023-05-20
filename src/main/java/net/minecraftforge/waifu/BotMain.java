@@ -63,6 +63,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -337,7 +339,7 @@ public class BotMain {
             );
             progressMonitor.markCollection(-1);
 
-            collector.fromModpack(mainFile);
+            collector.fromModpack(mainFile, progressMonitor);
 
             final Remapper remapper = Remapper.fromMappings(MappingUtils.srgToMoj(mainFile.sortableGameVersions()
                     .stream().max(Comparator.comparing(g -> Instant.parse(g.gameVersionReleaseDate()))).orElseThrow().gameVersion()));
@@ -418,10 +420,27 @@ public class BotMain {
         progressMonitor.markCollection(newMods.size());
 
         final ModCollector collector = new ModCollector(CF);
-        for (final File modFile : CF.getHelper().getFiles(newMods.stream()
+        final List<File> toDownload = CF.getHelper().getFiles(newMods.stream()
                 .mapToInt(FileIndex::fileId)
-                .toArray()).orElseThrow()) {
-            collector.considerFile(modFile);
+                .toArray()).orElseThrow().stream()
+                .filter(f -> f.downloadUrl() != null)
+                .filter(distinct(File::id))
+                .toList();
+        progressMonitor.setDownloadTarget(toDownload.size());
+        try (final ExecutorService executor = Executors.newFixedThreadPool(3, Thread.ofPlatform()
+                .name("mod-downloader", 0)
+                .daemon(true)
+                .factory())) {
+            for (final File file : toDownload) {
+                executor.submit(() -> {
+                    try {
+                        collector.considerFile(file);
+                    } finally {
+                        progressMonitor.downloadEnded(file);
+                    }
+                    return null;
+                });
+            }
         }
 
         final Remapper remapper = Remapper.fromMappings(MappingUtils.srgToMoj(gameVersion));
@@ -446,4 +465,8 @@ public class BotMain {
         return "gv_" + version.replace('.', '_').replace('-', '_');
     }
 
+    public static <T, Z> Predicate<T> distinct(Function<T, Z> extractor) {
+        final Set<Z> values = new HashSet<>();
+        return t -> values.add(extractor.apply(t));
+    }
 }
