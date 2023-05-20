@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'application'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
     id 'org.cadixdev.licenser' version '0.6.1' apply false
 }
 
@@ -13,7 +14,6 @@ allprojects {
 }
 
 group = 'net.minecraftforge.waifu'
-archivesBaseName = 'waifu'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(20)
 
@@ -21,6 +21,10 @@ println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty '
 
 application {
     mainClass.set('com.matyrobbrt.stats.BotMain')
+}
+
+base {
+    archivesName.set('waifu')
 }
 
 tasks.named('run', JavaExec) {
