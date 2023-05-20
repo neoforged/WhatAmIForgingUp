@@ -133,7 +133,10 @@ public class ModCollector {
         final Path path = jar.getPath("META-INF", "mods.toml");
         if (Files.exists(path)) {
             final CommentedConfig config = PARSER.parse(Files.newBufferedReader(path));
-            return config.<List<CommentedConfig>>get("mods").get(0).get("modId");
+            final List<CommentedConfig> mods = config.get("mods");
+            if (!mods.isEmpty()) {
+                return mods.get(0).get("modId");
+            }
         }
         return null;
     }
