@@ -12,8 +12,8 @@ allprojects {
     }
 }
 
-group = 'com.matyrobbrt.stats'
-archivesBaseName = 'stats'
+group = 'net.minecraftforge.waifu'
+archivesBaseName = 'waifu'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(20)
 
