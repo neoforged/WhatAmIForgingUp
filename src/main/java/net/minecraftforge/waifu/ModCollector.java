@@ -34,7 +34,7 @@ import java.util.Set;
 
 public class ModCollector {
     private static final TomlParser PARSER = new TomlParser();
-    private static final Path DOWNLOAD_CACHE = Path.of("cfCache");
+    public static final Path DOWNLOAD_CACHE = Path.of("cfCache");
     private final CurseForgeAPI api;
 
     private final Set<String> jarJars = new HashSet<>();

@@ -7,18 +7,6 @@ package net.minecraftforge.waifu;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import net.minecraftforge.metabase.MetabaseClient;
-import net.minecraftforge.waifu.collect.CollectorRule;
-import net.minecraftforge.waifu.collect.DefaultDBCollector;
-import net.minecraftforge.waifu.collect.DiscordProgressMonitor;
-import net.minecraftforge.waifu.collect.StatsCollector;
-import net.minecraftforge.waifu.db.InheritanceDB;
-import net.minecraftforge.waifu.db.ModIDsDB;
-import net.minecraftforge.waifu.db.ProjectsDB;
-import net.minecraftforge.waifu.db.RefsDB;
-import net.minecraftforge.waifu.util.MappingUtils;
-import net.minecraftforge.waifu.util.Remapper;
-import net.minecraftforge.waifu.util.SavedTrackedData;
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.github.matyrobbrt.curseforgeapi.request.Method;
 import io.github.matyrobbrt.curseforgeapi.request.Request;
@@ -43,6 +31,18 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.minecraftforge.metabase.MetabaseClient;
+import net.minecraftforge.waifu.collect.CollectorRule;
+import net.minecraftforge.waifu.collect.DefaultDBCollector;
+import net.minecraftforge.waifu.collect.DiscordProgressMonitor;
+import net.minecraftforge.waifu.collect.StatsCollector;
+import net.minecraftforge.waifu.db.InheritanceDB;
+import net.minecraftforge.waifu.db.ModIDsDB;
+import net.minecraftforge.waifu.db.ProjectsDB;
+import net.minecraftforge.waifu.db.RefsDB;
+import net.minecraftforge.waifu.util.MappingUtils;
+import net.minecraftforge.waifu.util.Remapper;
+import net.minecraftforge.waifu.util.SavedTrackedData;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +64,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class BotMain {
     private static final Logger LOGGER = LoggerFactory.getLogger(BotMain.class);
@@ -134,7 +135,9 @@ public class BotMain {
                                             .addSubcommands(new SubcommandData("list", "List all watched game versions"))
                                             .addSubcommands(new SubcommandData("remove", "Un-watch a game version")
                                                     .addOption(OptionType.INTEGER, "version", "The game version to remove", true)
-                                                    .addOption(OptionType.BOOLEAN, "removedb", "Whether to remove the game version from the database", true)))
+                                                    .addOption(OptionType.BOOLEAN, "removedb", "Whether to remove the game version from the database", true)),
+
+                                    Commands.slash("delete-cache", "Deletes the CurseForge downloads cache"))
                             .queue();
                 }, (EventListener) gevent -> {
                     if (!(gevent instanceof SlashCommandInteractionEvent event)) return;
@@ -287,6 +290,21 @@ public class BotMain {
                     }
                 }
                 event.reply("Game version removed!").queue();
+            }
+
+            case "delete-cache" -> {
+                if (!CURRENTLY_COLLECTED.isEmpty()) {
+                    event.reply("Cannot delete CurseForge cache while indexing is in progress!").setEphemeral(true).queue();
+                } else {
+                    event.reply("Deleting caches...").queue();
+                    try (final Stream<Path> toDelete = Files.find(ModCollector.DOWNLOAD_CACHE, Integer.MAX_VALUE, (path, basicFileAttributes) -> Files.isRegularFile(path) && path.toString().endsWith(".jar") || path.toString().endsWith(".zip"))) {
+                        final var itr = toDelete.iterator();
+                        while (itr.hasNext()) {
+                            Files.delete(itr.next());
+                        }
+                    }
+                    event.getHook().editOriginal("Deleted caches!").queue();
+                }
             }
         }
     }
