@@ -5,12 +5,12 @@
 
 package net.minecraftforge.waifu.collect;
 
+import cpw.mods.jarhandling.SecureJar;
 import net.minecraftforge.waifu.db.InheritanceDB;
 import net.minecraftforge.waifu.db.ModIDsDB;
 import net.minecraftforge.waifu.db.ProjectsDB;
 import net.minecraftforge.waifu.db.RefsDB;
 import net.minecraftforge.waifu.util.SemaphoreGroup;
-import cpw.mods.jarhandling.SecureJar;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -165,11 +165,6 @@ public class StatsCollector {
 
                                 if (rule.matches(insn)) {
                                     collector.accept(modId, owner, node, insn);
-                                    if (rule.oncePerMethod()) {
-                                        break;
-                                    } else if (rule.oncePerClass()) {
-                                        throw new ExitException();
-                                    }
                                 }
                             }
                         }
@@ -186,11 +181,7 @@ public class StatsCollector {
             final Iterator<Path> cls = classes.iterator();
             while (cls.hasNext()) {
                 final ClassReader reader = new ClassReader(Files.readAllBytes(cls.next()));
-                try {
-                    reader.accept(visitor, 0);
-                } catch (ExitException ignored) {
-
-                }
+                reader.accept(visitor, 0);
             }
         }
         try {
@@ -199,9 +190,5 @@ public class StatsCollector {
         } catch (Exception exception) {
             monitor.completedMod(modId, exception);
         }
-    }
-
-    public static final class ExitException extends RuntimeException {
-
     }
 }

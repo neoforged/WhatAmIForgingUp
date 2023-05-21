@@ -18,10 +18,6 @@ public interface CollectorRule {
 
     boolean matches(String annotationDesc);
 
-    boolean oncePerMethod();
-
-    boolean oncePerClass();
-
     static CollectorRule collectAll() {
         return new CollectorRule() {
             @Override
@@ -38,16 +34,6 @@ public interface CollectorRule {
             @Override
             public boolean matches(String annotationDesc) {
                 return !annotationDesc.endsWith("kotlin/Metadata;") && !annotationDesc.equals("Lscala/reflect/ScalaSignature;");
-            }
-
-            @Override
-            public boolean oncePerMethod() {
-                return true;
-            }
-
-            @Override
-            public boolean oncePerClass() {
-                return false;
             }
         };
     }
