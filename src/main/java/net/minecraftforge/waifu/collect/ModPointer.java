@@ -43,7 +43,7 @@ public final class ModPointer {
         return projectId;
     }
 
-    public Integer getFileId() {
+    public int getFileId() {
         return fileId;
     }
 
@@ -52,7 +52,10 @@ public final class ModPointer {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ModPointer that = (ModPointer) o;
-        return Objects.equals(modId, that.modId) && Objects.equals(projectId, that.projectId);
+        if (Objects.equals(modId, that.modId)) {
+            return Objects.equals(projectId, that.projectId) || that.projectId == 0 || this.projectId == 0; // Two mods with the same ID and different projects shouldn't match, but geckolib from CF and geckolib JiJ'd for example, should be considered the same.
+        }
+        return false;
     }
 
     @Override
