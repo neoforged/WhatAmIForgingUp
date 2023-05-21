@@ -25,8 +25,11 @@ public class SemaphoreGroup {
     }
 
     public void release(Semaphore semaphore) {
-        semaphores.remove(semaphore);
-        redistribute();
+        if (semaphore instanceof DynamicSemaphore dyn) {
+            semaphores.remove(dyn);
+            dyn.setPermits(0);
+            redistribute();
+        }
     }
 
     private void redistribute() {

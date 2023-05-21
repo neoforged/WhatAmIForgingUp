@@ -84,6 +84,7 @@ public class BotMain {
         }
     }
 
+    private static final int CF_PAGINATION_LIMIT = 10_000;
 
     private static final CurseForgeAPI CF = Utils.rethrowSupplier(() -> CurseForgeAPI.builder()
             .apiKey(System.getProperty("curseforge.token"))
@@ -378,7 +379,7 @@ public class BotMain {
 
         final List<FileIndex> newMods = new ArrayList<>();
         int idx = 0;
-        int maxItems = 10_000;
+        int maxItems = CF_PAGINATION_LIMIT;
 
         modsquery:
         while (idx < maxItems) {
@@ -392,7 +393,7 @@ public class BotMain {
             if (response == null) break;
 
             idx = response.pagination().index() + 50;
-            maxItems = Math.min(response.pagination().totalCount(), 10000);
+            maxItems = Math.min(response.pagination().totalCount(), CF_PAGINATION_LIMIT);
             for (final Mod mod : response.data()) {
                 final FileIndex matching = mod.latestFilesIndexes().stream()
                         .filter(f -> f.gameVersion().equals(gameVersion) && f.modLoader() != null && f.modLoaderType() == ModLoaderType.FORGE)
@@ -455,7 +456,7 @@ public class BotMain {
                 (mid) -> new DefaultDBCollector(mid, jdbi, remapper, true),
                 progressMonitor,
                 false
-        ); // Delete data of deleted mods every week or so
+        ); // TODO - Delete data of deleted mods every week or so
 
         LOGGER.info("Finished stats collection for game version '{}'", gameVersion);
         CURRENTLY_COLLECTED.remove(gameVersion);
