@@ -1,6 +1,8 @@
 plugins {
     id 'java'
     id 'application'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradleutils' version '2.+'
     id 'com.github.johnrengelman.shadow' version '7.1.2'
     id 'org.cadixdev.licenser' version '0.6.1' apply false
 }
@@ -13,7 +15,9 @@ allprojects {
     }
 }
 
-group = 'net.minecraftforge.waifu'
+group = 'net.minecraftforge'
+version = gradleutils.getTagOffsetVersion()
+println('Version: ' + version)
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(20)
 
@@ -25,6 +29,10 @@ application {
 
 base {
     archivesName.set('waifu')
+}
+
+changelog {
+    fromTag '1.0'
 }
 
 tasks.named('run', JavaExec) {
@@ -67,4 +75,19 @@ dependencies {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs.add('--enable-preview')
+}
+
+artifacts {
+    archives shadowJar
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven gradleutils.getPublishingForgeMaven()
+    }
 }
