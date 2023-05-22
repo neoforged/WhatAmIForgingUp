@@ -21,6 +21,7 @@ import io.github.matyrobbrt.curseforgeapi.util.CurseForgeException;
 import io.github.matyrobbrt.curseforgeapi.util.Utils;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -153,6 +154,7 @@ public class BotMain {
                         event.getHook().sendMessage("Encountered exception executing command: " + ex).queue();
                     }
                 })
+                .setActivity(Activity.watching("naughty mods"))
                 .build()
                 .awaitReady();
 
