@@ -26,9 +26,11 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -39,7 +41,7 @@ public final class DefaultDBCollector implements Collector {
     private final boolean collectInheritance;
 
     private final Map<Reference, AtomicInteger> count = new LinkedHashMap<>();
-    private final List<InheritanceEntry> inheritance = new ArrayList<>();
+    private final Set<InheritanceEntry> inheritance = new HashSet<>();
 
     public DefaultDBCollector(ModPointer mod, Jdbi jdbi, Remapper remapper, boolean collectInheritance) {
         this.mod = mod;

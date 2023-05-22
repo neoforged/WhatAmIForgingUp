@@ -8,6 +8,7 @@ package net.minecraftforge.waifu.db;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Objects;
 
 public record InheritanceEntry(
         String clazz, @Nullable String superClass,
@@ -28,5 +29,15 @@ public record InheritanceEntry(
 
     public String[] getMethods() {
         return methods;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof InheritanceEntry e && e.clazz.equals(getClazz());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getClazz());
     }
 }
