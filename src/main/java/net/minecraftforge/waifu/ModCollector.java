@@ -21,10 +21,14 @@ import net.minecraftforge.waifu.collect.ModPointer;
 import net.minecraftforge.waifu.collect.ProgressMonitor;
 
 import javax.annotation.Nullable;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -34,10 +38,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.zip.ZipFile;
 
 public class ModCollector {
     private static final TomlParser PARSER = new TomlParser();
-    public static final Path DOWNLOAD_CACHE = Path.of("cfCache");
+    public static final Path DOWNLOAD_CACHE = BotMain.ROOT.resolve("cfCache");
     private final CurseForgeAPI api;
 
     private final Set<String> jarJars = new HashSet<>();
@@ -60,11 +65,14 @@ public class ModCollector {
         if (modpackFile == null) return;
 
         final Manifest mf;
-        try (final FileSystem zip = FileSystems.newFileSystem(modpackFile)) {
-            final Path manifest = zip.getPath("manifest.json");
-            if (!Files.exists(manifest)) return;
-            try (final BufferedReader reader = Files.newBufferedReader(manifest)) {
-                mf = GSON.fromJson(reader, Manifest.class);
+        try (final ZipFile zip = new ZipFile(modpackFile.toFile())) {
+            final var mfEntry = zip.getEntry("manifest.json");
+            if (mfEntry != null) {
+                try (final Reader reader = new InputStreamReader(zip.getInputStream(mfEntry))) {
+                    mf = GSON.fromJson(reader, Manifest.class);
+                }
+            } else {
+                return;
             }
         }
 
@@ -111,7 +119,11 @@ public class ModCollector {
                 return path;
             }
         }
-        file.download(path);
+        Files.createDirectories(path.getParent());
+        final URL url = URI.create(file.downloadUrl()).toURL();
+        try (final InputStream in = url.openStream()) {
+            Files.write(path, in.readAllBytes());
+        }
         return path;
     }
 

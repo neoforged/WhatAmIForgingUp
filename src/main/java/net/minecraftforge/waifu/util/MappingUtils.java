@@ -7,6 +7,7 @@ package net.minecraftforge.waifu.util;
 
 import net.minecraftforge.srgutils.IMappingFile;
 import net.minecraftforge.srgutils.IRenamer;
+import net.minecraftforge.waifu.BotMain;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -18,7 +19,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class MappingUtils {
-    public static final Path CACHE = Path.of("mappings");
+    public static final Path CACHE = BotMain.ROOT.resolve("mappings");
 
     public static IMappingFile srgToMoj(String mcVersion) throws IOException {
         final Path path = CACHE.resolve(mcVersion + ".srg");

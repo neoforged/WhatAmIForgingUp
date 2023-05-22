@@ -69,10 +69,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class BotMain {
+    public static final Path ROOT = Path.of(System.getProperty("waifu.rootdir", "/"));
+
     public static final Logger LOGGER = LoggerFactory.getLogger(BotMain.class);
 
     static {
-        final Path propsPath = Path.of("bot.properties");
+        final Path propsPath = Path.of(System.getProperty("waifu.propsFile", "bot.properties"));
         if (Files.exists(propsPath)) {
             final Properties props = new Properties();
             try (final var reader = Files.newBufferedReader(propsPath)) {
@@ -98,12 +100,12 @@ public class BotMain {
 
     private static final SavedTrackedData<Set<Integer>> PACKS = new SavedTrackedData<>(
             new com.google.gson.reflect.TypeToken<>() {},
-            HashSet::new, Path.of("data/modpacks.json")
+            HashSet::new, ROOT.resolve("data/modpacks.json")
     );
 
     private static final SavedTrackedData<Set<String>> GAME_VERSIONS = new SavedTrackedData<>(
             new com.google.gson.reflect.TypeToken<>() {},
-            HashSet::new, Path.of("data/game_versions.json")
+            HashSet::new, ROOT.resolve("data/game_versions.json")
     );
 
     private static final Set<String> CURRENTLY_COLLECTED = new CopyOnWriteArraySet<>();
@@ -179,7 +181,7 @@ public class BotMain {
                     }
                 });
             }
-         }, 0, 1, TimeUnit.DAYS);
+         }, 2, 60 * 24, TimeUnit.MINUTES);
     }
 
     public static Request<List<Mod>> getMods(Iterable<Integer> modIds) {
@@ -342,7 +344,7 @@ public class BotMain {
             collector.fromModpack(mainFile, progressMonitor);
 
             final Remapper remapper = Remapper.fromMappings(MappingUtils.srgToMoj(mainFile.sortableGameVersions()
-                    .stream().max(Comparator.comparing(g -> Instant.parse(g.gameVersionReleaseDate()))).orElseThrow().gameVersion()));
+                    .stream().filter(g -> !g.gameVersion().isBlank()).max(Comparator.comparing(g -> Instant.parse(g.gameVersionReleaseDate()))).orElseThrow().gameVersion()));
 
             StatsCollector.collect(
                     collector.getJarsToProcess(),

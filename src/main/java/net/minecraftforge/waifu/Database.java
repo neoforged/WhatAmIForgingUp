@@ -5,6 +5,7 @@
 
 package net.minecraftforge.waifu;
 
+import com.google.gson.JsonElement;
 import net.minecraftforge.metabase.MetabaseClient;
 import net.minecraftforge.metabase.params.DatabaseInclusion;
 import net.minecraftforge.metabase.params.FieldValues;
@@ -18,6 +19,7 @@ import org.jdbi.v3.core.argument.Argument;
 import org.jdbi.v3.core.config.ConfigRegistry;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 
+import javax.annotation.Nullable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -29,16 +31,16 @@ import java.util.function.UnaryOperator;
 
 public class Database {
     public static void updateMetabase(MetabaseClient client, String schemaName) {
-        final String[] fullUrl = System.getProperty("db.url").substring("jdbc:postgresql://".length()).split("/", 2);
+        final String[] fullUrl = System.getProperty("metabase.db").split("/", 2);
 
         CompletableFuture.allOf(client.getDatabases(UnaryOperator.identity())
-                .thenApply(databases -> databases.stream().filter(db -> db.details().get("user").getAsString().equals(System.getenv("db.user"))
-                        && db.details().get("host").getAsString().equals(fullUrl[0])
-                        && db.details().get("dbname").getAsString().equals(fullUrl[1])))
+                .thenApply(databases -> databases.stream().filter(db -> db.details() != null
+                        && stringEquals(db.details().get("host"), fullUrl[0])
+                        && stringEquals(db.details().get("dbname"), fullUrl[1])))
                 .thenApply(db -> db.findFirst().orElseThrow())
                 .thenCompose(db -> db.syncSchema().thenCompose($ -> client.getDatabase(db.id(), p -> p.include(DatabaseInclusion.TABLES_AND_FIELDS))))
                 .thenApply(db -> db.tables().stream().filter(tb -> tb.schema().equals(schemaName)).toList())
-                .thenCompose(tbs -> CompletableFuture.allOf(tbs.stream().map(tb -> {
+                .thenCompose(tbs -> CompletableFuture.allOf(tbs.stream().map(tb -> { // TODO - maybe make this requery until tbs isn't empty
                     if (tb.name().equals("flyway_schema_history")) {
                         return tb.setHidden(true);
                     } else {
@@ -97,5 +99,9 @@ public class Database {
         final String password = System.getProperty("db.password");
         final String url = System.getProperty("db.url");
         return DriverManager.getConnection(url + "?user=" + user + "&password=" + password);
+    }
+
+    private static boolean stringEquals(@Nullable JsonElement element, String str) {
+        return element != null && element.getAsString().equals(str);
     }
 }
