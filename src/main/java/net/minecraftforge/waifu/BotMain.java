@@ -69,7 +69,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class BotMain {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BotMain.class);
+    public static final Logger LOGGER = LoggerFactory.getLogger(BotMain.class);
 
     static {
         final Path propsPath = Path.of("bot.properties");
@@ -183,9 +183,9 @@ public class BotMain {
     }
 
     public static Request<List<Mod>> getMods(Iterable<Integer> modIds) {
-        final var body = new JsonObject();
-        final var array = new JsonArray();
-        for (final var id : modIds) {
+        final JsonObject body = new JsonObject();
+        final JsonArray array = new JsonArray();
+        for (final int id : modIds) {
             array.add(id);
         }
         body.add("modIds", array);
@@ -259,8 +259,7 @@ public class BotMain {
                     try {
                         triggerGameVersion(gameVersion);
                     } catch (Exception ex) {
-                        System.out.println(ex.getMessage());
-                        ex.printStackTrace();
+                        LOGGER.error("Encountered exception indexing game version '{}': ", gameVersion, ex);
                     }
                 });
             }

@@ -62,10 +62,15 @@ public class Database {
                                     .update(u -> u.setTarget(target).withFieldValues(FieldValues.SEARCH))
                                     .thenCompose(f -> f.setDimension(target.id(), "Mod ID")))
                             .toArray(CompletableFuture[]::new));
-                }));
+                }))
+                .whenComplete((unused, throwable) -> {
+                    if (throwable != null) {
+                        BotMain.LOGGER.error("Could not update metabase schema: ", throwable);
+                    }
+                });
     }
 
-    public static Map.Entry<MigrateResult, Jdbi> createDatabaseConnection(String schemaName) throws Exception {
+    public static Map.Entry<MigrateResult, Jdbi> createDatabaseConnection(String schemaName) {
         final var flyway = Flyway.configure()
                 .dataSource(System.getProperty("db.url") + "?socketTimeout=0&tcpKeepAlive=true&options=-c%20statement_timeout=1h", System.getProperty("db.user"), System.getProperty("db.password"))
                 .locations("classpath:db")
