@@ -10,5 +10,5 @@ public enum Type {
     FIELD,
     METHOD,
     ANNOTATION,
-    IMPLEMENTS
+    PARAMETER
 }

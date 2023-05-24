@@ -17,7 +17,7 @@ create table refs
     modId  int      not null references modids (id),
     amount int      not null,
     owner  text     not null,
-    member text,
+    member text     not null,
     type   smallint not null,
     constraint references_pk primary key (modId, owner, member, type)
 );

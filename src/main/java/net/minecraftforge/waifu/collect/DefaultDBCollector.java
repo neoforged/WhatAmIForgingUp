@@ -68,9 +68,12 @@ public final class DefaultDBCollector implements Collector {
             count.computeIfAbsent(new Reference(fieldNode.owner, remapper.remapField(fieldNode.name), Type.FIELD), k -> new AtomicInteger()).incrementAndGet();
         } else if (node instanceof MethodInsnNode methodNode) {
             count.computeIfAbsent(new Reference(methodNode.owner, remapper.remapMethod(methodNode.name), Type.METHOD), k -> new AtomicInteger()).incrementAndGet();
+            for (final org.objectweb.asm.Type argumentType : org.objectweb.asm.Type.getType(methodNode.desc).getArgumentTypes()) {
+                count.computeIfAbsent(new Reference(getActualType(argumentType), argumentType.getInternalName(), Type.PARAMETER), k -> new AtomicInteger()).incrementAndGet();
+            }
         } else if (node instanceof LdcInsnNode ldc) {
             final org.objectweb.asm.Type type = (org.objectweb.asm.Type) ldc.cst;
-            count.computeIfAbsent(new Reference(type.getSort() == org.objectweb.asm.Type.ARRAY ? type.getElementType().getInternalName() : type.getInternalName(), type.getInternalName() + ".class", Type.CLASS), k -> new AtomicInteger()).incrementAndGet();
+            count.computeIfAbsent(new Reference(getActualType(type), type.getInternalName() + ".class", Type.CLASS), k -> new AtomicInteger()).incrementAndGet();
         }
     }
 
@@ -97,6 +100,10 @@ public final class DefaultDBCollector implements Collector {
             db.delete(id);
             db.insert(id, inheritance);
         });
+    }
+
+    private String getActualType(org.objectweb.asm.Type type) {
+        return type.getSort() == org.objectweb.asm.Type.ARRAY ? type.getElementType().getInternalName() : type.getInternalName();
     }
 
     private String formatAnnotation(Object owner, AnnotationNode annotationNode) {
