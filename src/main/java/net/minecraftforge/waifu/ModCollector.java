@@ -84,19 +84,22 @@ public class ModCollector {
                 .filter(BotMain.distinct(File::id))
                 .toList();
         monitor.setDownloadTarget(files.size());
-        try (final ExecutorService executor = Executors.newFixedThreadPool(3, Thread.ofPlatform()
-                .name("mod-downloader", 0)
-                .daemon(true)
-                .factory())) {
-            for (final File file : files) {
-                executor.submit(() -> {
-                    try {
-                        considerFile(file);
-                    } finally {
-                        monitor.downloadEnded(file);
-                    }
-                    return null;
-                });
+
+        if (!files.isEmpty()) {
+            try (final ExecutorService executor = Executors.newFixedThreadPool(3, Thread.ofPlatform()
+                    .name("mod-downloader", 0)
+                    .daemon(true)
+                    .factory())) {
+                for (final File file : files) {
+                    executor.submit(() -> {
+                        try {
+                            considerFile(file);
+                        } finally {
+                            monitor.downloadEnded(file);
+                        }
+                        return null;
+                    });
+                }
             }
         }
     }

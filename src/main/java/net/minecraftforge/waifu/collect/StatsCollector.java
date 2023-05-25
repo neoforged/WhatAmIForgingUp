@@ -64,22 +64,24 @@ public class StatsCollector {
                 .name("stats-collector", 0).factory());
         monitor.setNumberOfMods(jars.size());
 
-        final Semaphore semaphore = SEMAPHORES.acquireNew(jars.size());
-        for (final var entry : jars.entrySet()) {
-            executor.submit(() -> {
-                semaphore.acquire();
-                try {
-                    collect(entry.getKey().getModId(), entry.getValue(), rule, collectorFactory.apply(entry.getKey()), monitor);
-                } finally {
-                    semaphore.release();
-                }
-                return null;
-            });
-        }
-        try {
-            executor.close();
-        } finally {
-            SEMAPHORES.release(semaphore);
+        if (!jars.isEmpty()) {
+            final Semaphore semaphore = SEMAPHORES.acquireNew(jars.size());
+            for (final var entry : jars.entrySet()) {
+                executor.submit(() -> {
+                    semaphore.acquire();
+                    try {
+                        collect(entry.getKey().getModId(), entry.getValue(), rule, collectorFactory.apply(entry.getKey()), monitor);
+                    } finally {
+                        semaphore.release();
+                    }
+                    return null;
+                });
+            }
+            try {
+                executor.close();
+            } finally {
+                SEMAPHORES.release(semaphore);
+            }
         }
 
         if (deleteOldData) {

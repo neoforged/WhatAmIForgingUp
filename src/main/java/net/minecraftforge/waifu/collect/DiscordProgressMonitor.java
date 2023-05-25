@@ -66,15 +66,22 @@ public class DiscordProgressMonitor implements ProgressMonitor {
                 final StringBuilder content = new StringBuilder()
                         .append(initialMessage).append(":\n");
 
+                boolean breakOut = false;
                 if (num == -1) {
                     final int toDown = toDownload.get();
                     if (toDown == -1 || toDown == downloaded.get())
                         continue; // We haven't started yet
 
-                    content.append("Downloading mods... Currently downloaded ").append(downloaded.get()).append("/").append(toDown).append(".");
+                    if (toDown == 0) {
+                        content.append("Found no mods to download!");
+                        breakOut = true;
+                    } else {
+                        content.append("Downloading mods... Currently downloaded ").append(downloaded.get()).append("/").append(toDown).append(".");
+                    }
                 } else {
                     if (num == com) {
                         content.append("Completed scanning of ").append(num).append(" mods in ").append(start.stop().elapsed(TimeUnit.SECONDS)).append(" seconds!");
+                        breakOut = true;
                     } else {
                         synchronized (currentMods) {
                             if (currentMods.isEmpty()) {
@@ -96,7 +103,7 @@ public class DiscordProgressMonitor implements ProgressMonitor {
                 }
 
                 loggingMessage.editMessage(content.toString()).complete();
-                if (num == com) {
+                if (breakOut) {
                     break;
                 }
             }
