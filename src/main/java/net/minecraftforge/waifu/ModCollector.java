@@ -120,7 +120,7 @@ public class ModCollector {
             }
         }
         Files.createDirectories(path.getParent());
-        final URL url = URI.create(file.downloadUrl()).toURL();
+        final URL url = URI.create(java.net.URLEncoder.encode(file.downloadUrl())).toURL();
         try (final InputStream in = url.openStream()) {
             Files.write(path, in.readAllBytes());
         }
