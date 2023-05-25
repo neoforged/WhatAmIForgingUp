@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -56,11 +57,11 @@ public class ModCollector {
         return jars;
     }
 
-    public void fromModpack(int packId, int fileId, ProgressMonitor monitor) throws CurseForgeException, IOException {
+    public void fromModpack(int packId, int fileId, ProgressMonitor monitor) throws CurseForgeException, IOException, URISyntaxException {
         fromModpack(api.getHelper().getModFile(packId, fileId).orElseThrow(), monitor);
     }
 
-    public void fromModpack(File packFile, ProgressMonitor monitor) throws CurseForgeException, IOException {
+    public void fromModpack(File packFile, ProgressMonitor monitor) throws CurseForgeException, IOException, URISyntaxException {
         final Path modpackFile = download(packFile);
         if (modpackFile == null) return;
 
@@ -100,18 +101,18 @@ public class ModCollector {
         }
     }
 
-    public void considerFile(int projectId, int fileId) throws CurseForgeException, IOException {
+    public void considerFile(int projectId, int fileId) throws CurseForgeException, IOException, URISyntaxException {
         considerFile(api.getHelper().getModFile(projectId, fileId).orElseThrow());
     }
 
-    public void considerFile(File file) throws IOException {
+    public void considerFile(File file) throws IOException, URISyntaxException {
         final Path downloaded = download(file);
         if (downloaded == null) return;
         consider(SecureJar.from(downloaded), new FilePointer(file.modId(), file.id()));
     }
 
     @Nullable
-    public Path download(File file) throws IOException {
+    public Path download(File file) throws IOException, URISyntaxException {
         if (file.downloadUrl() == null) return null;
         final Path path = DOWNLOAD_CACHE.resolve(file.modId() + "/" + file.id() + file.downloadUrl().substring(file.downloadUrl().lastIndexOf('.')));
         if (Files.exists(path)) {
@@ -120,7 +121,7 @@ public class ModCollector {
             }
         }
         Files.createDirectories(path.getParent());
-        final URL url = URI.create(java.net.URLEncoder.encode(file.downloadUrl())).toURL();
+        final URL url = createURL(file.downloadUrl());
         try (final InputStream in = url.openStream()) {
             Files.write(path, in.readAllBytes());
         }
@@ -177,4 +178,14 @@ public class ModCollector {
             .create();
     record FilePointer(int projectID, int fileID) {}
     record Manifest(List<FilePointer> files) {}
+
+    private static URL createURL(String url) throws IOException, URISyntaxException {
+        final int findex = url.indexOf('/', 8); // Get rid of the https://
+        return new URI(
+                "https",
+                url.substring(8, findex),
+                url.substring(findex),
+                null
+        ).toURL();
+    }
 }
