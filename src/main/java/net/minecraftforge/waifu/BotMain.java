@@ -119,12 +119,9 @@ public class BotMain {
     private static JDA jda;
 
     public static void main(String[] args) throws Exception {
-        final ExecutorService rescanner = Executors.newFixedThreadPool(3, r -> {
-            final Thread thread = new Thread(r, "Stats scanner");
-            thread.setDaemon(true);
-            thread.setUncaughtExceptionHandler((t, e) -> LOGGER.error("Encountered exception on scanner thread: ", e));
-            return thread;
-        });
+        final ExecutorService rescanner = Executors.newFixedThreadPool(3, Thread.ofPlatform()
+                .daemon(true).name("stats-scanner", 0).uncaughtExceptionHandler((t, e) -> LOGGER.error("Encountered exception on scanner thread: ", e))
+                .factory());
 
         jda = JDABuilder.createLight(System.getProperty("bot.token"), EnumSet.of(GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGES))
                 .addEventListeners((EventListener) gevent -> {
