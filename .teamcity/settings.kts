@@ -82,7 +82,7 @@ object DockerBuild : BuildType({
     name = "DockerBuild"
 
     vcs {
-        root(DslContext.settingsRoot)
+        root(AbsoluteId("MinecraftForge_RepositoryAllBranches"))
     }
 
     triggers {
