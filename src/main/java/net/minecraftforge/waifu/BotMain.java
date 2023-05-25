@@ -41,6 +41,7 @@ import net.minecraftforge.waifu.db.InheritanceDB;
 import net.minecraftforge.waifu.db.ModIDsDB;
 import net.minecraftforge.waifu.db.ProjectsDB;
 import net.minecraftforge.waifu.db.RefsDB;
+import net.minecraftforge.waifu.logback.DiscordLogbackAppender;
 import net.minecraftforge.waifu.util.MappingUtils;
 import net.minecraftforge.waifu.util.Remapper;
 import net.minecraftforge.waifu.util.SavedTrackedData;
@@ -157,6 +158,8 @@ public class BotMain {
                 .setActivity(Activity.watching("naughty mods"))
                 .build()
                 .awaitReady();
+
+        DiscordLogbackAppender.setup(jda.getChannelById(MessageChannel.class, System.getProperty("bot.loggingChannel", "0")));
 
         final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
