@@ -12,7 +12,7 @@
     <root level="DEBUG">
         <appender-ref ref="CONSOLE"/>
     </root>
-    <root level="WARN">
+    <root level="INFO">
         <appender-ref ref="DISCORD"/>
     </root>
 </configuration>

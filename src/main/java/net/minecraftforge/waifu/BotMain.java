@@ -19,6 +19,7 @@ import io.github.matyrobbrt.curseforgeapi.schemas.mod.ModLoaderType;
 import io.github.matyrobbrt.curseforgeapi.util.Constants;
 import io.github.matyrobbrt.curseforgeapi.util.CurseForgeException;
 import io.github.matyrobbrt.curseforgeapi.util.Utils;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
@@ -49,6 +50,7 @@ import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -112,6 +114,8 @@ public class BotMain {
 
     private static final Set<String> CURRENTLY_COLLECTED = new CopyOnWriteArraySet<>();
 
+    public static final String VERSION = Objects.requireNonNullElse(BotMain.class.getPackage().getImplementationVersion(), "UNKNOWN");
+
     private static JDA jda;
 
     public static void main(String[] args) throws Exception {
@@ -144,7 +148,8 @@ public class BotMain {
                                                     .addOption(OptionType.INTEGER, "version", "The game version to remove", true)
                                                     .addOption(OptionType.BOOLEAN, "removedb", "Whether to remove the game version from the database", true)),
 
-                                    Commands.slash("delete-cache", "Deletes the CurseForge downloads cache"))
+                                    Commands.slash("delete-cache", "Deletes the CurseForge downloads cache"),
+                                    Commands.slash("help", "Information about the bot"))
                             .queue();
                 }, (EventListener) gevent -> {
                     if (!(gevent instanceof SlashCommandInteractionEvent event)) return;
@@ -160,6 +165,8 @@ public class BotMain {
                 .awaitReady();
 
         DiscordLogbackAppender.setup(jda.getChannelById(MessageChannel.class, System.getProperty("bot.loggingChannel", "0")));
+
+        LOGGER.info("Bot started! Version: {}", VERSION);
 
         final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -315,6 +322,14 @@ public class BotMain {
                     event.getHook().editOriginal("Deleted caches!").queue();
                 }
             }
+
+            case "help" -> event.replyEmbeds(new EmbedBuilder()
+                    .setTitle("WhatAmIForgingUp", "https://github.com/MinecraftForge/WhatAmIForgingUp")
+                    .setDescription("A bot used to index Minecraft mods on CurseForge.")
+                    .addField("Version", VERSION, false)
+                    .setColor(Color.GREEN)
+                    .build())
+                    .queue();
         }
     }
 
