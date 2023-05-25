@@ -84,6 +84,12 @@ object DockerBuild : BuildType({
         root(DslContext.settingsRoot)
     }
 
+    triggers {
+        vcs {
+            branchFilter = "+:*"
+        }
+    }
+
     steps {
         gradle {
             name = "Build JAR"
