@@ -1,4 +1,9 @@
 import jetbrains.buildServer.configs.kotlin.v2019_2.*
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.dockerSupport
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.DockerCommandStep
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.GradleBuildStep
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.dockerCommand
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 import jetbrains.buildServer.configs.kotlin.v2019_2.projectFeatures.githubIssues
 
 /*
@@ -30,6 +35,7 @@ project {
     buildType(Build)
     buildType(BuildSecondaryBranches)
     buildType(PullRequests)
+    buildType(DockerBuild)
 
     params {
         text("git_main_branch", "main", label = "Git Main Branch", description = "The git main or default branch to use in VCS operations.", display = ParameterDisplay.HIDDEN, allowEmpty = false)
@@ -68,4 +74,60 @@ object PullRequests : BuildType({
     id("WhatAmIForgingUp__PullRequests")
     name = "Pull Requests"
     description = "Builds pull requests for the project"
+})
+
+object DockerBuild : BuildType({
+    id("WhatAmIForgingUp__DockerBuild")
+    name = "DockerBuild"
+
+    vcs {
+        root(DslContext.settingsRoot)
+    }
+
+    steps {
+        gradle {
+            name = "Build JAR"
+            tasks = ":configureTeamCity :buildBot"
+            dockerImage = "gradle:%docker_gradle_version%-jdk%docker_jdk_version%"
+            dockerRunParameters = """
+                -v "/opt/cache/agent/gradle:/home/gradle/.gradle" 
+                -v "/opt/cache/shared/gradle:/home/gradle/rocache:ro"
+                --network=host
+                -u 1000:1000
+            """.trimIndent()
+        }
+
+        dockerCommand {
+            name = "Build Image"
+            commandType = build {
+                source = file {
+                    path = "Dockerfile"
+                }
+                contextDir = "."
+                platform = DockerCommandStep.ImagePlatform.Linux
+                namesAndTags = """
+                    containers.minecraftforge.net/waifu:latest
+                    containers.minecraftforge.net/waifu:%build.number%
+                """.trimIndent()
+                commandArgs = "--pull"
+            }
+        }
+        dockerCommand {
+            name = "Push Image"
+            commandType = push {
+                namesAndTags = """
+                    containers.minecraftforge.net/waifu:latest
+                    containers.minecraftforge.net/waifu:%build.number%
+                """.trimIndent()
+            }
+        }
+    }
+
+    features {
+        dockerSupport {
+            loginToRegistry = on {
+                dockerRegistryId = "PROJECT_EXT_6"
+            }
+        }
+    }
 })

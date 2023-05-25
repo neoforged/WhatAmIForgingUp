@@ -72,9 +72,25 @@ dependencies {
     implementation 'ch.qos.logback:logback-classic:1.4.7'
 }
 
+jar {
+    manifest {
+        attributes.putAll([
+                'Main-Class': application.mainClass.get(),
+                'Implementation-Version': version
+        ])
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs.add('--enable-preview')
+}
+
+tasks.register('buildBot') {
+    it.dependsOn(tasks.shadowJar)
+    doLast {
+        tasks.shadowJar.archiveFile.get().asFile.renameTo(project.file('build/libs/waifu-all.jar'))
+    }
 }
 
 artifacts {
