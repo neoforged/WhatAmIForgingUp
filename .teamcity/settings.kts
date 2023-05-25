@@ -82,7 +82,7 @@ object DockerBuild : BuildType({
     name = "DockerBuild"
 
     vcs {
-        root(RelativeId("WhatAmIForgingUp_HttpsGithubComMinecraftForgeWhatAmIForgingUpRefsHeadsMain"))
+        root(RelativeId("WhatAmIForgingUp_HttpsGithubComMinecraftForgeWhatAmIForgingUp"))
     }
 
     triggers {
