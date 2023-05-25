@@ -82,7 +82,7 @@ object DockerBuild : BuildType({
     name = "DockerBuild"
 
     vcs {
-        root(RelativeId("WhatAmIForgingUp_HttpsGithubComMinecraftForgeWhatAmIForgingUp"))
+        root(DslContext.settingsRoot)
     }
 
     triggers {
