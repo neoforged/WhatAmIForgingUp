@@ -17,10 +17,11 @@ import java.util.List;
 
 public class DiscordLogbackAppender extends AppenderBase<ILoggingEvent> {
 
-    private final Layout<ILoggingEvent> layout;
+    private Layout<ILoggingEvent> layout;
 
-    private final MessageChannel channel;
-    public DiscordLogbackAppender(Layout<ILoggingEvent> layout, MessageChannel channel) {
+    private MessageChannel channel;
+
+    public void setup(Layout<ILoggingEvent> layout, MessageChannel channel) {
         this.layout = layout;
         this.channel = channel;
     }
@@ -34,13 +35,8 @@ public class DiscordLogbackAppender extends AppenderBase<ILoggingEvent> {
         layout.setContext(context);
         layout.start();
 
-        final DiscordLogbackAppender appender = new DiscordLogbackAppender(layout, channel);
-        appender.setContext(context);
-        appender.setName("DISCORD");
-        appender.start();
-
         final ch.qos.logback.classic.Logger rootLogger = context.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
-        rootLogger.addAppender(appender);
+        ((DiscordLogbackAppender) rootLogger.getAppender("DISCORD")).setup(layout, channel);
     }
 
     @Override

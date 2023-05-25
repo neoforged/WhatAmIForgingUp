@@ -8,6 +8,7 @@
             </pattern>
         </encoder>
     </appender>
+    <appender name="DISCORD" class="net.minecraftforge.waifu.logback.DiscordLogbackAppender" />
 
     <root level="DEBUG">
         <appender-ref ref="CONSOLE"/>
