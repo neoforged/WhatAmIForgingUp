@@ -5,6 +5,7 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.GradleBuildStep
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.dockerCommand
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 import jetbrains.buildServer.configs.kotlin.v2019_2.projectFeatures.githubIssues
+import jetbrains.buildServer.configs.kotlin.v2019_2.triggers.vcs
 
 /*
 The settings script is an entry point for defining a TeamCity
@@ -28,7 +29,7 @@ To debug in IntelliJ Idea, open the 'Maven Projects' tool window (View
 'Debug' option is available in the context menu for the task.
 */
 
-version = "2022.10
+version = "2022.10"
 
 project {
 
@@ -86,6 +87,7 @@ object DockerBuild : BuildType({
 
     triggers {
         vcs {
+            branchFilter = "+:*"
         }
     }
 
