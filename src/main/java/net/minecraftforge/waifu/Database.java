@@ -24,6 +24,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,7 +39,13 @@ public class Database {
                         && stringEquals(db.details().get("host"), fullUrl[0])
                         && stringEquals(db.details().get("dbname"), fullUrl[1])))
                 .thenApply(db -> db.findFirst().orElseThrow())
-                .thenCompose(db -> db.syncSchema().thenCompose($ -> client.getDatabase(db.id(), p -> p.include(DatabaseInclusion.TABLES_AND_FIELDS))))
+                .thenCompose(db -> db.syncSchema().thenRun(() -> {
+                    try {
+                        Thread.sleep(Duration.ofSeconds(10));
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }).thenCompose($ -> client.getDatabase(db.id(), p -> p.include(DatabaseInclusion.TABLES_AND_FIELDS))))
                 .thenApply(db -> db.tables().stream().filter(tb -> tb.schema().equals(schemaName)).toList())
                 .thenCompose(tbs -> CompletableFuture.allOf(tbs.stream().map(tb -> { // TODO - maybe make this requery until tbs isn't empty
                     if (tb.name().equals("flyway_schema_history")) {
@@ -68,6 +75,8 @@ public class Database {
                 .whenComplete((unused, throwable) -> {
                     if (throwable != null) {
                         BotMain.LOGGER.error("Could not update metabase schema: ", throwable);
+                    } else {
+                        BotMain.LOGGER.info("Updated metabase schema '{}'.", schemaName);
                     }
                 });
     }
