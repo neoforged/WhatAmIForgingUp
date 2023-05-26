@@ -24,18 +24,18 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -134,7 +134,7 @@ public class ModCollector {
             case "jar", "zip" -> {
                 try (final ZipInputStream in = new ZipInputStream(url.openStream());
                      final ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(path))) {
-                    downloadStripping(out, in, shouldKeep);
+                    transferStripping(out, in, shouldKeep);
                 }
             }
             default -> {
@@ -207,13 +207,34 @@ public class ModCollector {
         ).toURL();
     }
 
-    private static void downloadStripping(ZipOutputStream out, ZipInputStream in, Predicate<ZipEntry> predicate) throws IOException {
+    private static final Random RANDOM = new Random();
+    private static void transferStripping(ZipOutputStream out, ZipInputStream in, Predicate<ZipEntry> predicate) throws IOException {
         ZipEntry entry;
         while ((entry = in.getNextEntry()) != null) {
             if (predicate.test(entry)) {
-                out.putNextEntry(entry);
-                in.transferTo(out);
-                out.closeEntry();
+                if (entry.getName().startsWith("META-INF/jarjar/") && entry.getName().endsWith(".jar")) {
+                    final Path temp = Files.createTempFile("jij-" + RANDOM.nextInt(100_000_00), ".jar");
+                    try (final OutputStream outT = Files.newOutputStream(temp)) {
+                        in.transferTo(outT);
+                    }
+
+                    try (final ZipFile zip = new ZipFile(temp.toFile())) {
+                        final ZipEntry modsDotToml = zip.getEntry("META-INF/mods.toml");
+                        out.putNextEntry(entry);
+                        final ZipOutputStream zout = new ZipOutputStream(out);
+                        try (final ZipInputStream is = new ZipInputStream(Files.newInputStream(temp))) {
+                            transferStripping(zout, is, modsDotToml == null ? e -> e.getName().startsWith("META-INF/jarjar/") : predicate);
+                        }
+                        zout.finish();
+                        out.closeEntry();
+                    }
+
+                    Files.delete(temp);
+                } else {
+                    out.putNextEntry(entry);
+                    in.transferTo(out);
+                    out.closeEntry();
+                }
             }
         }
     }
