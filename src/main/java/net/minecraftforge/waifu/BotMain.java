@@ -11,6 +11,7 @@ import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.github.matyrobbrt.curseforgeapi.request.Method;
 import io.github.matyrobbrt.curseforgeapi.request.Request;
 import io.github.matyrobbrt.curseforgeapi.request.Requests;
+import io.github.matyrobbrt.curseforgeapi.request.Response;
 import io.github.matyrobbrt.curseforgeapi.request.query.ModSearchQuery;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.File;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.FileIndex;
@@ -51,6 +52,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -418,8 +422,15 @@ public class BotMain {
                         .limit(1)
                         .findFirst().orElse(null);
                 if (matching == null) continue;
-                if (fileIds.contains(matching.fileId())) break modsquery;
-                newMods.add(matching);
+
+                if (fileIds.contains(matching.fileId())) {
+                    final var latestFiles = getLatestModFiles(mod);
+                    if (latestFiles.isEmpty() || latestFiles.get(0).id() == matching.fileId()) { // Make sure it's actually the latest file of the project
+                        break modsquery;
+                    }
+                } else {
+                    newMods.add(matching);
+                }
             }
         }
 
@@ -487,5 +498,12 @@ public class BotMain {
     public static <T, Z> Predicate<T> distinct(Function<T, Z> extractor) {
         final Set<Z> values = new HashSet<>();
         return t -> values.add(extractor.apply(t));
+    }
+
+    private static List<File> getLatestModFiles(Mod mod) throws IOException {
+        record Response(List<File> data) {}
+        try (final var reader = new InputStreamReader(URI.create("https://www.curseforge.com/api/v1/mods/%s/files?pageIndex=0&pageSize=50&sort=dateCreated&sortDescending=true&removeAlphas=false".formatted(mod.id())).toURL().openStream())) {
+            return CF.getGson().fromJson(reader, Response.class).data;
+        }
     }
 }
