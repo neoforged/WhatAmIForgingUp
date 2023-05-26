@@ -11,7 +11,6 @@ import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.github.matyrobbrt.curseforgeapi.request.Method;
 import io.github.matyrobbrt.curseforgeapi.request.Request;
 import io.github.matyrobbrt.curseforgeapi.request.Requests;
-import io.github.matyrobbrt.curseforgeapi.request.Response;
 import io.github.matyrobbrt.curseforgeapi.request.query.ModSearchQuery;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.File;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.FileIndex;
@@ -77,7 +76,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class BotMain {
-    public static final Path ROOT = Path.of(System.getProperty("waifu.rootdir", "/"));
+    public static final Path ROOT = Path.of(System.getProperty("waifu.rootdir", "./"));
 
     public static final Logger LOGGER = LoggerFactory.getLogger(BotMain.class);
 
