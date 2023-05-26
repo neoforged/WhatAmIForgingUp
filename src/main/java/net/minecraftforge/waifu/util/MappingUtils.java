@@ -44,17 +44,20 @@ public class MappingUtils {
         final IMappingFile deobfToSrg = deobfToObf.rename(new IRenamer() {
             @Override
             public String rename(IMappingFile.IField value) {
-                return obfToSrg.getClass(value.getParent().getMapped()).getField(value.getMapped()).getMapped();
+                final var field = obfToSrg.getClass(value.getParent().getMapped()).getField(value.getMapped());
+                return field == null ? value.getMapped() : field.getMapped();
             }
 
             @Override
             public String rename(IMappingFile.IMethod value) {
-                return obfToSrg.getClass(value.getParent().getMapped()).getMethod(value.getMapped(), value.getMappedDescriptor()).getMapped();
+                final var method = obfToSrg.getClass(value.getParent().getMapped()).getMethod(value.getMapped(), value.getMappedDescriptor());
+                return method == null ? value.getMapped() : method.getMapped();
             }
 
             @Override
             public String rename(IMappingFile.IClass value) {
-                return obfToSrg.getClass(value.getMapped()).getMapped();
+                final var clazz = obfToSrg.getClass(value.getMapped());
+                return clazz == null ? value.getMapped() : clazz.getMapped();
             }
         });
         final IMappingFile mappingFile = deobfToSrg.rename(new IRenamer() {

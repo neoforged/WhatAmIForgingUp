@@ -39,7 +39,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Predicate;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 public class ModCollector {
     private static final TomlParser PARSER = new TomlParser();
@@ -62,7 +66,7 @@ public class ModCollector {
     }
 
     public void fromModpack(File packFile, ProgressMonitor monitor) throws CurseForgeException, IOException, URISyntaxException {
-        final Path modpackFile = download(packFile);
+        final Path modpackFile = download(packFile, zipEntry -> zipEntry.getName().equals("manifest.json"));
         if (modpackFile == null) return;
 
         final Manifest mf;
@@ -116,17 +120,28 @@ public class ModCollector {
 
     @Nullable
     public Path download(File file) throws IOException, URISyntaxException {
+        return download(file, entry -> entry.getName().endsWith(".class") || entry.getName().startsWith("META-INF/jarjar/") || entry.getName().equals("META-INF/mods.toml"));
+    }
+
+    @Nullable
+    public Path download(File file, Predicate<ZipEntry> shouldKeep) throws IOException, URISyntaxException {
         if (file.downloadUrl() == null) return null;
-        final Path path = DOWNLOAD_CACHE.resolve(file.modId() + "/" + file.id() + file.downloadUrl().substring(file.downloadUrl().lastIndexOf('.')));
-        if (Files.exists(path)) {
-            if (Files.size(path) == file.fileLength()) { // TODO - hashes
-                return path;
-            }
-        }
+        final String ext = getExtension(file.downloadUrl());
+        final Path path = DOWNLOAD_CACHE.resolve(file.modId() + "/" + file.id() + (ext.isBlank() ? "" : "." + ext));
         Files.createDirectories(path.getParent());
         final URL url = createURL(file.downloadUrl());
-        try (final InputStream in = url.openStream()) {
-            Files.write(path, in.readAllBytes());
+        switch (ext) {
+            case "jar", "zip" -> {
+                try (final ZipInputStream in = new ZipInputStream(url.openStream());
+                     final ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(path))) {
+                    downloadStripping(out, in, shouldKeep);
+                }
+            }
+            default -> {
+                try (final InputStream in = url.openStream()) {
+                    Files.write(path, in.readAllBytes());
+                }
+            }
         }
         return path;
     }
@@ -190,5 +205,24 @@ public class ModCollector {
                 url.substring(findex),
                 null
         ).toURL();
+    }
+
+    private static void downloadStripping(ZipOutputStream out, ZipInputStream in, Predicate<ZipEntry> predicate) throws IOException {
+        ZipEntry entry;
+        while ((entry = in.getNextEntry()) != null) {
+            if (predicate.test(entry)) {
+                out.putNextEntry(entry);
+                in.transferTo(out);
+                out.closeEntry();
+            }
+        }
+    }
+
+    private static String getExtension(String str) {
+        final int idx = str.lastIndexOf('.') + 1;
+        if (idx > str.length()) {
+            return "";
+        }
+        return str.substring(idx);
     }
 }
