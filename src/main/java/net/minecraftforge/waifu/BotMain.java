@@ -43,6 +43,7 @@ import net.minecraftforge.waifu.db.ModIDsDB;
 import net.minecraftforge.waifu.db.ProjectsDB;
 import net.minecraftforge.waifu.db.RefsDB;
 import net.minecraftforge.waifu.logback.DiscordLogbackAppender;
+import net.minecraftforge.waifu.util.ByteConversion;
 import net.minecraftforge.waifu.util.MappingUtils;
 import net.minecraftforge.waifu.util.Remapper;
 import net.minecraftforge.waifu.util.SavedTrackedData;
@@ -56,6 +57,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.ResultSet;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -149,7 +151,8 @@ public class BotMain {
                                                     .addOption(OptionType.BOOLEAN, "removedb", "Whether to remove the game version from the database", true)),
 
                                     Commands.slash("delete-cache", "Deletes the CurseForge downloads cache"),
-                                    Commands.slash("help", "Information about the bot"))
+                                    Commands.slash("help", "Information about the bot"),
+                                    Commands.slash("data-size", "Shows the size of the data stored (in the database and the file cache)"))
                             .queue();
                 }, (EventListener) gevent -> {
                     if (!(gevent instanceof SlashCommandInteractionEvent event)) return;
@@ -158,6 +161,7 @@ public class BotMain {
                         onSlashCommandInteraction(event, rescanner);
                     } catch (Exception ex) {
                         event.getHook().sendMessage("Encountered exception executing command: " + ex).queue();
+                        LOGGER.error("Encountered exception executing command '{}': ", event.getCommandString(), ex);
                     }
                 })
                 .setActivity(Activity.watching("naughty mods"))
@@ -330,6 +334,26 @@ public class BotMain {
                     .setColor(Color.GREEN)
                     .build())
                     .queue();
+
+            case "data-size" -> {
+                event.deferReply().queue();
+                final long sizeDb;
+                try (final var con = Database.initiateDBConnection()) {
+                    sizeDb = Jdbi.create(con).withHandle(handle -> handle.select("select pg_database_size('" +
+                            net.minecraftforge.waifu.util.Utils.last(System.getProperty("db.url").split("/")) + "');")
+                            .execute((statementSupplier, ctx) -> {
+                                final ResultSet rs = statementSupplier.get().getResultSet();
+                                rs.next();
+                                return rs.getLong("pg_database_size");
+                            }));
+                }
+                event.getHook().editOriginalEmbeds(new EmbedBuilder()
+                        .setTitle("Data size")
+                        .addField("File cache size", ByteConversion.formatBest(net.minecraftforge.waifu.util.Utils.size(ModCollector.DOWNLOAD_CACHE)), true)
+                        .addField("Database size", ByteConversion.formatBest(sizeDb), true)
+                        .build())
+                        .queue();
+            }
         }
     }
 
