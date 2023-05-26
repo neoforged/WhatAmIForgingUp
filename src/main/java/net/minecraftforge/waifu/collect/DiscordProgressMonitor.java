@@ -33,7 +33,7 @@ public class DiscordProgressMonitor implements ProgressMonitor {
     private final List<String> currentMods;
     private final Map<String, Exception> exceptionally;
 
-    private final AtomicInteger toDownload = new AtomicInteger();
+    private final AtomicInteger toDownload = new AtomicInteger(-1);
     private final AtomicInteger downloaded = new AtomicInteger(-1);
 
     public DiscordProgressMonitor(Message loggingMessage, BiConsumer<String, Exception> exceptionallyConsumer) {
@@ -41,7 +41,7 @@ public class DiscordProgressMonitor implements ProgressMonitor {
         this.initialMessage = loggingMessage.getContentRaw();
         this.exceptionallyConsumer = exceptionallyConsumer;
         this.numberOfMods = new AtomicInteger(-1);
-        this.completed = new AtomicInteger();
+        this.completed = new AtomicInteger(0);
         this.currentMods = new ArrayList<>();
         this.exceptionally = new HashMap<>();
         setupMonitor();
@@ -74,7 +74,6 @@ public class DiscordProgressMonitor implements ProgressMonitor {
 
                     if (toDown == 0) {
                         content.append("Found no mods to download!");
-                        breakOut = true;
                     } else {
                         content.append("Downloading mods... Currently downloaded ").append(downloaded.get()).append("/").append(toDown).append(".");
                     }
@@ -87,9 +86,12 @@ public class DiscordProgressMonitor implements ProgressMonitor {
                             if (currentMods.isEmpty()) {
                                 content.append("Currently idling...");
                             } else {
-                                content.append(IntStream.range(0, currentMods.size())
+                                content.append(IntStream.range(0, Math.max(currentMods.size(), 10))
                                         .mapToObj(i -> "- " + currentMods.get(i) + " (" + (com + i + 1) + "/" + num + ")")
                                         .collect(Collectors.joining("\n")));
+                                if (currentMods.size() > 10) {
+                                    content.append("- ... and ").append(currentMods.size() - 10).append(" more");
+                                }
                             }
                         }
                     }
