@@ -294,7 +294,7 @@ public class BotMain {
             final var response = CF.getHelper().searchModsPaginated(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
                     .gameVersion(gameVersion).classId(6) // We're interested in mods
                     .sortField(ModSearchQuery.SortField.LAST_UPDATED)
-                    .sortOrder(ModSearchQuery.SortOrder.ASCENDENT)
+                    .sortOrder(ModSearchQuery.SortOrder.DESCENDENT)
                     .modLoaderType(ModLoaderType.FORGE)
                     .pageSize(50).index(idx))
                     .orElse(null);
