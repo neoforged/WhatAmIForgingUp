@@ -72,6 +72,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -173,7 +174,9 @@ public class BotMain {
 
         LOGGER.info("Bot started! Version: {}", VERSION);
 
-        final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        final ScheduledThreadPoolExecutor scheduler = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(2);
+        scheduler.setKeepAliveTime(1, TimeUnit.MINUTES);
+        scheduler.allowCoreThreadTimeOut(true);
 
         scheduler.scheduleAtFixedRate(() -> {
             try {
