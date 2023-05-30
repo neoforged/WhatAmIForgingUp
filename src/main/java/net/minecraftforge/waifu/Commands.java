@@ -30,14 +30,20 @@ public class Commands {
     public static void onSlashCommandInteraction(final SlashCommandInteractionEvent event, final ExecutorService rescanner) throws Exception {
         switch (event.getFullCommandName()) {
             case "modpacks add" -> addModpack(event, rescanner);
-            case "modpacks list" -> // TODO - make better
-                    BotMain.PACKS.useHandle(packs -> {
-                        if (packs.isEmpty()) {
-                            event.reply("No packs watched!").queue();
-                        } else {
-                            event.reply(packs.stream().map(String::valueOf).collect(Collectors.joining(", "))).queue();
-                        }
-                    });
+            case "modpacks list" -> {
+                final var packs = BotMain.PACKS.read();
+                if (packs.isEmpty()) {
+                    event.reply("No packs watched!").queue();
+                } else {
+                    event.deferReply().queue();
+                    event.getHook().sendMessage("Watched modpacks:\n" + BotMain.CF.makeRequest(BotMain.getMods(packs))
+                            .orElse(List.of())
+                            .stream()
+                            .map(pack -> "- " + pack.name() + " (" + pack.id() + ")")
+                            .collect(Collectors.joining("\n")))
+                            .queue();
+                }
+            }
             case "modpacks remove" -> removeModpack(event);
 
 
@@ -47,7 +53,7 @@ public class Commands {
                         if (versions.isEmpty()) {
                             event.reply("No game versions watched!").queue();
                         } else {
-                            event.reply(versions.stream().map(String::valueOf).collect(Collectors.joining(", "))).queue();
+                            event.reply("Watched versions:\n" + versions.stream().map(v -> "- " + v).collect(Collectors.joining("\n"))).queue();
                         }
                     });
             case "gameversion remove" -> removeGameVersion(event);
