@@ -181,8 +181,15 @@ public class BotMain {
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 for (final Mod mod : CF.makeRequest(getMods(PACKS.read())).orElse(List.of())) {
-                    if (!CURRENTLY_COLLECTED.add(String.valueOf(mod.id()))) return;
-                    rescanner.submit(() -> trigger(mod));
+                    final String strId = String.valueOf(mod.id());
+                    if (!CURRENTLY_COLLECTED.add(strId)) return;
+                    rescanner.submit(() -> {
+                        try {
+                            trigger(mod);
+                        } finally {
+                            CURRENTLY_COLLECTED.remove(strId);
+                        }
+                    });
                 }
             } catch (CurseForgeException e) {
                 LOGGER.error("Encountered error initiating pack stats collection:", e);
@@ -198,6 +205,8 @@ public class BotMain {
                         triggerGameVersion(version);
                     } catch (Exception ex) {
                         LOGGER.error("Encountered exception collecting statistics for game version '{}':", version, ex);
+                    } finally {
+                        CURRENTLY_COLLECTED.remove(version);
                     }
                 });
             }
@@ -266,7 +275,6 @@ public class BotMain {
             );
 
             LOGGER.info("Finished stats collection of pack {}", pack.id());
-            CURRENTLY_COLLECTED.remove(String.valueOf(pack.id()));
             projects.insert(pack.id(), mainFile.id());
         } catch (Exception ex) {
             LOGGER.error("Encountered exception collecting stats of pack: ", ex);
@@ -374,7 +382,6 @@ public class BotMain {
         ); // TODO - Delete data of deleted mods every week or so
 
         LOGGER.info("Finished stats collection for game version '{}'", gameVersion);
-        CURRENTLY_COLLECTED.remove(gameVersion);
     }
 
     public static String computeVersionSchema(String version) {
