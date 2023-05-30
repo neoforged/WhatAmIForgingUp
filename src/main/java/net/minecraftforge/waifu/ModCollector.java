@@ -20,6 +20,7 @@ import io.github.matyrobbrt.curseforgeapi.util.CurseForgeException;
 import io.github.matyrobbrt.curseforgeapi.util.gson.RecordTypeAdapterFactory;
 import net.minecraftforge.waifu.collect.ModPointer;
 import net.minecraftforge.waifu.collect.ProgressMonitor;
+import net.minecraftforge.waifu.util.CountingInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -146,22 +148,39 @@ public class ModCollector {
     public Path download(File file, Predicate<ZipEntry> shouldKeep) throws IOException, URISyntaxException {
         if (file.downloadUrl() == null) return null;
         final String ext = getExtension(file.downloadUrl());
-        final Path path = DOWNLOAD_CACHE.resolve(file.modId() + "/" + file.id() + (ext.isBlank() ? "" : "." + ext));
-        Files.createDirectories(path.getParent());
-        final URL url = createURL(file.downloadUrl());
-        switch (ext) {
-            case "jar", "zip" -> {
-                try (final ZipInputStream in = new ZipInputStream(url.openStream());
-                     final ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(path))) {
-                    transferStripping(out, in, shouldKeep);
-                }
-            }
-            default -> {
-                try (final InputStream in = url.openStream()) {
-                    Files.write(path, in.readAllBytes());
-                }
+        final String fpath = file.modId() + "/" + file.id() + (ext.isBlank() ? "" : "." + ext);
+
+        final Path downloadedSizePath = DOWNLOAD_CACHE.resolve(fpath + ".length");
+        final Path path = DOWNLOAD_CACHE.resolve(fpath);
+        if (Files.exists(downloadedSizePath) && Files.exists(path)) {
+            if (Long.parseLong(Files.readString(downloadedSizePath)) == file.fileLength()) {
+                return path;
             }
         }
+
+        Files.createDirectories(path.getParent());
+        final URL url = createURL(file.downloadUrl());
+
+        final AtomicLong size = new AtomicLong();
+
+        try {
+            switch (ext) {
+                case "jar", "zip" -> {
+                    try (final ZipInputStream in = new ZipInputStream(new CountingInputStream(url.openStream(), size));
+                         final ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(path))) {
+                        transferStripping(out, in, shouldKeep);
+                    }
+                }
+                default -> {
+                    try (final InputStream in = new CountingInputStream(url.openStream(), size)) {
+                        Files.write(path, in.readAllBytes());
+                    }
+                }
+            }
+        } finally {
+            Files.writeString(downloadedSizePath, String.valueOf(size.get()));
+        }
+
         return path;
     }
 
