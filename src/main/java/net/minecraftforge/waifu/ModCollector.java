@@ -14,11 +14,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import cpw.mods.jarhandling.SecureJar;
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
+import io.github.matyrobbrt.curseforgeapi.request.Response;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.File;
 import io.github.matyrobbrt.curseforgeapi.util.CurseForgeException;
 import io.github.matyrobbrt.curseforgeapi.util.gson.RecordTypeAdapterFactory;
 import net.minecraftforge.waifu.collect.ModPointer;
 import net.minecraftforge.waifu.collect.ProgressMonitor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -46,6 +49,7 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 public class ModCollector {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModCollector.class);
     private static final TomlParser PARSER = new TomlParser();
     public static final Path DOWNLOAD_CACHE = BotMain.ROOT.resolve("cfCache");
     private final CurseForgeAPI api;
@@ -62,7 +66,12 @@ public class ModCollector {
     }
 
     public void fromModpack(int packId, int fileId, ProgressMonitor monitor) throws CurseForgeException, IOException, URISyntaxException {
-        fromModpack(api.getHelper().getModFile(packId, fileId).orElseThrow(), monitor);
+        final var response = api.getHelper().getModFile(packId, fileId);
+        if (response.isEmpty()) {
+            LOGGER.error("Could not query file with ID {}. Status code: {}", fileId, response.stream());
+            return;
+        }
+        fromModpack(response.get(), monitor);
     }
 
     public void fromModpack(File packFile, ProgressMonitor monitor) throws CurseForgeException, IOException, URISyntaxException {
@@ -81,9 +90,14 @@ public class ModCollector {
             }
         }
 
-        final List<File> files = api.getHelper()
-                .getFiles(mf.files.stream().mapToInt(FilePointer::fileID).toArray())
-                .orElseThrow()
+        final Response<List<File>> fileQuery = api.getHelper()
+                .getFiles(mf.files.stream().mapToInt(FilePointer::fileID).toArray());
+        if (fileQuery.isEmpty()) {
+            LOGGER.error("Could not query files of modpack {}. Status code was {}", packFile.modId(), fileQuery.getStatusCode());
+            return;
+        }
+
+        final List<File> files = fileQuery.get()
                 .stream().filter(f -> f.downloadUrl() != null)
                 .filter(BotMain.distinct(File::id))
                 .toList();
@@ -109,7 +123,12 @@ public class ModCollector {
     }
 
     public void considerFile(int projectId, int fileId) throws CurseForgeException, IOException, URISyntaxException {
-        considerFile(api.getHelper().getModFile(projectId, fileId).orElseThrow());
+        final var response = api.getHelper().getModFile(projectId, fileId);
+        if (response.isEmpty()) {
+            LOGGER.error("Could not query file with ID {}. Status code: {}", fileId, response.stream());
+            return;
+        }
+        considerFile(response.get());
     }
 
     public void considerFile(File file) throws IOException, URISyntaxException {

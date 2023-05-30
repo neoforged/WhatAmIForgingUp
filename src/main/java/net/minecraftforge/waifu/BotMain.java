@@ -11,6 +11,7 @@ import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.github.matyrobbrt.curseforgeapi.request.Method;
 import io.github.matyrobbrt.curseforgeapi.request.Request;
 import io.github.matyrobbrt.curseforgeapi.request.Requests;
+import io.github.matyrobbrt.curseforgeapi.request.Response;
 import io.github.matyrobbrt.curseforgeapi.request.query.ModSearchQuery;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.File;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.FileIndex;
@@ -176,7 +177,7 @@ public class BotMain {
 
         scheduler.scheduleAtFixedRate(() -> {
             try {
-                for (final Mod mod : CF.makeRequest(getMods(PACKS.read())).orElseThrow()) {
+                for (final Mod mod : CF.makeRequest(getMods(PACKS.read())).orElse(List.of())) {
                     if (!CURRENTLY_COLLECTED.add(String.valueOf(mod.id()))) return;
                     rescanner.submit(() -> trigger(mod));
                 }
@@ -222,7 +223,13 @@ public class BotMain {
             final ProjectsDB projects = jdbi.onDemand(ProjectsDB.class);
 
             final ModCollector collector = new ModCollector(CF);
-            final File mainFile = CF.getHelper().getModFile(pack.id(), pack.mainFileId()).orElseThrow();
+            final Response<File> mainFileResponse = CF.getHelper().getModFile(pack.id(), pack.mainFileId());
+            if (mainFileResponse.isEmpty()) {
+                LOGGER.info("Could not query file {}. Status code: {}", pack.mainFileId(), mainFileResponse.getStatusCode());
+                return;
+            }
+
+            final File mainFile = mainFileResponse.get();
             if (Objects.equals(projects.getFileId(pack.id()), mainFile.id())) {
                 LOGGER.trace("Pack {} is up-to-date.", pack.id());
                 return;
@@ -328,7 +335,7 @@ public class BotMain {
         final ModCollector collector = new ModCollector(CF);
         final List<File> toDownload = CF.getHelper().getFiles(newMods.stream()
                 .mapToInt(FileIndex::fileId)
-                .toArray()).orElseThrow().stream()
+                .toArray()).orElse(List.of()).stream()
                 .filter(f -> f.downloadUrl() != null)
                 .filter(distinct(File::id))
                 .toList();

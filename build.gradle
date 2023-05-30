@@ -65,7 +65,7 @@ dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.40.0.0'
     implementation 'org.postgresql:postgresql:42.6.0'
 
-    implementation 'io.github.matyrobbrt:curseforgeapi:1.7.5'
+    implementation 'io.github.matyrobbrt:curseforgeapi:1.7.7'
     implementation 'net.dv8tion:JDA:5.0.0-beta.9'
     implementation project(':metabase-api')
 
