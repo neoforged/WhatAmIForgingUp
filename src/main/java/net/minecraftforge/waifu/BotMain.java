@@ -97,7 +97,7 @@ public class BotMain {
 
     private static final int CF_PAGINATION_LIMIT = 10_000;
 
-    private static final CurseForgeAPI CF = Utils.rethrowSupplier(() -> CurseForgeAPI.builder()
+    public static final CurseForgeAPI CF = Utils.rethrowSupplier(() -> CurseForgeAPI.builder()
             .apiKey(System.getProperty("curseforge.token"))
             .build()).get();
 
@@ -107,17 +107,17 @@ public class BotMain {
             System.getProperty("metabase.password")
     );
 
-    private static final SavedTrackedData<Set<Integer>> PACKS = new SavedTrackedData<>(
+    public static final SavedTrackedData<Set<Integer>> PACKS = new SavedTrackedData<>(
             new com.google.gson.reflect.TypeToken<>() {},
             HashSet::new, ROOT.resolve("data/modpacks.json")
     );
 
-    private static final SavedTrackedData<Set<String>> GAME_VERSIONS = new SavedTrackedData<>(
+    public static final SavedTrackedData<Set<String>> GAME_VERSIONS = new SavedTrackedData<>(
             new com.google.gson.reflect.TypeToken<>() {},
             HashSet::new, ROOT.resolve("data/game_versions.json")
     );
 
-    private static final Set<String> CURRENTLY_COLLECTED = new CopyOnWriteArraySet<>();
+    static final Set<String> CURRENTLY_COLLECTED = new CopyOnWriteArraySet<>();
 
     public static final String VERSION = Objects.requireNonNullElse(BotMain.class.getPackage().getImplementationVersion(), "UNKNOWN");
 
@@ -158,7 +158,7 @@ public class BotMain {
                     if (!(gevent instanceof SlashCommandInteractionEvent event)) return;
 
                     try {
-                        onSlashCommandInteraction(event, rescanner);
+                        net.minecraftforge.waifu.Commands.onSlashCommandInteraction(event, rescanner);
                     } catch (Exception ex) {
                         event.getHook().sendMessage("Encountered exception executing command: " + ex).queue();
                         LOGGER.error("Encountered exception executing command '{}': ", event.getCommandString(), ex);
@@ -210,154 +210,7 @@ public class BotMain {
         return new Request<>("/v1/mods", Method.POST, body, "data", Requests.Types.MOD_LIST);
     }
 
-    public static void onSlashCommandInteraction(final SlashCommandInteractionEvent event, final ExecutorService rescanner) throws Exception {
-        switch (event.getFullCommandName()) {
-            case "modpacks add" -> {
-                final Mod pack = CF.makeRequest(Requests.getMod(event.getOption("modpack", 0, OptionMapping::getAsInt))).orElse(null);
-                if (pack == null || pack.gameId() != Constants.GameIDs.MINECRAFT || pack.classId() != 4471) {
-                    event.reply("Unknown modpack!").setEphemeral(true).queue();
-                    return;
-                }
-
-                event.reply("Watching modpack. Started indexing, please wait...").queue();
-
-                CURRENTLY_COLLECTED.add(String.valueOf(pack.id()));
-                PACKS.useHandle(v -> v.add(pack.id()));
-                rescanner.submit(() -> {
-                    trigger(pack);
-
-                    event.getHook().editOriginal("Finished initial indexing.").queue();
-                });
-            }
-            case "modpacks list" -> { // TODO - make better
-                PACKS.useHandle(packs -> {
-                    if (packs.isEmpty()) {
-                        event.reply("No packs watched!").queue();
-                    } else {
-                        event.reply(packs.stream().map(String::valueOf).collect(Collectors.joining(", "))).queue();
-                    }
-                });
-            }
-
-            case "modpacks remove" -> {
-                final var packs = PACKS.read();
-                final int packId = event.getOption("modpack", 0, OptionMapping::getAsInt);
-                if (!packs.contains(packId)) {
-                    event.reply("Unknown pack!").setEphemeral(true).queue();
-                    return;
-                }
-
-                packs.remove(packId);
-                PACKS.write();
-
-                if (event.getOption("removedb", false, OptionMapping::getAsBoolean)) {
-                    try (final var con = Database.initiateDBConnection()) {
-                        try (final var stmt = con.createStatement()) {
-                            stmt.execute("drop schema if exists pack_" + packId + " cascade;");
-                        }
-                    }
-                }
-                event.reply("Pack removed!").queue();
-            }
-
-
-            case "gameversion add" -> {
-                final String gameVersion = event.getOption("version", "", OptionMapping::getAsString);
-                if (CF.getHelper().getGameVersions(Constants.GameIDs.MINECRAFT).orElse(List.of())
-                        .stream().flatMap(g -> g.versions().stream())
-                        .noneMatch(s -> s.equals(gameVersion))) {
-                    event.reply("Unknown game version!").setEphemeral(true).queue();
-                    return;
-                }
-
-                event.reply("Watching game version. Started indexing, please wait...").queue();
-                CURRENTLY_COLLECTED.add(gameVersion);
-                GAME_VERSIONS.useHandle(v -> v.add(gameVersion));
-                rescanner.submit(() -> {
-                    try {
-                        triggerGameVersion(gameVersion);
-                    } catch (Exception ex) {
-                        LOGGER.error("Encountered exception indexing game version '{}': ", gameVersion, ex);
-                    }
-                });
-            }
-            case "gameversion list" -> { // TODO - make better
-                GAME_VERSIONS.useHandle(versions -> {
-                    if (versions.isEmpty()) {
-                        event.reply("No game versions watched!").queue();
-                    } else {
-                        event.reply(versions.stream().map(String::valueOf).collect(Collectors.joining(", "))).queue();
-                    }
-                });
-            }
-
-            case "gameversion remove" -> {
-                final var versions = GAME_VERSIONS.read();
-                final String versionID = event.getOption("version", "", OptionMapping::getAsString);
-                if (!versions.contains(versionID)) {
-                    event.reply("Unknown game version!").setEphemeral(true).queue();
-                    return;
-                }
-
-                versions.remove(versionID);
-                GAME_VERSIONS.write();
-
-                if (event.getOption("removedb", false, OptionMapping::getAsBoolean)) {
-                    try (final var con = Database.initiateDBConnection()) {
-                        try (final var stmt = con.createStatement()) {
-                            stmt.execute("drop schema if exists " + computeVersionSchema(versionID) + " cascade;");
-                        }
-                    }
-                }
-                event.reply("Game version removed!").queue();
-            }
-
-            case "delete-cache" -> {
-                if (!CURRENTLY_COLLECTED.isEmpty()) {
-                    event.reply("Cannot delete CurseForge cache while indexing is in progress!").setEphemeral(true).queue();
-                } else {
-                    event.reply("Deleting caches...").queue();
-                    try (final Stream<Path> toDelete = Files.find(ModCollector.DOWNLOAD_CACHE, Integer.MAX_VALUE, (path, basicFileAttributes) -> Files.isRegularFile(path) && path.toString().endsWith(".jar") || path.toString().endsWith(".zip"))) {
-                        final var itr = toDelete.iterator();
-                        while (itr.hasNext()) {
-                            Files.delete(itr.next());
-                        }
-                    }
-                    event.getHook().editOriginal("Deleted caches!").queue();
-                }
-            }
-
-            case "help" -> event.replyEmbeds(new EmbedBuilder()
-                    .setTitle("WhatAmIForgingUp", "https://github.com/MinecraftForge/WhatAmIForgingUp")
-                    .setDescription("A bot used to index Minecraft mods on CurseForge.")
-                    .addField("Version", VERSION, false)
-                    .setColor(Color.GREEN)
-                    .build())
-                    .queue();
-
-            case "data-size" -> {
-                event.deferReply().queue();
-                final long sizeDb;
-                try (final var con = Database.initiateDBConnection()) {
-                    sizeDb = Jdbi.create(con).withHandle(handle -> handle.select("select pg_database_size('" +
-                            net.minecraftforge.waifu.util.Utils.last(System.getProperty("db.url").split("/")) + "');")
-                            .execute((statementSupplier, ctx) -> {
-                                final ResultSet rs = statementSupplier.get().getResultSet();
-                                rs.next();
-                                return rs.getLong("pg_database_size");
-                            }));
-                }
-                event.getHook().editOriginalEmbeds(new EmbedBuilder()
-                        .setTitle("Data size")
-                        .addField("File cache size", ByteConversion.formatBest(net.minecraftforge.waifu.util.Utils.size(ModCollector.DOWNLOAD_CACHE)), true)
-                        .addField("Database size", ByteConversion.formatBest(sizeDb), true)
-                        .build())
-                        .queue();
-            }
-        }
-    }
-
-    private static void trigger(Mod pack) {
+    static void trigger(Mod pack) {
         try {
             final String schemaName = "pack_" + pack.id();
             final var connection = Database.createDatabaseConnection(schemaName);
@@ -410,7 +263,7 @@ public class BotMain {
         }
     }
 
-    private static void triggerGameVersion(String gameVersion) throws Exception {
+    static void triggerGameVersion(String gameVersion) throws Exception {
         final String schemaName = computeVersionSchema(gameVersion);
         final var connection = Database.createDatabaseConnection(schemaName);
         if (connection.getKey().initialSchemaVersion == null) { // Schema was created
@@ -514,7 +367,7 @@ public class BotMain {
         CURRENTLY_COLLECTED.remove(gameVersion);
     }
 
-    private static String computeVersionSchema(String version) {
+    public static String computeVersionSchema(String version) {
         return "gv_" + version.replace('.', '_').replace('-', '_');
     }
 
