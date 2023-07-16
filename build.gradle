@@ -4,15 +4,6 @@ plugins {
     id 'maven-publish'
     id 'net.neoforged.gradleutils' version '2.+'
     id 'com.github.johnrengelman.shadow' version '7.1.2'
-    id 'org.cadixdev.licenser' version '0.6.1' apply false
-}
-
-allprojects {
-    apply plugin: 'org.cadixdev.licenser'
-    license {
-        header = rootProject.file('LICENSE-header')
-        include '**/*.java'
-    }
 }
 
 group = 'net.neoforged'
