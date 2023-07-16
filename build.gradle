@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'application'
     id 'maven-publish'
-    id 'net.minecraftforge.gradleutils' version '2.+'
+    id 'net.neoforged.gradleutils' version '2.+'
     id 'com.github.johnrengelman.shadow' version '7.1.2'
     id 'org.cadixdev.licenser' version '0.6.1' apply false
 }
@@ -15,7 +15,7 @@ allprojects {
     }
 }
 
-group = 'net.minecraftforge'
+group = 'net.neoforged'
 version = gradleutils.getTagOffsetVersion()
 println('Version: ' + version)
 
@@ -24,7 +24,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(20)
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
 
 application {
-    mainClass.set('net.minecraftforge.waifu.BotMain')
+    mainClass.set('net.neoforged.waifu.BotMain')
 }
 
 base {
@@ -43,7 +43,7 @@ repositories {
     mavenLocal()
     mavenCentral()
     maven {
-        url 'https://maven.minecraftforge.net/'
+        url 'https://maven.neoforged.net/'
     }
 }
 

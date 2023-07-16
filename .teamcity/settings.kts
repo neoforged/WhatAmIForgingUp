@@ -42,7 +42,7 @@ project {
         text("git_main_branch", "main", label = "Git Main Branch", description = "The git main or default branch to use in VCS operations.", display = ParameterDisplay.HIDDEN, allowEmpty = false)
         text("github_repository_name", "WhatAmIForgingUp", label = "The github repository name. Used to connect to it in VCS Roots.", description = "This is the repository slug on github. So for example `WhatAmIForgingUp` or `MinecraftForge`. It is interpolated into the global VCS Roots.", display = ParameterDisplay.HIDDEN, allowEmpty = false)
         text("env.PUBLISHED_JAVA_ARTIFACT_ID", "waifu", label = "Published artifact id", description = "The maven coordinate artifact id that has been published by this build. Can not be empty.", allowEmpty = false)
-        text("env.PUBLISHED_JAVA_GROUP", "net.minecraftforge", label = "Published group", description = "The maven coordinate group that has been published by this build. Can not be empty.", allowEmpty = false)
+        text("env.PUBLISHED_JAVA_GROUP", "net.neoforged", label = "Published group", description = "The maven coordinate group that has been published by this build. Can not be empty.", allowEmpty = false)
         text("docker_jdk_version", "17", label = "JDK version", description = "The version of the JDK to use during execution of tasks in a JDK.", display = ParameterDisplay.HIDDEN, allowEmpty = false)
         text("docker_gradle_version", "8.1.1", label = "Gradle version", description = "The version of Gradle to use during execution of Gradle tasks.", display = ParameterDisplay.HIDDEN, allowEmpty = false)
     }
@@ -122,8 +122,8 @@ object DockerBuild : BuildType({
                 contextDir = "."
                 platform = DockerCommandStep.ImagePlatform.Linux
                 namesAndTags = """
-                    containers.minecraftforge.net/waifu:latest
-                    containers.minecraftforge.net/waifu:%build.number%
+                    ghcr.io/neoforged/whatamiforgingup:latest
+                    ghcr.io/neoforged/whatamiforgingup:%build.number%
                 """.trimIndent()
                 commandArgs = "--pull"
             }
@@ -132,8 +132,8 @@ object DockerBuild : BuildType({
             name = "Push Image"
             commandType = push {
                 namesAndTags = """
-                    containers.minecraftforge.net/waifu:latest
-                    containers.minecraftforge.net/waifu:%build.number%
+                    ghcr.io/neoforged/whatamiforgingup:latest
+                    ghcr.io/neoforged/whatamiforgingup:%build.number%
                 """.trimIndent()
             }
         }
@@ -142,7 +142,7 @@ object DockerBuild : BuildType({
     features {
         dockerSupport {
             loginToRegistry = on {
-                dockerRegistryId = "PROJECT_EXT_6"
+                dockerRegistryId = "PROJECT_EXT_7"
             }
         }
     }
