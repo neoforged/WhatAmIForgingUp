@@ -36,7 +36,7 @@ project {
     buildType(Build)
     buildType(BuildSecondaryBranches)
     buildType(PullRequests)
-    buildType(DockerBuild)
+    // buildType(DockerBuild)
 
     params {
         text("git_main_branch", "main", label = "Git Main Branch", description = "The git main or default branch to use in VCS operations.", display = ParameterDisplay.HIDDEN, allowEmpty = false)
@@ -77,7 +77,7 @@ object PullRequests : BuildType({
     description = "Builds pull requests for the project"
 })
 
-object DockerBuild : BuildType({
+/* object DockerBuild : BuildType({
     id("WhatAmIForgingUp__DockerBuild")
     name = "DockerBuild"
 
@@ -146,4 +146,4 @@ object DockerBuild : BuildType({
             }
         }
     }
-})
+}) */
