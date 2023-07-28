@@ -7,27 +7,37 @@ on:
   workflow_dispatch:
 
 jobs:
-      push-image:
-        runs-on: ubuntu-latest
-        steps:
-          - name: 'Checkout GitHub Action'
-            uses: actions/checkout@main
+    push-image:
+      runs-on: ubuntu-latest
+      steps:
+        - name: 'Checkout GitHub Action'
+          uses: actions/checkout@main
+          with:
+            fetch-depth: 0
 
-          - name: Setup Gradle
-            uses: gradle/gradle-build-action@v2
-          - name: Make gradlew executable
-            run: chmod +x ./gradlew
-          - name: Run build with Gradle Wrapper
-            run: ./gradlew :buildBot
+        - name: Setup Gradle
+          uses: gradle/gradle-build-action@v2
+        - name: Make gradlew executable
+          run: chmod +x ./gradlew
+        - name: Run build with Gradle Wrapper
+          run: ./gradlew :buildBot :outputVersion
 
-          - name: 'Login to GitHub Container Registry'
-            uses: docker/login-action@v1
-            with:
-              registry: ghcr.io
-              username: ${{github.actor}}
-              password: ${{secrets.GITHUB_TOKEN}}
+        - id: dotenv
+          uses: falti/dotenv-action@v1
+          with:
+            path: envs
+            export-variables: true
+            keys-case: lower
 
-          - name: 'Build Image'
-            run: |
-              docker build . --tag ghcr.io/neoforged/whatamiforgingup:latest
-              docker push ghcr.io/neoforged/whatamiforgingup:latest
+        - name: 'Login to GitHub Container Registry'
+          uses: docker/login-action@v1
+          with:
+            registry: ghcr.io
+            username: ${{github.actor}}
+            password: ${{secrets.GITHUB_TOKEN}}
+
+        - name: 'Build Image'
+          run: |
+            docker build . --tag ghcr.io/neoforged/whatamiforgingup:latest --tag ghcr.io/neoforged/whatamiforgingup:${{ steps.dotenv.outputs.version }}
+            docker push ghcr.io/neoforged/whatamiforgingup:latest
+            docker push ghcr.io/neoforged/whatamiforgingup:${{ steps.dotenv.outputs.version }}

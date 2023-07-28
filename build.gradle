@@ -84,6 +84,12 @@ tasks.register('buildBot') {
     }
 }
 
+tasks.register('outputVersion') {
+    doLast {
+        file('envs').text = "VERSION=${project.version}"
+    }
+}
+
 artifacts {
     archives shadowJar
 }

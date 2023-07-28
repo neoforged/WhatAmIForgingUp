@@ -33,7 +33,7 @@ version = "2022.10"
 
 project {
 
-    buildType(Build)
+    // buildType(Build)
     buildType(BuildSecondaryBranches)
     buildType(PullRequests)
     // buildType(DockerBuild)
@@ -56,12 +56,12 @@ project {
     }
 }
 
-object Build : BuildType({
+/* object Build : BuildType({
     templates(AbsoluteId("MinecraftForge_SetupGradleUtilsCiEnvironmen"), AbsoluteId("MinecraftForge_BuildWithDiscordNotifications"), AbsoluteId("MinecraftForge_BuildMainBranches"), AbsoluteId("MinecraftForge_BuildUsingGradle"), AbsoluteId("MinecraftForge_PublishProjectUsingGradle"), AbsoluteId("MinecraftForge_TriggersStaticFilesWebpageGenerator"))
     id("WhatAmIForgingUp__Build")
     name = "Build"
     description = "Builds and Publishes the main branches of the project."
-})
+}) */
 
 object BuildSecondaryBranches : BuildType({
     templates(AbsoluteId("MinecraftForge_ExcludesBuildingDefaultBranch"), AbsoluteId("MinecraftForge_SetupGradleUtilsCiEnvironmen"), AbsoluteId("MinecraftForge_BuildWithDiscordNotifications"), AbsoluteId("MinecraftForge_BuildMainBranches"), AbsoluteId("MinecraftForge_BuildUsingGradle"))
