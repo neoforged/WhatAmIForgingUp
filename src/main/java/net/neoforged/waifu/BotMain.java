@@ -77,7 +77,7 @@ public class BotMain {
     public static final Logger LOGGER = LoggerFactory.getLogger(BotMain.class);
 
     static {
-        final Path propsPath = Path.of(System.getProperty("waifu.propsFile", "bot.properties"));
+        final Path propsPath = Path.of(System.getProperty("waifu.propsFile", "/run/secrets/bot.properties"));
         if (Files.exists(propsPath)) {
             final Properties props = new Properties();
             try (final var reader = Files.newBufferedReader(propsPath)) {
@@ -141,7 +141,7 @@ public class BotMain {
                                                     .addOption(OptionType.STRING, "version", "The game version to watch", true))
                                             .addSubcommands(new SubcommandData("list", "List all watched game versions"))
                                             .addSubcommands(new SubcommandData("remove", "Un-watch a game version")
-                                                    .addOption(OptionType.INTEGER, "version", "The game version to remove", true)
+                                                    .addOption(OptionType.STRING, "version", "The game version to remove", true)
                                                     .addOption(OptionType.BOOLEAN, "removedb", "Whether to remove the game version from the database", true)),
 
                                     Commands.slash("delete-cache", "Deletes the CurseForge downloads cache"),

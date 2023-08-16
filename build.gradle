@@ -27,7 +27,15 @@ changelog {
 }
 
 tasks.named('run', JavaExec) {
-    it.jvmArgs('--add-modules', 'ALL-MODULE-PATH', '--add-opens', 'java.base/java.util.jar=ALL-UNNAMED', '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED', '--add-exports', 'java.base/sun.security.util=ALL-UNNAMED', '--enable-preview')
+    it.jvmArgs(
+            '--add-modules', 'ALL-MODULE-PATH',
+            '--add-opens', 'java.base/java.util.jar=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED',
+            '--add-exports', 'java.base/sun.security.util=ALL-UNNAMED',
+            '--enable-preview',
+            "-Dwaifu.propsFile=$projectDir/run/secrets/bot.properties",
+            "-Dwaifu.rootdir=$projectDir/waifubot"
+    )
 }
 
 repositories {
@@ -53,10 +61,10 @@ dependencies {
     implementation 'org.flywaydb:flyway-core:9.18.0'
     implementation 'org.jdbi:jdbi3-core:3.32.0'
     implementation 'org.jdbi:jdbi3-sqlobject:3.32.0'
-    implementation 'org.xerial:sqlite-jdbc:3.40.0.0'
+    implementation 'org.xerial:sqlite-jdbc:3.41.2.2'
     implementation 'org.postgresql:postgresql:42.6.0'
 
-    implementation 'io.github.matyrobbrt:curseforgeapi:1.7.7'
+    implementation 'io.github.matyrobbrt:curseforgeapi:1.7.8'
     implementation 'net.dv8tion:JDA:5.0.0-beta.9'
     implementation project(':metabase-api')
 
