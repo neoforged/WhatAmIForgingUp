@@ -19,7 +19,7 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - metabase:/metabase
+      - metabase:/metabase-data
     ports:
       - 3000:3000
     environment:
@@ -29,6 +29,7 @@ services:
       MB_DB_USER_FILE: /run/secrets/db_user.txt
       MB_DB_PASS_FILE: /run/secrets/db_pass.txt
       MB_DB_HOST: postgres
+      MB_DB_FILE: /metabase-data/metabase.db
     networks:
       - metanet
     secrets:
@@ -45,7 +46,7 @@ services:
     hostname: postgres
     environment:
       POSTGRES_USER_FILE: /run/secrets/root_db_user.txt
-      POSTGRES_DB: metabase
+      POSTGRES_DB_FILE: /run/secrets/root_db_user.txt
       POSTGRES_PASSWORD_FILE: /run/secrets/root_db_pass.txt
     networks:
       - metanet
