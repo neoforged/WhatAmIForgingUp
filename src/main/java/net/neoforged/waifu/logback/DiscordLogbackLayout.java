@@ -51,6 +51,12 @@ public class DiscordLogbackLayout extends LayoutBase<ILoggingEvent> {
 
             final StringBuilder stacktrace = buildStacktrace(t);
             String stacktraceCutoff = null;
+
+            if (stacktrace.toString().isBlank()) {
+                builder.append("StackTrace is blank <:thonk:932605815221788672>");
+                return builder.toString();
+            }
+
             builder.append("Stacktrace: ");
             if (stacktrace.length() > MAXIMUM_STACKTRACE_LENGTH) {
                 stacktraceCutoff = stacktrace.substring(MAXIMUM_STACKTRACE_LENGTH, stacktrace.length());
