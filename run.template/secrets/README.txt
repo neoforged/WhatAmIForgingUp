@@ -1,0 +1,1 @@
+The files in this folder must be copied to a /run/secrets/ folder and filled in for docker compose to function correctly

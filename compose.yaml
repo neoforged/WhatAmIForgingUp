@@ -1,0 +1,88 @@
+services:
+  waifu:
+    build:
+      dockerfile: Dockerfile
+    depends_on:
+      meta:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    volumes:
+      - waifu:/home/waifubot
+    secrets:
+      - bot.properties
+    networks:
+      - metanet
+  meta:
+    image: metabase/metabase
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - metabase:/metabase-data
+    ports:
+      - 3000:3000
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER_FILE: /run/secrets/db_user.txt
+      MB_DB_PASS_FILE: /run/secrets/db_pass.txt
+      MB_DB_HOST: postgres
+      MB_DB_FILE: /metabase-data/metabase.db
+    networks:
+      - metanet
+    secrets:
+      - db_pass.txt
+      - db_user.txt
+    healthcheck:
+      test: curl --fail -I http://localhost:3000/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  db:
+    image: postgres:latest
+    container_name: postgres
+    hostname: postgres
+    environment:
+      POSTGRES_USER_FILE: /run/secrets/root_db_user.txt
+      POSTGRES_DB_FILE: /run/secrets/root_db_user.txt
+      POSTGRES_PASSWORD_FILE: /run/secrets/root_db_pass.txt
+    networks:
+      - metanet
+    secrets:
+      - root_db_user.txt
+      - root_db_pass.txt
+    ports:
+      - 5432:5432
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  waifu:
+    name: waifu_vol
+  metabase:
+    name: meta_vol
+  db:
+    name: db_vol
+
+networks:
+  metanet:
+    driver: bridge
+
+secrets:
+  bot.properties:
+    file: run/secrets/bot.properties
+  root_db_user.txt:
+    file: run/secrets/root_db_user.txt
+  root_db_pass.txt:
+    file: run/secrets/root_db_pass.txt
+  db_user.txt:
+    file: run/secrets/db_user.txt
+  db_pass.txt:
+    file: run/secrets/db_pass.txt

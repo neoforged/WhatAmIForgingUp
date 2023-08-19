@@ -1,0 +1,17 @@
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+# Windows-only files should stay CRLF
+*.bat text eol=CRLF
+
+# Text files
+*.gradle text
+*.java text
+*.json text
+*.kts text
+*.md text
+*.properties text
+*.txt text
+*.xml text
+*.yaml text
+*.yml text

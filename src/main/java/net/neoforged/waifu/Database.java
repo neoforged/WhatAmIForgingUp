@@ -47,7 +47,7 @@ public class Database {
                     }
                 }).thenCompose($ -> client.getDatabase(db.id(), p -> p.include(DatabaseInclusion.TABLES_AND_FIELDS))))
                 .thenApply(db -> db.tables().stream().filter(tb -> tb.schema().equals(schemaName)).toList())
-                .thenCompose(tbs -> CompletableFuture.allOf(tbs.stream().map(tb -> { // TODO - maybe make this requery until tbs isn't empty
+                .thenCompose(tbs -> CompletableFuture.allOf(tbs.stream().map(tb -> { // TODO - maybe make this re-query until tbs isn't empty
                     if (tb.name().equals("flyway_schema_history")) {
                         return tb.setHidden(true);
                     } else {
