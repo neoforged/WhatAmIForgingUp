@@ -1,0 +1,2 @@
+schema: ./net/neoforged/modindex/graphdb/schema.json
+documents: '**/*.graphql'

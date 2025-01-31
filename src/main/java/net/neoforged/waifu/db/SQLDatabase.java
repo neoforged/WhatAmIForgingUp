@@ -1,0 +1,378 @@
+package net.neoforged.waifu.db;
+
+import com.google.gson.JsonArray;
+import net.neoforged.waifu.meta.ModFileInfo;
+import net.neoforged.waifu.meta.ModInfo;
+import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.util.ThrowingConsumer;
+import net.neoforged.waifu.util.Utils;
+import org.flywaydb.core.Flyway;
+import org.jdbi.v3.core.ConnectionFactory;
+import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.result.ResultProducer;
+import org.jdbi.v3.postgres.PostgresPlugin;
+import org.jdbi.v3.sqlobject.SqlObjectPlugin;
+import org.jetbrains.annotations.Nullable;
+
+import java.nio.file.Files;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
+    private final Jdbi jdbi;
+    private final String url, username, password;
+    private final ConnectionFactory connectionFactory;
+
+    public SQLDatabase(String url, String username, String password) {
+        this.url = url;
+        this.username = username;
+        this.password = password;
+        this.connectionFactory = () -> DriverManager.getConnection(url, username, password);
+        this.jdbi = Jdbi.create(connectionFactory);
+
+        jdbi.installPlugin(new SqlObjectPlugin());
+        jdbi.installPlugin(new PostgresPlugin());
+    }
+
+    public void runFlyway() {
+        Flyway.configure()
+                .locations("classpath:indexdb/migration")
+                .dataSource(url, username, password)
+                .createSchemas(true)
+                .load()
+                .migrate();
+    }
+
+    // TODO - reduce duplication?
+
+    @Override
+    public @Nullable SQLDatabase.SqlMod getMod(PlatformModFile file) {
+        return jdbi.withHandle(handle ->
+                handle.createQuery("select * from mods where " + file.getPlatform().getName() + "_project_id = ?")
+                        .bind(0, file.getModId())
+                        .execute(returning(SqlMod::new)));
+    }
+
+    @Override
+    public @Nullable SQLDatabase.SqlMod getMod(String coords) {
+        return jdbi.withHandle(handle ->
+                handle.createQuery("select * from mods where maven_coordinates = ?")
+                        .bind(0, coords)
+                        .execute(returning(SqlMod::new)));
+    }
+
+    @Override
+    public SqlMod createMod(ModFileInfo modInfo) {
+        var mod = jdbi.withHandle(handle ->
+                handle.createUpdate("insert into mods(version, name, mod_ids) values (?, ?, ?) returning *")
+                        .bind(0, modInfo.getVersion().toString())
+                        .bind(1, modInfo.getDisplayName())
+                        .bind(2, modInfo.getMods().stream().map(ModInfo::modId).toArray(String[]::new))
+                        .execute(returning(SqlMod::new)));
+        mod.updateMetadata(modInfo);
+        return mod;
+    }
+
+    @Override
+    public SqlMod getModByFileHash(String fileSha1) {
+        return jdbi.withHandle(handle -> handle.createQuery("select mods.* from known_files join mods on mods.id = known_files.mod where known_files.sha1 = ?")
+                .bind(0, fileSha1)
+                .execute(returning(SqlMod::new)));
+    }
+
+    @Override
+    public @Nullable SQLDatabase.SqlMod getLoaderMod(String coords) {
+        return jdbi.withHandle(handle ->
+                handle.createQuery("select * from mods where maven_coordinates = ? and loader = true")
+                        .bind(0, coords)
+                        .execute(returning(SqlMod::new)));
+    }
+
+    @Override
+    public SqlMod createLoaderMod(ModFileInfo modInfo) {
+        var mod = jdbi.withHandle(handle ->
+                handle.createUpdate("insert into mods(version, name, mod_ids, loader) values (?, ?, ?, true) returning *")
+                        .bind(0, modInfo.getVersion().toString())
+                        .bind(1, modInfo.getDisplayName())
+                        .bind(2, modInfo.getMods().stream().map(ModInfo::modId).toArray(String[]::new))
+                        .execute(returning(SqlMod::new)));
+        mod.updateMetadata(modInfo);
+        return mod;
+    }
+
+    @Override
+    public boolean isKnown(PlatformModFile file) {
+        return jdbi.withHandle(handle -> {
+            var query = handle.createQuery("select id from known_" + file.getPlatform().getName() + "_file_ids where id = ?");
+            if (file.getId().getClass() == String.class) {
+                query.bind(0, (String) file.getId());
+            } else {
+                query.bind(0, (Integer) file.getId());
+            }
+            return query.execute((statementSupplier, ctx) -> {
+                var rs = statementSupplier.get();
+                return rs.getResultSet().next();
+            });
+        });
+    }
+
+    @Override
+    public void markKnownById(PlatformModFile file) {
+        jdbi.useHandle(handle -> {
+            var update = handle.createUpdate("insert into known_" + file.getPlatform().getName() + "_file_ids(id) values (?) on conflict do nothing");
+            if (file.getId().getClass() == String.class) {
+                update.bind(0, (String) file.getId());
+            } else {
+                update.bind(0, (Integer) file.getId());
+            }
+            update.execute();
+        });
+    }
+
+    @Override
+    public <E extends Exception> void trackMod(SqlMod mod, ThrowingConsumer<ModTracker, E> consumer) throws E {
+        var modId = mod.id;
+        try (var con = connectionFactory.openConnection()) {
+            consumer.accept(new ModTracker() {
+                @Override
+                public void insertClasses(List<ClassData> classes) {
+                    if (classes.isEmpty()) return;
+
+                    try {
+                        var stmt = con.prepareStatement("select * from insert_class(?, ?, ?, ?, ?, ?, ?)");
+                        for (var aClass : classes) {
+                            stmt.setInt(1, modId);
+                            stmt.setString(2, aClass.name());
+                            stmt.setString(3, aClass.superClass());
+                            stmt.setArray(4, con.createArrayOf("text", aClass.interfaces()));
+                            stmt.setString(5, fields(aClass));
+                            stmt.setString(6, methods(aClass));
+                            stmt.setString(7, refs(aClass));
+                            stmt.addBatch();
+                        }
+
+                        stmt.executeBatch();
+                    } catch (SQLException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+                @Override
+                public void insertTags(List<TagFile> tags) {
+                    if (tags.isEmpty()) return;
+
+                    try {
+                        var stmt = con.prepareStatement("select * from insert_tag(?, ?, ?, ?)");
+                        for (var tag : tags) {
+                            stmt.setInt(1, modId);
+                            stmt.setString(2, tag.name());
+                            stmt.setBoolean(3, tag.replace());
+                            stmt.setArray(4, con.createArrayOf("text", tag.entries().toArray(String[]::new)));
+                            stmt.addBatch();
+                        }
+
+                        stmt.executeBatch();
+                    } catch (SQLException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+                @Override
+                public void deleteCurrent() {
+                    try {
+                        {
+                            var stmt = con.prepareStatement("delete from class_defs where mod = ?");
+                            stmt.setInt(1, modId);
+                            stmt.execute();
+                        }
+                        {
+                            var stmt = con.prepareStatement("delete from tags where mod = ?");
+                            stmt.setInt(1, modId);
+                            stmt.execute();
+                        }
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                @Override
+                public void markAsKnown(String fileSha1) {
+                    try {
+                        var stmt = con.prepareStatement("insert into known_files(mod, sha1) values (?, ?)");
+                        stmt.setInt(1, modId);
+                        stmt.setString(2, fileSha1);
+                        stmt.execute();
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+    }
+
+    private static <T> ResultProducer<T> returning(Mapper<T> function) {
+        return (statementSupplier, ctx) -> {
+            var res = statementSupplier.get().getResultSet();
+            if (res.next()) return function.apply(res);
+            return null;
+        };
+    }
+
+    @FunctionalInterface
+    private interface Mapper<T> {
+        T apply(ResultSet rs) throws SQLException;
+    }
+
+    private static String methods(ClassData cd) {
+        var json = new JsonArray();
+
+        for (ClassData.MethodInfo method : cd.methods().values()) {
+            var sub = new JsonArray();
+            sub.add(method.name());
+            sub.add(method.desc());
+            json.add(sub);
+        }
+
+        return Utils.GSON.toJson(json);
+    }
+
+    private static String refs(ClassData cd) {
+        var json = new JsonArray();
+
+        {
+            var subs = new JsonArray();
+            cd.methodRefs().forEach((reference, cnt) -> {
+                var subSub = new JsonArray();
+                subSub.add(reference.owner());
+                subSub.add(reference.name());
+                subSub.add(reference.desc());
+                subSub.add(cnt);
+                subs.add(subSub);
+            });
+            json.add(subs);
+        }
+
+        {
+            var subs = new JsonArray();
+            cd.fieldRefs().forEach((reference, cnt) -> {
+                var subSub = new JsonArray();
+                subSub.add(reference.owner());
+                subSub.add(reference.name());
+                subSub.add(reference.desc());
+                subSub.add(cnt);
+                subs.add(subSub);
+            });
+            json.add(subs);
+        }
+
+        return Utils.GSON.toJson(json);
+    }
+
+    private static String fields(ClassData cd) {
+        var json = new JsonArray();
+
+        for (var fields : cd.fields().values()) {
+            var sub = new JsonArray();
+            sub.add(fields.name());
+            sub.add(fields.desc().getInternalName());
+            json.add(sub);
+        }
+
+        return Utils.GSON.toJson(json);
+    }
+
+    public class SqlMod implements DatabaseMod {
+        private final int id;
+        private final String mavenCoordinates;
+        private final String version;
+        private final boolean loader;
+
+        public SqlMod(ResultSet rs) throws SQLException {
+            this.id = rs.getInt("id");
+            this.mavenCoordinates = rs.getString("maven_coordinates");
+            this.version = rs.getString("version");
+            this.loader = rs.getBoolean("loader");
+        }
+
+        @Override
+        public String getVersion() {
+            return version;
+        }
+
+        @Override
+        public boolean isLoader() {
+            return loader;
+        }
+
+        @Override
+        public void updateMetadata(ModFileInfo info) {
+            var meta = info.getMetadata();
+
+            String mtoml = null;
+            try {
+                mtoml = Files.readString(info.getPath("META-INF/neoforge.mods.toml"));
+            } catch (Exception ignored) {
+
+            }
+
+            String modsToml = mtoml;
+
+            // TODO - find a better way that retains old data in case we update from a JiJ artifact that's also linked to a project
+            jdbi.useHandle(handle -> handle.createUpdate("update mods set version = ?, name = ?, mod_ids = ?, authors = ?, update_json = ?, nested_tree = ?, maven_coordinates = ?, license = ?, language_loader = ?, mods_toml = ? where id = ?")
+                    .bind(0, info.getVersion().toString())
+                    .bind(1, info.getDisplayName())
+                    .bind(2, info.getMods().stream().map(ModInfo::modId).toArray(String[]::new))
+                    .bind(3, orNull(info.getMods().stream().map(ModInfo::authors)
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.joining("; "))))
+                    .bind(4, info.getMods().isEmpty() ? null : info.getMods().get(0).updateJSONURL())
+                    .bind(5, orNull(getNestedTree(info)))
+                    .bind(6, info.getMavenCoordinates() == null ? mavenCoordinates : info.getMavenCoordinates())
+                    .bind(7, meta == null ? null : meta.license())
+                    .bind(8, meta == null ? null : meta.languageLoader())
+                    .bind(9, modsToml)
+                    .bind(10, id)
+                    .execute());
+        }
+
+        @Override
+        public void link(PlatformModFile platformFile) {
+            jdbi.useHandle(handle -> handle.createUpdate("update mods set " + platformFile.getPlatform().getName() + "_project_id = ? where id = ?")
+                    .bind(0, platformFile.getModId())
+                    .bind(1, id)
+                    .execute());
+        }
+
+        @Override
+        public void delete() {
+            jdbi.useHandle(handle -> handle.createUpdate("delete from mods where id = ?")
+                    .bind(0, id)
+                    .execute());
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof SqlMod other && other.id == this.id;
+        }
+    }
+
+    private static String getNestedTree(ModFileInfo info) {
+        return info.getNestedJars().stream()
+                .map(jar -> jar.identifier() + (jar.info().getNestedJars().isEmpty() ? "" : " (" + getNestedTree(jar.info()) + ")"))
+                .collect(Collectors.joining(", "));
+    }
+
+    private static String orNull(String str) {
+        return str.isBlank() ? null : str;
+    }
+}

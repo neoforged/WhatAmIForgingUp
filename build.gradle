@@ -1,0 +1,58 @@
+plugins {
+    id 'java'
+    id 'application'
+    id("com.gradleup.shadow") version "9.0.0-beta6"
+}
+
+group = 'net.neoforged.waifu'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://maven.neoforged.net/'
+        mavenContent {
+            includeGroupAndSubgroups('net.neoforged')
+            includeGroupAndSubgroups('cpw')
+        }
+    }
+    maven {
+        url = 'https://m2.chew.pro/releases'
+    }
+}
+
+application {
+    mainClass = 'net.neoforged.waifu.Main'
+}
+
+dependencies {
+    implementation 'org.ow2.asm:asm:9.7.1'
+    implementation 'com.electronwill.night-config:toml:3.6.6'
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'com.google.guava:guava:33.4.0-jre'
+    implementation 'org.apache.maven:maven-artifact:3.9.9'
+
+    implementation "net.dv8tion:JDA:5.2.3"
+    implementation 'pw.chew:jda-chewtils:2.0'
+
+    implementation 'net.neoforged:AutoRenamingTool:2.0.8'
+    implementation 'net.neoforged.installertools:binarypatcher:2.1.2'
+
+    implementation 'io.github.matyrobbrt:curseforgeapi:2.0.0'
+
+    implementation 'org.flywaydb:flyway-core:9.18.0'
+    implementation 'org.jdbi:jdbi3-core:3.32.0'
+    implementation 'org.jdbi:jdbi3-sqlobject:3.32.0'
+    implementation 'org.jdbi:jdbi3-postgres:3.32.0'
+    implementation 'org.xerial:sqlite-jdbc:3.41.2.2'
+    implementation 'org.postgresql:postgresql:42.7.2'
+
+    compileOnly 'org.jetbrains:annotations:26.0.2'
+}
+
+shadowJar {
+    mergeServiceFiles()
+    archiveClassifier = 'all'
+    archiveFile.set(project.file("$buildDir/libs/waifu-all.jar"))
+}
