@@ -46,7 +46,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 .build();
         jda.awaitReady();
 
-        channelId = Long.parseLong(System.getProperty("discord.channel.id"));
+        channelId = Long.parseLong(System.getenv("DISCORD_CHANNEL_ID"));
         messageUpdateService = Executors.newScheduledThreadPool(3, Thread.ofVirtual().name("discord-update-service-", 0).factory());
     }
 

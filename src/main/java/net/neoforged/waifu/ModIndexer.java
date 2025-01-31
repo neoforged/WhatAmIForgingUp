@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
+    private static final boolean KEEP_CACHES = Boolean.parseBoolean(System.getenv().getOrDefault("KEEP_PLATFORM_CACHES", "true")));
     private final Path baseCacheFolder;
     private final IndexDatabase<T> db;
 
@@ -233,7 +234,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
         var mod = ModFileInfo.read(
                 new ModFilePath(
                         FileSystems.newFileSystem(path).getRootDirectories().iterator().next(),
-                        file.getHash(), null
+                        file.getHash(), KEEP_CACHES ? null : path
                 ),
                 null, null
         );
