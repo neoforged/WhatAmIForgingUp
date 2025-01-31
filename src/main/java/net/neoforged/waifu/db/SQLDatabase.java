@@ -13,6 +13,7 @@ import org.jdbi.v3.core.result.ResultProducer;
 import org.jdbi.v3.postgres.PostgresPlugin;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Type;
 
 import java.nio.file.Files;
 import java.sql.DriverManager;
@@ -143,15 +144,16 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                     if (classes.isEmpty()) return;
 
                     try {
-                        var stmt = con.prepareStatement("select * from insert_class(?, ?, ?, ?, ?, ?, ?)");
+                        var stmt = con.prepareStatement("select * from insert_class(?, ?, ?, ?, ?, ?, ?, ?)");
                         for (var aClass : classes) {
                             stmt.setInt(1, modId);
                             stmt.setString(2, aClass.name());
                             stmt.setString(3, aClass.superClass());
                             stmt.setArray(4, con.createArrayOf("text", aClass.interfaces()));
-                            stmt.setString(5, fields(aClass));
-                            stmt.setString(6, methods(aClass));
-                            stmt.setString(7, refs(aClass));
+                            stmt.setString(5, Utils.GSON.toJson(formatAnnotations(aClass.annotations())));
+                            stmt.setString(6, fields(aClass));
+                            stmt.setString(7, methods(aClass));
+                            stmt.setString(8, refs(aClass));
                             stmt.addBatch();
                         }
 
@@ -240,6 +242,9 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
             var sub = new JsonArray();
             sub.add(method.name());
             sub.add(method.desc());
+            if (!method.annotations().isEmpty()) {
+                sub.add(formatAnnotations(method.annotations()));
+            }
             json.add(sub);
         }
 
@@ -285,10 +290,68 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
             var sub = new JsonArray();
             sub.add(fields.name());
             sub.add(fields.desc().getInternalName());
+            if (!fields.annotations().isEmpty()) {
+                sub.add(formatAnnotations(fields.annotations()));
+            }
             json.add(sub);
         }
 
         return Utils.GSON.toJson(json);
+    }
+
+    @SuppressWarnings("DuplicatedCode")
+    private static JsonArray formatAnnotations(List<ClassData.AnnotationInfo> anns) {
+        var json = new JsonArray();
+        if (anns.isEmpty()) {
+            return json;
+        }
+
+        for (ClassData.AnnotationInfo ann : anns) {
+            var js = new JsonArray();
+            js.add(ann.type().getInternalName());
+            var builder = new StringBuilder();
+            var itr = ann.members().entrySet().iterator();
+            while (itr.hasNext()) {
+                var next = itr.next();
+                builder.append(next.getKey()).append("=");
+                appendMember(builder, next.getValue());
+                if (itr.hasNext()) builder.append(',');
+            }
+            js.add(builder.toString());
+
+            json.add(js);
+        }
+        return json;
+    }
+
+    @SuppressWarnings("DuplicatedCode")
+    private static void appendMember(StringBuilder builder, Object member) {
+        switch (member) {
+            case ClassData.AnnotationInfo ai -> {
+                builder.append("@").append(ai.type().getInternalName())
+                        .append("(");
+                var itr = ai.members().entrySet().iterator();
+                while (itr.hasNext()) {
+                    var next = itr.next();
+                    builder.append(next.getKey()).append("=");
+                    appendMember(builder, next.getValue());
+                    if (itr.hasNext()) builder.append(',');
+                }
+                builder.append(")");
+            }
+            case List<?> list -> {
+                builder.append("[");
+                var itr = list.iterator();
+                while (itr.hasNext()) {
+                    appendMember(builder, itr.next());
+                    if (itr.hasNext()) builder.append(',');
+                }
+                builder.append(']');
+            }
+            case String str -> builder.append('"').append(str).append("'");
+            case Type tp -> builder.append(tp.getInternalName()).append(".class");
+            default -> builder.append(member);
+        }
     }
 
     public class SqlMod implements DatabaseMod {

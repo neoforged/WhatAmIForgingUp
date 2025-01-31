@@ -95,6 +95,7 @@ create table class_parents
 
 create table method_defs
 (
+    id    serial primary key,
     owner int,
     type  int references methods (id),
     foreign key (owner) references class_defs (id) on delete cascade
@@ -102,6 +103,7 @@ create table method_defs
 
 create table field_defs
 (
+    id    serial primary key,
     owner int,
     type  int references fields (id),
     foreign key (owner) references class_defs (id) on delete cascade
@@ -129,6 +131,30 @@ create table class_references
     reference int references classes (id),
     count     smallint not null,
     foreign key (owner) references class_defs (id) on delete cascade
+);
+
+create table class_annotations
+(
+    owner      int,
+    annotation int references classes (id),
+    value      int not null references constants (id),
+    foreign key (owner) references class_defs (id) on delete cascade
+);
+
+create table method_annotations
+(
+    owner      int,
+    annotation int references classes (id),
+    value      int not null references constants (id),
+    foreign key (owner) references method_defs (id) on delete cascade
+);
+
+create table field_annotations
+(
+    owner      int,
+    annotation int references classes (id),
+    value      int not null references constants (id),
+    foreign key (owner) references field_defs (id) on delete cascade
 );
 
 CREATE OR REPLACE FUNCTION get_class_id(nm text)
@@ -215,7 +241,7 @@ end
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION insert_class(mod int, name text, super text, interfaces text[], fields text, methods text,
+CREATE OR REPLACE FUNCTION insert_class(mod int, name text, super text, interfaces text[], annotations text, fields text, methods text,
                                         refs text)
     returns int
     LANGUAGE plpgsql
@@ -228,6 +254,10 @@ declare
     mtd      json;
     rf       json;
     refsJson json;
+
+    memberid integer;
+
+    ann json;
 begin
     insert into class_defs(mod, type) values (mod, get_class_id(name)) returning id into cdef;
     if super is not null then
@@ -239,14 +269,29 @@ begin
             insert into class_parents(cls, parent) values (cdef, get_class_id(iface));
         end loop;
 
+    for ann in select * from json_array_elements(annotations::json)
+        loop
+            insert into class_annotations(owner, annotation, value) values (cdef, get_class_id(ann ->> 0), get_constant(ann ->> 1));
+        end loop;
+
     for fld in select * from json_array_elements(fields::json)
         loop
-            insert into field_defs(owner, type) values (cdef, get_field_id(name, fld ->> 0, fld ->> 1));
+            insert into field_defs(owner, type) values (cdef, get_field_id(name, fld ->> 0, fld ->> 1)) returning id into memberid;
+
+            for ann in select * from json_array_elements(fld -> 2)
+                loop
+                    insert into field_annotations(owner, annotation, value) values (memberid, get_class_id(ann ->> 0), get_constant(ann ->> 1));
+                end loop;
         end loop;
 
     for mtd in select * from json_array_elements(methods::json)
         loop
-            insert into method_defs(owner, type) values (cdef, get_method_id(name, mtd ->> 0, mtd ->> 1));
+            insert into method_defs(owner, type) values (cdef, get_method_id(name, mtd ->> 0, mtd ->> 1)) returning id into memberid;
+
+            for ann in select * from json_array_elements(fld -> 2)
+                loop
+                    insert into method_annotations(owner, annotation, value) values (memberid, get_class_id(ann ->> 0), get_constant(ann ->> 1));
+                end loop;
         end loop;
 
     refsJson := refs::json;
@@ -294,19 +339,18 @@ create or replace function get_child_classes(cid int)
     language sql
 as
 $func$
-with recursive parents as (
-    select distinct (class_defs.type) from class_parents
-    inner join class_defs on class_parents.cls = class_defs.id
-    where class_parents.parent = cid
+with recursive parents as (select distinct (class_defs.type)
+                           from class_parents
+                                    inner join class_defs on class_parents.cls = class_defs.id
+                           where class_parents.parent = cid
 
-    union
+                           union
 
-    select (class_defs.type)
-    from (
-        select distinct (child.cls) from class_parents child
-        inner join parents p on p.type = child.parent) mc
-        inner join class_defs on mc.cls = class_defs.id
-    )
+                           select (class_defs.type)
+                           from (select distinct (child.cls)
+                                 from class_parents child
+                                          inner join parents p on p.type = child.parent) mc
+                                    inner join class_defs on mc.cls = class_defs.id)
 select type
 from parents
 $func$

@@ -110,7 +110,7 @@ public class ModrinthPlatform implements ModPlatform {
 
             @Override
             public PlatformModFile getLatestFile(String gameVersion) {
-                var file = sendRequest("/project/" + id + "/version?loaders=neoforge&game_versions=" + gameVersion, new TypeToken<List<Version>>() {})
+                var file = sendRequest("/project/" + id + "/version?loaders=" + URLEncoder.encode("[\"neoforge\"]", StandardCharsets.UTF_8) + "&game_versions=" + URLEncoder.encode("[\"" + gameVersion + "\"]", StandardCharsets.UTF_8), new TypeToken<List<Version>>() {})
                         .get(0);
                 return createModFile(this, file);
             }

@@ -106,11 +106,11 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                     } else if (startedIndex) {
                         embed.addField("Step", "Indexing mods", false);
                         embed.addField("Found mods", currentCounter.getAmount() + " mods found", false);
-                        embed.appendDescription("Indexed: %s/%s".formatted(indexed.get(), expected.get()));
+                        embed.appendDescription("Indexed: %s/%s\n".formatted(indexed.get(), expected.get()));
                         embed.appendDescription("Stored: %s/%s".formatted(stored.get(), expected.get()));
 
                         if (failed.get() != 0) {
-                            embed.appendDescription("Failed: %s".formatted(failed.get()));
+                            embed.appendDescription("\n\nFailed: %s".formatted(failed.get()));
                         }
                     } else if (currentCounter != null) {
                         embed.addField("Step", "Searching mods", false);

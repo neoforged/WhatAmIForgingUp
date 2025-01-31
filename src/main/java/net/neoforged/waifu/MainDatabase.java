@@ -2,6 +2,7 @@ package net.neoforged.waifu;
 
 import org.flywaydb.core.Flyway;
 import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import org.jdbi.v3.sqlobject.transaction.Transactional;
@@ -16,7 +17,7 @@ public class MainDatabase {
     private final DBTrans transactional;
 
     public MainDatabase(Path path) {
-        if (Files.exists(path)) {
+        if (!Files.exists(path)) {
             try {
                 var parent = path.getParent();
                 if (parent != null) Files.createDirectories(parent);
@@ -33,7 +34,11 @@ public class MainDatabase {
         dataSource.setDatabaseName("WAIFU main");
         dataSource.setEnforceForeignKeys(true);
 
-        this.transactional = Jdbi.create(dataSource).onDemand(DBTrans.class);
+        var jdbi = Jdbi.create(dataSource);
+
+        jdbi.installPlugin(new SqlObjectPlugin());
+
+        this.transactional = jdbi.onDemand(DBTrans.class);
     }
 
     public void runFlyway() {

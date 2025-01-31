@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
-    private static final boolean KEEP_CACHES = Boolean.parseBoolean(System.getenv().getOrDefault("KEEP_PLATFORM_CACHES", "true")));
+    private static final boolean KEEP_CACHES = Boolean.parseBoolean(System.getenv().getOrDefault("KEEP_PLATFORM_CACHES", "true"));
     private final Path baseCacheFolder;
     private final IndexDatabase<T> db;
 
@@ -149,7 +149,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
     }
 
     private Runnable indexAndPrepareUpload(@Nullable PlatformModFile platform, ModFileInfo file, T mod, boolean refs, DataSanitizer sanitizer) throws IOException {
-        List<ClassData> classes = IndexingClassVisitor.collect(file.getRootDirectory(), refs);
+        List<ClassData> classes = IndexingClassVisitor.collect(file.getRootDirectory(), refs, refs); // TODO - do we want a separate parameter?
 
         var tags = TagCollector.collect(file.getPath("data"));
 
