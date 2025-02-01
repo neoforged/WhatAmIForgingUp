@@ -34,6 +34,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -143,15 +144,31 @@ public class CurseForgePlatform implements ModPlatform {
     public void bulkFillData(List<PlatformModFile> files) {
         var castFiles = (List<CFModFile>) (List) new ArrayList<>(files);
         castFiles.removeIf(f -> f.getCachedFile() != null);
-        var partition = Lists.partition(castFiles, 50);
-        for (List<CFModFile> cfModFiles : partition) {
-            try {
-                var res = api.getHelper().getFiles(cfModFiles.stream().mapToInt(f -> (int) f.getId()).toArray()).orElseThrow();
-                for (int i = 0; i < res.size(); i++) {
-                    cfModFiles.get(i).setCachedFile(res.get(i));
+        var partition = new ArrayList<CFModFile>(50);
+        for (CFModFile castFile : castFiles) {
+            partition.add(castFile);
+            if (partition.size() == 50) {
+                try {
+                    var res = api.getHelper().getFiles(partition.stream().mapToInt(f -> (int) f.getId()).toArray()).orElseThrow();
+                    for (int i = 0; i < res.size() && i < partition.size(); i++) {
+                        partition.get(i).setCachedFile(res.get(i));
+                    }
+                    partition.clear();
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
                 }
-            } catch (Exception exception) {
-                throw new RuntimeException(exception);
+            }
+        }
+
+        if (!partition.isEmpty()) {
+            try {
+                var res = api.getHelper().getFiles(partition.stream().mapToInt(f -> (int) f.getId()).toArray()).orElseThrow();
+                for (int i = 0; i < res.size() && i < partition.size(); i++) {
+                    partition.get(i).setCachedFile(res.get(i));
+                }
+                partition.clear();
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
             }
         }
     }
