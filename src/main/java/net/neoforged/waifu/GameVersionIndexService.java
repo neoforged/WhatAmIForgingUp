@@ -101,7 +101,7 @@ public class GameVersionIndexService implements Runnable {
                 }
 
                 var monitor = listener.startIndex();
-                var scanned = indexer.index(VIRTUAL_THREAD_EXECUTOR, 100, monitor, sanitizer);
+                var scanned = indexer.index(platform, VIRTUAL_THREAD_EXECUTOR, 100, monitor, sanitizer);
 
                 for (ModIndexer.IndexCandidate indexCandidate : scanned) {
                     indexCandidate.file().close();

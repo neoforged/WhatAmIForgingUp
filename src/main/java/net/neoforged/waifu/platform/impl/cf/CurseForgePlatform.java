@@ -7,10 +7,12 @@ import io.github.matyrobbrt.curseforgeapi.request.query.ModSearchQuery;
 import io.github.matyrobbrt.curseforgeapi.schemas.HashAlgo;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.File;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.FileHash;
+import io.github.matyrobbrt.curseforgeapi.schemas.fingerprint.FingerprintMatch;
 import io.github.matyrobbrt.curseforgeapi.schemas.mod.Mod;
 import io.github.matyrobbrt.curseforgeapi.schemas.mod.ModLoaderType;
 import io.github.matyrobbrt.curseforgeapi.util.Constants;
 import io.github.matyrobbrt.curseforgeapi.util.CurseForgeException;
+import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
@@ -25,6 +27,8 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -105,6 +109,33 @@ public class CurseForgePlatform implements ModPlatform {
         }
 
         return getFiles(manifest.files().stream().map(FilePointer::fileID).<Object>map(Function.identity()).toList());
+    }
+
+    @Override
+    public List<@org.jetbrains.annotations.Nullable PlatformModFile> getFilesByFingerprint(List<ModFileInfo> files) {
+        try {
+            var mods = new ArrayList<PlatformModFile>(files.size());
+            for (int i = 0; i < files.size(); i++) mods.add(null);
+            var murmurHashes = new ArrayList<Long>();
+            for (ModFileInfo file : files) {
+                murmurHashes.add(file.computeMurmur2());
+            }
+            var result = api.getHelper().getFingerprintMatches(murmurHashes.stream().mapToLong(value -> value).toArray())
+                    .orElseThrow();
+
+            for (FingerprintMatch exactMatch : result.exactMatches()) {
+                for (int i = 0; i < murmurHashes.size(); i++) {
+                    if (murmurHashes.get(i) == exactMatch.file().fileFingerprint()) {
+                        mods.set(i, createFile(null, exactMatch.file().id(), exactMatch.file()));
+                        break;
+                    }
+                }
+            }
+
+            return mods;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private PlatformMod createMod(Mod mod) {

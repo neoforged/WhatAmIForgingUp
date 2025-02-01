@@ -8,6 +8,7 @@ import net.neoforged.waifu.index.IndexingClassVisitor;
 import net.neoforged.waifu.index.TagCollector;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFilePath;
+import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
@@ -52,8 +53,8 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
         )).run();
     }
 
-    public List<IndexCandidate> index(ExecutorService executor, int concurrency, ProgressMonitor<IndexCandidate> monitor, DataSanitizer sanitizer) {
-        var expansionResult = getExpandedMods();
+    public List<IndexCandidate> index(ModPlatform platform, ExecutorService executor, int concurrency, ProgressMonitor<IndexCandidate> monitor, DataSanitizer sanitizer) {
+        var expansionResult = getExpandedMods(platform);
 
         var expanded = expansionResult.candidates();
         monitor.setExpected(expanded);
@@ -197,15 +198,20 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
 
     public record ExpansionResult(List<IndexCandidate> candidates, Map<PlatformModFile, String> additionalMavenCoordinates) {}
 
-    public ExpansionResult getExpandedMods() {
+    public ExpansionResult getExpandedMods(ModPlatform platform) {
         Map<String, ModFileInfo.NestedJar> contained = new LinkedHashMap<>();
+
+        Map<Object, PlatformModFile> projectsBeingIndexed = new HashMap<>();
 
         for (IndexCandidate platformMod : candidateMods) {
             addNestedMods(contained, platformMod.file);
+
+            if (platformMod.platformFile() != null) {
+                projectsBeingIndexed.put(platformMod.platformFile().getModId(), platformMod.platformFile());
+            }
         }
 
-        var candidateHashes = candidateMods.stream()
-                .collect(Collectors.toMap(k -> k.file().getFileHash(), Function.identity()));
+        var candidateHashes = candidateMods.stream().collect(Collectors.toMap(k -> k.file().getFileHash(), Function.identity()));
 
         var additionalCoordinates = new HashMap<PlatformModFile, String>();
 
@@ -220,6 +226,32 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
 
         var finalList = new ArrayList<IndexCandidate>(contained.size() + candidateMods.size());
         finalList.addAll(candidateMods);
+
+        var jijFiles = contained.values().stream()
+                .map(ModFileInfo.NestedJar::info)
+                .toList();
+
+        // We attempt to link JiJ'd mods to real projects on the platform based on their fingerprints
+        var filesByFingerprint = platform.getFilesByFingerprint(jijFiles);
+        for (int i = 0; i < jijFiles.size(); i++) {
+            var fingerprinted = filesByFingerprint.get(i);
+            if (fingerprinted != null) {
+                var file = jijFiles.get(i);
+
+                contained.remove(file.getMavenCoordinates());
+
+                var alreadyIndexed = projectsBeingIndexed.get(fingerprinted.getModId());
+
+                if (alreadyIndexed == null) {
+                    additionalCoordinates.put(fingerprinted, file.getMavenCoordinates());
+                    projectsBeingIndexed.put(fingerprinted.getModId(), fingerprinted);
+                    finalList.add(new IndexCandidate(fingerprinted, file));
+                } else {
+                    additionalCoordinates.put(alreadyIndexed, file.getMavenCoordinates());
+                }
+            }
+        }
+
         for (ModFileInfo.NestedJar value : contained.values()) {
             finalList.add(new IndexCandidate(null, value.info()));
         }
@@ -253,7 +285,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
 
                     var mod = ModFileInfo.read(
                             new ModFilePath(
-                                    FileSystems.newFileSystem(path).getRootDirectories().iterator().next(),
+                                    path, FileSystems.newFileSystem(path).getRootDirectories().iterator().next(),
                                     file.getHash(), KEEP_CACHES ? null : path
                             ),
                             null, null

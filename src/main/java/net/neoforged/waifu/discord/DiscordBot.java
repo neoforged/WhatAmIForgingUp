@@ -49,6 +49,14 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
         channelId = Long.parseLong(System.getenv("DISCORD_CHANNEL_ID"));
         messageUpdateService = Executors.newScheduledThreadPool(3, Thread.ofVirtual().name("discord-update-service-", 0).factory());
+
+        getChannel().sendMessage("Hello world, WAIFU is available again!").queue();
+        Runtime.getRuntime().addShutdownHook(new Thread("discord-shutdown") {
+            @Override
+            public void run() {
+                getChannel().sendMessage("Bye!").complete();
+            }
+        });
     }
 
     private CommandClient createCommandClient() {

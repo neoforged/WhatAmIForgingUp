@@ -1,6 +1,7 @@
 package net.neoforged.waifu.meta;
 
 import net.neoforged.waifu.util.Hashing;
+import net.neoforged.waifu.util.MurmurHash2;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -8,14 +9,18 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public record ModFilePath(Path rootDirectory, String hash, @Nullable Path temporaryPath) {
+public record ModFilePath(Path physicalLocation, Path rootDirectory, String hash, @Nullable Path temporaryPath) {
 
     public static ModFilePath create(Path inZip) throws IOException {
         var hash = Hashing.sha1().putFile(inZip).hash();
         return new ModFilePath(
-                FileSystems.newFileSystem(inZip).getRootDirectories().iterator().next(),
+                inZip, FileSystems.newFileSystem(inZip).getRootDirectories().iterator().next(),
                 hash, null
         );
+    }
+
+    public long computeMurmur2() throws IOException {
+        return MurmurHash2.hash(MurmurHash2.normalizeByteArray(Files.readAllBytes(physicalLocation)));
     }
 
     void close() throws IOException {

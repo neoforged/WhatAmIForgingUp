@@ -27,7 +27,7 @@ public class Main {
     );
     public static final long DELAY_SEC = 60 * 60;
 
-    private static final List<ModPlatform> PLATFORMS;
+    public static final List<ModPlatform> PLATFORMS;
 
     static {
         try {

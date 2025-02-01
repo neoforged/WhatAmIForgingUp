@@ -1,10 +1,14 @@
 package net.neoforged.waifu.platform.impl.mr;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
+import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Utils;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,8 +19,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -102,6 +108,31 @@ public class ModrinthPlatform implements ModPlatform {
         throw new RuntimeException("unsupported");
     }
 
+    @Override
+    public List<@Nullable PlatformModFile> getFilesByFingerprint(List<ModFileInfo> files) {
+        var mods = new ArrayList<PlatformModFile>(files.size());
+        for (int i = 0; i < files.size(); i++) mods.add(null);
+
+        var hashes = new JsonArray();
+        for (ModFileInfo file : files) {
+            hashes.add(file.getFileHash());
+        }
+
+        var req = new JsonObject();
+        req.addProperty("algorithm", "sha1");
+        req.add("hashes", hashes);
+        var response = sendPostRequest("/version_files", req, new TypeToken<Map<String, Version>>() {});
+
+        for (int i = 0; i < files.size(); i++) {
+            var fromHash = response.get(files.get(i).getFileHash());
+            if (fromHash != null) {
+                mods.set(i, createModFile(null, fromHash));
+            }
+        }
+
+        return mods;
+    }
+
     private PlatformMod createMod(String id, String slug) {
         return new PlatformMod() {
             @Override
@@ -139,12 +170,14 @@ public class ModrinthPlatform implements ModPlatform {
         };
     }
 
-    private PlatformModFile createModFile(PlatformMod mod, Version version) {
+    private PlatformModFile createModFile(@Nullable PlatformMod inMod, Version version) {
         var downloadFile = version.files.size() == 1 ? version.files.get(0) : version.files.stream().filter(Version.File::primary).findFirst().orElseThrow();
         return new PlatformModFile() {
+            private PlatformMod mod = inMod;
+
             @Override
             public Object getModId() {
-                return mod.getId();
+                return version.project_id;
             }
 
             @Override
@@ -153,7 +186,10 @@ public class ModrinthPlatform implements ModPlatform {
             }
 
             @Override
-            public PlatformMod getMod() {
+            public synchronized PlatformMod getMod() {
+                if (mod == null) {
+                    mod = createMod(version.project_id, version.project_id);
+                }
                 return mod;
             }
 
@@ -186,10 +222,20 @@ public class ModrinthPlatform implements ModPlatform {
 
     private <T> T sendRequest(String subpath, TypeToken<T> type) {
         var uri = URI.create("https://api.modrinth.com/v2" + subpath);
+        return send(HttpRequest.newBuilder().uri(uri), type);
+    }
+
+    private <T> T sendPostRequest(String subpath, JsonObject body, TypeToken<T> type) {
+        var uri = URI.create("https://api.modrinth.com/v2" + subpath);
+        return send(HttpRequest.newBuilder()
+                .uri(uri).POST(HttpRequest.BodyPublishers.ofString(Utils.GSON.toJson(body)))
+                .header("Content-Type", "application/json"), type);
+    }
+
+    private <T> T send(HttpRequest.Builder builder, TypeToken<T> type) {
         HttpResponse<String> res;
         try {
-            res = client.send(HttpRequest.newBuilder()
-                    .uri(uri)
+            res = client.send(builder
                     .header("User-Agent", "neoforged/WhatAmIForgingUp (neoforged.net)")
                     .build(), HttpResponse.BodyHandlers.ofString());
         } catch (IOException | InterruptedException e) {
@@ -209,7 +255,7 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     private record ProjectResponse(String id) {}
-    private record Version(String id, List<String> game_versions, List<String> loaders, Instant date_published, List<File> files) {
+    private record Version(String id, String project_id, List<String> game_versions, List<String> loaders, Instant date_published, List<File> files) {
 
         private record File(Hashes hashes, String url, boolean primary, long size) {
 

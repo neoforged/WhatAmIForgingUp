@@ -1,5 +1,8 @@
 package net.neoforged.waifu.platform;
 
+import net.neoforged.waifu.meta.ModFileInfo;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Iterator;
 import java.util.List;
 
@@ -15,4 +18,6 @@ public interface ModPlatform {
     List<PlatformModFile> getFiles(List<Object> fileIds);
 
     List<PlatformModFile> getModsInPack(PlatformModFile pack);
+
+    List<@Nullable PlatformModFile> getFilesByFingerprint(List<ModFileInfo> files);
 }

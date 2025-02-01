@@ -58,6 +58,11 @@ abstract class BaseModFileInfo implements ModFileInfo {
     }
 
     @Override
+    public long computeMurmur2() throws IOException {
+        return path.computeMurmur2();
+    }
+
+    @Override
     public String toString() {
         return getClass().getSimpleName() + "[name=" + getDisplayName() + ", path=" + path + "]";
     }
@@ -97,7 +102,7 @@ abstract class BaseModFileInfo implements ModFileInfo {
                 }
 
                 var jar = ModFileInfo.read(new ModFilePath(
-                        FileSystems.newFileSystem(newPath).getRootDirectories().iterator().next(),
+                        newPath, FileSystems.newFileSystem(newPath).getRootDirectories().iterator().next(),
                         fileHash, newPath
                 ), id, version);
                 if (jar != null) {

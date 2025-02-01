@@ -33,6 +33,8 @@ public interface ModFileInfo {
 
     String getFileHash();
 
+    long computeMurmur2() throws IOException;
+
     @Nullable ModFileMetadata getMetadata();
 
     void close() throws IOException;
