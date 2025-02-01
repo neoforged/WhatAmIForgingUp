@@ -174,7 +174,8 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     private PlatformModFile createModFile(@Nullable PlatformMod inMod, Version version) {
-        var downloadFile = version.files.size() == 1 ? version.files.get(0) : version.files.stream().filter(Version.File::primary).findFirst().orElseThrow();
+        var downloadFile = version.files.size() == 1 ? version.files.get(0) : version.files.stream().filter(Version.File::primary).findFirst().orElse(null);
+        if (downloadFile == null) return null;
         return new PlatformModFile() {
             private PlatformMod mod = inMod;
 
