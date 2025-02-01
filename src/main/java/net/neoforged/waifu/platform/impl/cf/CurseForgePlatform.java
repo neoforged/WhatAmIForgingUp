@@ -1,5 +1,6 @@
 package net.neoforged.waifu.platform.impl.cf;
 
+import com.google.common.collect.Lists;
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.github.matyrobbrt.curseforgeapi.annotation.Nullable;
 import io.github.matyrobbrt.curseforgeapi.request.Requests;
@@ -138,6 +139,23 @@ public class CurseForgePlatform implements ModPlatform {
         }
     }
 
+    @Override
+    public void bulkFillData(List<PlatformModFile> files) {
+        var castFiles = (List<CFModFile>) (List) new ArrayList<>(files);
+        castFiles.removeIf(f -> f.getCachedFile() != null);
+        var partition = Lists.partition(castFiles, 50);
+        for (List<CFModFile> cfModFiles : partition) {
+            try {
+                var res = api.getHelper().getFiles(cfModFiles.stream().mapToInt(f -> (int) f.getId()).toArray()).orElseThrow();
+                for (int i = 0; i < res.size(); i++) {
+                    cfModFiles.get(i).setCachedFile(res.get(i));
+                }
+            } catch (Exception exception) {
+                throw new RuntimeException(exception);
+            }
+        }
+    }
+
     private PlatformMod createMod(Mod mod) {
         return new PlatformMod() {
             @Override
@@ -176,7 +194,7 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     private PlatformModFile createFile(@Nullable PlatformMod platformMod, int fileId, @Nullable File optionalFile) {
-        return new PlatformModFile() {
+        return new CFModFile() {
             private File file = optionalFile;
 
             @Override
@@ -254,6 +272,23 @@ public class CurseForgePlatform implements ModPlatform {
             public String getUrl() {
                 return "https://www.curseforge.com/minecraft/mc-mods/" + getMod().getSlug() + "/files/" + getId();
             }
+
+            @Override
+            public File getCachedFile() {
+                return this.file;
+            }
+
+            @Override
+            public void setCachedFile(File file) {
+                this.file = file;
+            }
         };
+    }
+
+    private interface CFModFile extends PlatformModFile {
+        @Nullable
+        File getCachedFile();
+
+        void setCachedFile(File file);
     }
 }

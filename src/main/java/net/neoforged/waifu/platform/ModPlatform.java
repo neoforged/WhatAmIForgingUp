@@ -20,4 +20,8 @@ public interface ModPlatform {
     List<PlatformModFile> getModsInPack(PlatformModFile pack);
 
     List<@Nullable PlatformModFile> getFilesByFingerprint(List<ModFileInfo> files);
+
+    default void bulkFillData(List<PlatformModFile> files) {
+
+    }
 }

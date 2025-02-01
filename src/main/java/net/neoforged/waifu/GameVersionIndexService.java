@@ -94,6 +94,8 @@ public class GameVersionIndexService implements Runnable {
                     counter.add(file);
                 }
 
+                platform.bulkFillData(files);
+
                 // Reverse the order of the files so we index older ones first
                 Collections.reverse(files);
 
