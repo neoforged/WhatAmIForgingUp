@@ -32,4 +32,5 @@ jobs:
       - name: 'Build Image'
         run: |
           docker build . --tag ghcr.io/neoforged/whatamiforgingup:v2 --tag ghcr.io/neoforged/whatamiforgingup:latest
-          docker push ghcr.io/neoforged/whatamiforgingup:v2 ghcr.io/neoforged/whatamiforgingup:latest
+          docker push ghcr.io/neoforged/whatamiforgingup:v2
+          docker push ghcr.io/neoforged/whatamiforgingup:latest
