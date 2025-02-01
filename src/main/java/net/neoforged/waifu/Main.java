@@ -46,7 +46,7 @@ public class Main {
 
         var bot = new DiscordBot(System.getenv("DISCORD_TOKEN"), db);
 
-        long initialDelay = 30;
+        long initialDelay = 15;
         for (String version : db.getIndexedGameVersions()) {
             schedule(version, bot, initialDelay);
 

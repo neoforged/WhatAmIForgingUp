@@ -19,6 +19,8 @@ import java.nio.file.Files;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -106,9 +108,9 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
     }
 
     @Override
-    public boolean isKnown(PlatformModFile file) {
+    public @Nullable Instant getKnownLatestProjectFileDate(PlatformModFile file) {
         return jdbi.withHandle(handle -> {
-            var query = handle.createQuery("select id from known_" + file.getPlatform().getName() + "_file_ids where id = ?");
+            var query = handle.createQuery("select id, latest_date from known_" + file.getPlatform().getName() + "_file_ids where id = ?");
             if (file.getId().getClass() == String.class) {
                 query.bind(0, (String) file.getId());
             } else {
@@ -116,20 +118,24 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
             }
             return query.execute((statementSupplier, ctx) -> {
                 var rs = statementSupplier.get();
-                return rs.getResultSet().next();
+                if (rs.getResultSet().next()) {
+                    return rs.getResultSet().getTimestamp("latest_date").toInstant();
+                }
+                return null;
             });
         });
     }
 
     @Override
-    public void markKnownById(PlatformModFile file) {
+    public void markKnownById(PlatformModFile file, Instant latestDate) {
         jdbi.useHandle(handle -> {
-            var update = handle.createUpdate("insert into known_" + file.getPlatform().getName() + "_file_ids(id) values (?) on conflict do nothing");
+            var update = handle.createUpdate("insert into known_" + file.getPlatform().getName() + "_file_ids(id, latest_date) values (?, ?) on conflict do nothing");
             if (file.getId().getClass() == String.class) {
                 update.bind(0, (String) file.getId());
             } else {
                 update.bind(0, (Integer) file.getId());
             }
+            update.bind(1, Date.from(latestDate));
             update.execute();
         });
     }

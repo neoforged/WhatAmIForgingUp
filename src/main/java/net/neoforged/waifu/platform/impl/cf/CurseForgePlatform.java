@@ -24,6 +24,8 @@ import java.io.Reader;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
@@ -43,6 +45,11 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
+    public String getLogoUrl() {
+        return "https://static-beta.curseforge.com/images/cf_legacy.png";
+    }
+
+    @Override
     public PlatformMod getModById(Object id) {
         try {
             return createMod(api.getHelper().getMod((int) id).orElseThrow());
@@ -57,6 +64,7 @@ public class CurseForgePlatform implements ModPlatform {
             return new MappingIterator<>(api.getHelper().paginated(q -> Requests.searchModsPaginated(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
                             .gameVersion(version).classId(6) // 6 is mods
                             .sortOrder(ModSearchQuery.SortOrder.DESCENDENT)
+                            .sortField(ModSearchQuery.SortField.LAST_UPDATED)
                             .modLoaderType(ModLoaderType.NEOFORGE)
                             .paginated(q)), Function.identity())
                     .orElseThrow(), this::createMod);
@@ -119,6 +127,14 @@ public class CurseForgePlatform implements ModPlatform {
                         .findFirst()
                         .orElseThrow()
                         .fileId(), null);
+            }
+
+            @Override
+            public Instant getLatestReleaseDate() {
+                return mod.latestFiles()
+                        .stream().map(f -> Instant.parse(f.fileDate()))
+                        .max(Comparator.comparing(Function.identity()))
+                        .orElseThrow();
             }
         };
     }

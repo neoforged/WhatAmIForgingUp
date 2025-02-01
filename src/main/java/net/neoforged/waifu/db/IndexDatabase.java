@@ -5,6 +5,8 @@ import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.ThrowingConsumer;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 
 public interface IndexDatabase<T extends IndexDatabase.DatabaseMod> extends AutoCloseable {
@@ -24,9 +26,10 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod> extends Auto
 
     T createLoaderMod(ModFileInfo modInfo);
 
-    boolean isKnown(PlatformModFile file);
+    @Nullable
+    Instant getKnownLatestProjectFileDate(PlatformModFile file);
 
-    void markKnownById(PlatformModFile file);
+    void markKnownById(PlatformModFile file, Instant latestProjectFileDate);
 
     <E extends Exception> void trackMod(T mod, ThrowingConsumer<ModTracker, E> consumer) throws E;
 

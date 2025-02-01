@@ -22,6 +22,7 @@ import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.ProgressMonitor;
 
+import java.awt.Color;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -98,19 +99,27 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 editMessage(embed -> {
                     if (success) {
                         embed.addField("Step", "Success", false);
-                        embed.setDescription(indexed.get() + " mods indexed (JiJ included).");
+                        embed.setDescription(indexed.get() + " mods indexed (JiJ included).\nLast indexed mods:\n");
+
+                        printStoredToEmbed(embed);
 
                         if (failed.get() != 0) {
                             embed.appendDescription("\n**" + failed.get() + " failures**. Check console for more information.");
+                            embed.setColor(Color.RED);
+                        } else {
+                            embed.setColor(Color.GREEN);
                         }
                     } else if (startedIndex) {
                         embed.addField("Step", "Indexing mods", false);
                         embed.addField("Found mods", currentCounter.getAmount() + " mods found", false);
                         embed.appendDescription("Indexed: %s/%s\n".formatted(indexed.get(), expected.get()));
-                        embed.appendDescription("Stored: %s/%s".formatted(stored.get(), expected.get()));
+                        embed.appendDescription("Stored: %s/%s\n".formatted(stored.getAmount(), expected.get()));
+
+                        embed.appendDescription("Last stored mods:\n");
+                        printStoredToEmbed(embed);
 
                         if (failed.get() != 0) {
-                            embed.appendDescription("\n\nFailed: %s".formatted(failed.get()));
+                            embed.appendDescription("\nFailed: %s".formatted(failed.get()));
                         }
                     } else if (currentCounter != null) {
                         embed.addField("Step", "Searching mods", false);
@@ -118,29 +127,48 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
                         embed.appendDescription("Last 5 found mods:\n");
                         for (PlatformModFile element : currentCounter.getElements()) {
-                            embed.appendDescription("- " + element.getUrl() + "\n");
+                            if (element != null) {
+                                embed.appendDescription("- " + element.getUrl() + "\n");
+                            }
                         }
                     }
                 });
+            }
+
+            private void printStoredToEmbed(EmbedBuilder embed) {
+                for (ModIndexer.IndexCandidate element : stored.getElements()) {
+                    if (element != null) {
+                        var text = "`" + element.file().getDisplayName() + "`";
+                        if (element.platformFile() != null) {
+                            text = "[" + text + "](" + element.platformFile().getUrl() + ")";
+                        }
+                        embed.appendDescription("- " + text + "\n");
+                    }
+                }
             }
 
             private volatile Counter<PlatformModFile> currentCounter;
 
             private volatile boolean startedIndex, success;
 
-            private final AtomicInteger expected = new AtomicInteger(), indexed = new AtomicInteger(), stored = new AtomicInteger(), failed = new AtomicInteger();
+            private final AtomicInteger expected = new AtomicInteger(), indexed = new AtomicInteger(), failed = new AtomicInteger();
+            private final Counter<ModIndexer.IndexCandidate> stored = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[20]);
 
             @Override
             public ProgressMonitor<ModIndexer.IndexCandidate> startIndex() {
                 startedIndex = true;
                 expected.set(0);
                 indexed.set(0);
-                stored.set(0);
                 failed.set(0);
                 return new ProgressMonitor<>() {
                     @Override
                     public void setExpected(List<ModIndexer.IndexCandidate> elements) {
                         expected.set(elements.size());
+                    }
+
+                    @Override
+                    public void unexpect(ModIndexer.IndexCandidate element) {
+                        expected.decrementAndGet();
                     }
 
                     @Override
@@ -150,7 +178,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
                     @Override
                     public void markAsStored(ModIndexer.IndexCandidate element) {
-                        stored.incrementAndGet();
+                        stored.add(element);
                     }
 
                     @Override
@@ -184,6 +212,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             private void editMessage(Consumer<EmbedBuilder> consumer) {
                 var embed = new EmbedBuilder();
                 embed.setTitle("Indexing version `" + gameVersion + "`, platform " + platform.getName());
+                embed.setAuthor(platform.getName(), null, platform.getLogoUrl());
 
                 embed.setTimestamp(start);
 
@@ -193,7 +222,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
                 consumer.accept(embed);
 
-                message.editMessage(MessageEditData.fromEmbeds(embed.build())).complete();
+                message.editMessage(MessageEditData.fromEmbeds(embed.build()))
+                        .setContent(null).complete();
             }
         }
 

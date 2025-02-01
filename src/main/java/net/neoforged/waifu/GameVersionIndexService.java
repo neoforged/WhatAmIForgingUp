@@ -80,8 +80,14 @@ public class GameVersionIndexService implements Runnable {
                     var file = next.getLatestFile(version);
                     if (file == null) continue;
 
-                    if (db.isKnown(file)) {
-                        break;
+                    var latestKnown = db.getKnownLatestProjectFileDate(file);
+                    if (latestKnown != null) {
+                        // We only stop if we found a known file that is also latest for that project since the project could be latest updated but for a different version
+                        if (next.getLatestReleaseDate().getEpochSecond() == latestKnown.getEpochSecond()) { // Modrinth returns the date with big precision
+                            break;
+                        } else {
+                            continue;
+                        }
                     }
                     files.add(file);
                     counter.add(file);
@@ -89,8 +95,9 @@ public class GameVersionIndexService implements Runnable {
 
                 // Reverse the order of the files so we index older ones first
                 Collections.reverse(files);
-                for (PlatformModFile file : files) {
-                    indexer.addFile(file);
+
+                try (var exec = Executors.newFixedThreadPool(20, Thread.ofVirtual().name("mod-downloader-" + platform.getName() + "-" + version + "-", 0).factory())) {
+                    indexer.downloadAndConsiderConcurrently(files, exec);
                 }
 
                 var monitor = listener.startIndex();
@@ -104,7 +111,7 @@ public class GameVersionIndexService implements Runnable {
 
                 LOGGER.info("Finished indexing platform {} for game version {}", platform.getName(), version);
             } catch (Exception exception) {
-                LOGGER.error("Fatal error raised while indexing platform {} for game version {}", platform.getName(), version);
+                LOGGER.error("Fatal error raised while indexing platform {} for game version {}", platform.getName(), version, exception);
                 listener.raiseFatalException(exception);
             }
         }

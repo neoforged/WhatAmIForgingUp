@@ -1,5 +1,6 @@
 package net.neoforged.waifu.meta;
 
+import com.electronwill.nightconfig.core.CommentedConfig;
 import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.jetbrains.annotations.Nullable;
@@ -57,22 +58,25 @@ public interface ModFileInfo {
         if (Files.exists(modsToml)) {
             try (var reader = Files.newBufferedReader(modsToml)) {
                 var toml = Utils.TOML.parse(reader);
-                return new MetadataPoweredModFileInfo(path, version, toml, coordinates);
-            }
-        } else {
-            var attr = man.getMainAttributes().getValue("FMLModType");
-            outer: if (attr == null) {
-                for (String service : SERVICES) {
-                    if (Files.isRegularFile(path.resolve("META-INF/services/" + service))) {
-                        attr = "LIBRARY";
-                        break outer;
-                    }
+                var mods = toml.<List<CommentedConfig>>get("mods");
+                if (mods != null && !mods.isEmpty()) {
+                    return new MetadataPoweredModFileInfo(path, version, toml, coordinates);
                 }
-                path.close();
-                return null;
             }
-            return new LibraryModFileInfo(path, Type.get(attr), version, coordinates);
         }
+
+        var attr = man.getMainAttributes().getValue("FMLModType");
+        outer: if (attr == null) {
+            for (String service : SERVICES) {
+                if (Files.isRegularFile(path.resolve("META-INF/services/" + service))) {
+                    attr = "LIBRARY";
+                    break outer;
+                }
+            }
+            path.close();
+            return null;
+        }
+        return new LibraryModFileInfo(path, Type.get(attr), version, coordinates);
     }
 
     private static Manifest readManifest(Path manPath) throws IOException {

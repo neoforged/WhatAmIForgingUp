@@ -43,7 +43,9 @@ dependencies {
 
     implementation 'io.github.matyrobbrt:curseforgeapi:2.0.0'
 
-    implementation 'org.flywaydb:flyway-core:9.18.0'
+    implementation 'org.flywaydb:flyway-core:11.3.0'
+    runtimeOnly 'org.flywaydb:flyway-database-postgresql:11.3.0'
+
     implementation 'org.jdbi:jdbi3-core:3.32.0'
     implementation 'org.jdbi:jdbi3-sqlobject:3.32.0'
     implementation 'org.jdbi:jdbi3-postgres:3.32.0'

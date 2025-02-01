@@ -6,6 +6,8 @@ import java.util.List;
 public interface ModPlatform {
     String getName();
 
+    String getLogoUrl();
+
     PlatformMod getModById(Object id);
 
     Iterator<PlatformMod> searchMods(String version);

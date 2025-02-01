@@ -2,19 +2,28 @@ package net.neoforged.waifu.util;
 
 import com.electronwill.nightconfig.toml.TomlParser;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class Utils {
-    public static final Gson GSON = new Gson();
+    public static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) -> Instant.parse(json.getAsString()))
+            .create();
     public static final TomlParser TOML = new TomlParser();
 
     public static <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futuresList) {

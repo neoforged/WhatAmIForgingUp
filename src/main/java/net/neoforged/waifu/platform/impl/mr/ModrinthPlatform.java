@@ -14,6 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -30,6 +31,11 @@ public class ModrinthPlatform implements ModPlatform {
     @Override
     public String getName() {
         return "modrinth";
+    }
+
+    @Override
+    public String getLogoUrl() {
+        return "https://github.com/gabrielvicenteYT/modrinth-icons/blob/main/Branding/Favicon/favicon__192x192.png?raw=true";
     }
 
     @Override
@@ -108,11 +114,27 @@ public class ModrinthPlatform implements ModPlatform {
                 return slug;
             }
 
+            private volatile List<Version> versions;
+
             @Override
             public PlatformModFile getLatestFile(String gameVersion) {
-                var file = sendRequest("/project/" + id + "/version?loaders=" + URLEncoder.encode("[\"neoforge\"]", StandardCharsets.UTF_8) + "&game_versions=" + URLEncoder.encode("[\"" + gameVersion + "\"]", StandardCharsets.UTF_8), new TypeToken<List<Version>>() {})
-                        .get(0);
+                var file = getVersions().stream()
+                        .filter(v -> v.loaders.contains("neoforge") && v.game_versions.contains(gameVersion))
+                        .findFirst()
+                        .orElseThrow();
                 return createModFile(this, file);
+            }
+
+            @Override
+            public Instant getLatestReleaseDate() {
+                return getVersions().get(0).date_published;
+            }
+
+            private List<Version> getVersions() {
+                if (versions == null) {
+                    versions = sendRequest("/project/" + id + "/version", new TypeToken<>() {});
+                }
+                return versions;
             }
         };
     }
@@ -187,7 +209,7 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     private record ProjectResponse(String id) {}
-    private record Version(String id, List<File> files) {
+    private record Version(String id, List<String> game_versions, List<String> loaders, Instant date_published, List<File> files) {
 
         private record File(Hashes hashes, String url, boolean primary, long size) {
 

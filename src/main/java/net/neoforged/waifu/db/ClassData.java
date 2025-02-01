@@ -46,7 +46,7 @@ public record ClassData(
     ) {
         @Override
         public String toString() {
-            return enumType.getClassName() + ":" + value;
+            return enumType.getInternalName() + ":" + value;
         }
     }
 }

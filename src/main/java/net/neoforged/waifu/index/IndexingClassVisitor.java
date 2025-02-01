@@ -85,7 +85,7 @@ public class IndexingClassVisitor extends ClassVisitor {
 
             @Override
             public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                if (includeAnnotations && visible) {
+                if (includeAnnotations && visible && shouldVisitAnnotations(descriptor)) {
                     var info = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
                     method.annotations().add(info);
                     return visitor(info);
@@ -97,7 +97,7 @@ public class IndexingClassVisitor extends ClassVisitor {
 
     @Override
     public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-        if (current != null && includeAnnotations && visible) {
+        if (current != null && includeAnnotations && visible && shouldVisitAnnotations(descriptor)) {
             var info = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
             current.annotations().add(info);
             return visitor(info);
@@ -112,7 +112,7 @@ public class IndexingClassVisitor extends ClassVisitor {
         return includeAnnotations ? new FieldVisitor(Opcodes.ASM9) {
             @Override
             public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                if (visible) {
+                if (visible && shouldVisitAnnotations(descriptor)) {
                     var info = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
                     field.annotations().add(info);
                     return visitor(info);
@@ -131,9 +131,12 @@ public class IndexingClassVisitor extends ClassVisitor {
 
             @Override
             public AnnotationVisitor visitAnnotation(String name, String descriptor) {
-                var newAn = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
-                annotationInfo.members().put(name, newAn);
-                return visitor(newAn);
+                if (shouldVisitAnnotations(descriptor)) {
+                    var newAn = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
+                    annotationInfo.members().put(name, newAn);
+                    return visitor(newAn);
+                }
+                return null;
             }
 
             @Override
@@ -150,8 +153,27 @@ public class IndexingClassVisitor extends ClassVisitor {
                     public void visit(String name, Object value) {
                         lst.add(value);
                     }
+
+                    @Override
+                    public AnnotationVisitor visitAnnotation(String name, String descriptor) {
+                        if (shouldVisitAnnotations(descriptor)) {
+                            var newAn = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
+                            lst.add(newAn);
+                            return visitor(newAn);
+                        }
+                        return null;
+                    }
+
+                    @Override
+                    public void visitEnum(String name, String descriptor, String value) {
+                        lst.add(new ClassData.EnumValue(Type.getType(descriptor), value));
+                    }
                 };
             }
         };
+    }
+
+    private boolean shouldVisitAnnotations(String ann) {
+        return !ann.equals("Lkotlin/Metadata;");
     }
 }

@@ -1,5 +1,6 @@
 package net.neoforged.waifu;
 
+import io.github.matyrobbrt.curseforgeapi.util.Pair;
 import net.neoforged.waifu.db.ClassData;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
@@ -10,7 +11,6 @@ import net.neoforged.waifu.meta.ModFilePath;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -57,7 +57,6 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
 
         for (IndexCandidate fromPlatform : expanded) {
             var cf = new CompletableFuture<Pair<Runnable, IndexCandidate>>();
-            cfs.add(cf);
 
             executor.submit(() -> {
                 try {
@@ -75,6 +74,8 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
                 return null;
             });
 
+            cfs.add(cf);
+
             if (cfs.size() == concurrency) {
                 runCurrent(monitor, cfs);
             }
@@ -91,13 +92,15 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
         Utils.allOf(cfs)
                 .thenAccept(runs -> {
                     for (var run : runs) {
-                        if (run.getKey() != null) {
+                        if (run.first() != null) {
                             try {
-                                run.getKey().run();
-                                monitor.markAsStored(run.getRight());
+                                run.first().run();
+                                monitor.markAsStored(run.second());
                             } catch (Throwable ex) {
-                                monitor.raiseError(run.getRight(), ex);
+                                monitor.raiseError(run.second(), ex);
                             }
+                        } else {
+                            monitor.unexpect(run.second());
                         }
                     }
                 })
@@ -120,7 +123,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
                 }
 
                 knownByHash.link(file.platformFile);
-                db.markKnownById(file.platformFile);
+                db.markKnownById(file.platformFile, file.platformFile.getMod().getLatestReleaseDate());
             }
             return null;
         }
@@ -170,7 +173,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
             mod.updateMetadata(file);
 
             if (platform != null) {
-                db.markKnownById(platform);
+                db.markKnownById(platform, platform.getMod().getLatestReleaseDate());
             }
         };
     }
@@ -228,19 +231,40 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
         }
     }
 
-    public synchronized void addFile(PlatformModFile file) throws IOException {
-        var path = download(file);
+    public synchronized void downloadAndConsiderConcurrently(List<PlatformModFile> files, ExecutorService executor) {
+        var cfs = new ArrayList<CompletableFuture<IndexCandidate>>();
+        for (PlatformModFile file : files) {
+            var cf = new CompletableFuture<IndexCandidate>();
+            executor.submit(() -> {
+                try {
+                    var path = download(file);
 
-        var mod = ModFileInfo.read(
-                new ModFilePath(
-                        FileSystems.newFileSystem(path).getRootDirectories().iterator().next(),
-                        file.getHash(), KEEP_CACHES ? null : path
-                ),
-                null, null
-        );
+                    var mod = ModFileInfo.read(
+                            new ModFilePath(
+                                    FileSystems.newFileSystem(path).getRootDirectories().iterator().next(),
+                                    file.getHash(), KEEP_CACHES ? null : path
+                            ),
+                            null, null
+                    );
 
-        if (mod != null) {
-            this.candidateMods.add(new IndexCandidate(file, mod));
+                    if (mod != null) {
+                        cf.complete(new IndexCandidate(file, mod));
+                    } else {
+                        cf.complete(null);
+                    }
+                } catch (Throwable ex) {
+                    cf.completeExceptionally(ex);
+                }
+
+                return null;
+            });
+            cfs.add(cf);
+        }
+
+        for (IndexCandidate indexCandidate : Utils.allOf(cfs).join()) {
+            if (indexCandidate != null) {
+                this.candidateMods.add(indexCandidate);
+            }
         }
     }
 

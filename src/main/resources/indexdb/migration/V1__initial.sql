@@ -59,11 +59,13 @@ create table known_files
 
 create table known_curseforge_file_ids
 (
-    id int not null unique
+    id          int                      not null unique,
+    latest_date timestamp with time zone not null
 );
 create table known_modrinth_file_ids
 (
-    id varchar(8) not null unique
+    id          varchar(8)               not null unique,
+    latest_date timestamp with time zone not null
 );
 
 create table tags
