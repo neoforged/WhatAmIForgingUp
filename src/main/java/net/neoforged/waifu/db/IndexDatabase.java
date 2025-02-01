@@ -46,11 +46,16 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod> extends Auto
     interface DatabaseMod {
         String getVersion();
 
+        @Nullable
+        String getMavenCoordinate();
+
         boolean isLoader();
 
         void updateMetadata(ModFileInfo info);
 
         void link(PlatformModFile platformFile);
+
+        void link(String mavenCoords);
 
         void delete();
     }

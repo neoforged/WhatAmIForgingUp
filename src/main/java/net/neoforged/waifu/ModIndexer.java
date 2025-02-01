@@ -11,6 +11,7 @@ import net.neoforged.waifu.meta.ModFilePath;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -18,12 +19,15 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
     private static final boolean KEEP_CACHES = Boolean.parseBoolean(System.getenv().getOrDefault("KEEP_PLATFORM_CACHES", "true"));
@@ -49,8 +53,9 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
     }
 
     public List<IndexCandidate> index(ExecutorService executor, int concurrency, ProgressMonitor<IndexCandidate> monitor, DataSanitizer sanitizer) {
-        var expanded = getExpandedMods();
+        var expansionResult = getExpandedMods();
 
+        var expanded = expansionResult.candidates();
         monitor.setExpected(expanded);
 
         var cfs = new ArrayList<CompletableFuture<Pair<Runnable, IndexCandidate>>>(concurrency);
@@ -83,6 +88,13 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
 
         if (!cfs.isEmpty()) {
             runCurrent(monitor, cfs);
+        }
+
+        for (var entry : expansionResult.additionalMavenCoordinates.entrySet()) {
+            var mod = db.getMod(entry.getKey());
+            if (mod != null && mod.getMavenCoordinate() == null) {
+                mod.link(entry.getValue());
+            }
         }
 
         return expanded;
@@ -124,6 +136,8 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
 
                 knownByHash.link(file.platformFile);
                 db.markKnownById(file.platformFile, file.platformFile.getMod().getLatestReleaseDate());
+            } else if (file.file().getMavenCoordinates() != null && knownByHash.getMavenCoordinate() == null) {
+                knownByHash.link(file.file().getMavenCoordinates());
             }
             return null;
         }
@@ -140,6 +154,9 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
             mod = db.getMod(file.file.getMavenCoordinates());
             if (mod == null) {
                 mod = db.createMod(file.file);
+            } else if (new DefaultArtifactVersion(mod.getVersion()).compareTo(file.file().getVersion()) >= 0) {
+                // Do not bother indexing an older version
+                return null;
             }
         }
 
@@ -178,12 +195,28 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
         };
     }
 
-    public List<IndexCandidate> getExpandedMods() {
+    public record ExpansionResult(List<IndexCandidate> candidates, Map<PlatformModFile, String> additionalMavenCoordinates) {}
+
+    public ExpansionResult getExpandedMods() {
         Map<String, ModFileInfo.NestedJar> contained = new LinkedHashMap<>();
 
         for (IndexCandidate platformMod : candidateMods) {
             addNestedMods(contained, platformMod.file);
         }
+
+        var candidateHashes = candidateMods.stream()
+                .collect(Collectors.toMap(k -> k.file().getFileHash(), Function.identity()));
+
+        var additionalCoordinates = new HashMap<PlatformModFile, String>();
+
+        contained.entrySet().removeIf(e -> {
+            var linked = candidateHashes.get(e.getValue().info().getFileHash());
+            if (linked != null) {
+                additionalCoordinates.put(linked.platformFile(), e.getValue().identifier());
+                return true;
+            }
+            return false;
+        });
 
         var finalList = new ArrayList<IndexCandidate>(contained.size() + candidateMods.size());
         finalList.addAll(candidateMods);
@@ -191,7 +224,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
             finalList.add(new IndexCandidate(null, value.info()));
         }
 
-        return finalList;
+        return new ExpansionResult(finalList, additionalCoordinates);
     }
 
     private void addNestedMods(Map<String, ModFileInfo.NestedJar> nested, ModFileInfo mod) {

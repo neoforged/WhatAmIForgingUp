@@ -379,6 +379,11 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         }
 
         @Override
+        public @Nullable String getMavenCoordinate() {
+            return mavenCoordinates;
+        }
+
+        @Override
         public boolean isLoader() {
             return loader;
         }
@@ -418,6 +423,14 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         public void link(PlatformModFile platformFile) {
             jdbi.useHandle(handle -> handle.createUpdate("update mods set " + platformFile.getPlatform().getName() + "_project_id = ? where id = ?")
                     .bind(0, platformFile.getModId())
+                    .bind(1, id)
+                    .execute());
+        }
+
+        @Override
+        public void link(String mavenCoords) {
+            jdbi.useHandle(handle -> handle.createUpdate("update mods set maven_coordinates = ? where id = ?")
+                    .bind(0, mavenCoords)
                     .bind(1, id)
                     .execute());
         }
