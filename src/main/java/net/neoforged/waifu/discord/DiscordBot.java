@@ -76,9 +76,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             protected void execute(SlashCommandEvent event) {
                 var version = event.optString("version", "");
                 database.addGameVersion(version);
-                event.reply("Started indexing version `" + version + "`")
-                        .setEphemeral(true)
-                        .queue();
+                event.reply("Started indexing version `" + version + "`").queue();
 
                 Main.schedule(version, DiscordBot.this, 30);
             }

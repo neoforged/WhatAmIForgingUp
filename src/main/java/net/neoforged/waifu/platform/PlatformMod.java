@@ -1,5 +1,7 @@
 package net.neoforged.waifu.platform;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.time.Instant;
 
 public interface PlatformMod {
@@ -7,6 +9,7 @@ public interface PlatformMod {
 
     String getSlug();
 
+    @Nullable
     PlatformModFile getLatestFile(String gameVersion);
 
     Instant getLatestReleaseDate();

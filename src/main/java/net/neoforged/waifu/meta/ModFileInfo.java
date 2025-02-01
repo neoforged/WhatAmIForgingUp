@@ -1,6 +1,7 @@
 package net.neoforged.waifu.meta;
 
 import com.electronwill.nightconfig.core.CommentedConfig;
+import net.neoforged.waifu.Main;
 import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.jetbrains.annotations.Nullable;
@@ -59,10 +60,18 @@ public interface ModFileInfo {
 
         if (Files.exists(modsToml)) {
             try (var reader = Files.newBufferedReader(modsToml)) {
-                var toml = Utils.TOML.parse(reader);
-                var mods = toml.<List<CommentedConfig>>get("mods");
-                if (mods != null && !mods.isEmpty()) {
-                    return new MetadataPoweredModFileInfo(path, version, toml, coordinates);
+                CommentedConfig toml = null;
+                try {
+                    toml = Utils.TOML.parse(reader); // invalid TOML is invalid
+                } catch (Exception ignored) {
+                    Main.LOGGER.error("File at {} has invalid TOML", path.physicalLocation());
+                }
+
+                if (toml != null) {
+                    var mods = toml.<List<CommentedConfig>>get("mods");
+                    if (mods != null && !mods.isEmpty()) {
+                        return new MetadataPoweredModFileInfo(path, version, toml, coordinates);
+                    }
                 }
             }
         }

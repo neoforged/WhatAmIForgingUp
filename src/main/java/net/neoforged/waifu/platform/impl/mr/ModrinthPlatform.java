@@ -152,8 +152,8 @@ public class ModrinthPlatform implements ModPlatform {
                 var file = getVersions().stream()
                         .filter(v -> v.loaders.contains("neoforge") && v.game_versions.contains(gameVersion))
                         .findFirst()
-                        .orElseThrow();
-                return createModFile(this, file);
+                        .orElse(null);
+                return file == null ? null : createModFile(this, file);
             }
 
             @Override
@@ -161,9 +161,12 @@ public class ModrinthPlatform implements ModPlatform {
                 return getVersions().get(0).date_published;
             }
 
-            private List<Version> getVersions() {
+            private synchronized List<Version> getVersions() {
                 if (versions == null) {
                     versions = sendRequest("/project/" + id + "/version", new TypeToken<>() {});
+                    if (versions == null) {
+                        versions = List.of();
+                    }
                 }
                 return versions;
             }

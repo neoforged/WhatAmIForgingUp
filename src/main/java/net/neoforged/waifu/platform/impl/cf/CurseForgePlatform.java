@@ -28,7 +28,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -152,12 +151,12 @@ public class CurseForgePlatform implements ModPlatform {
 
             @Override
             public PlatformModFile getLatestFile(String gameVersion) {
-                return createFile(this, mod.latestFilesIndexes().stream()
+                var idx = mod.latestFilesIndexes().stream()
                         .filter(f -> f.gameVersion().equals(gameVersion) && f.modLoader() != null && f.modLoaderType() == ModLoaderType.NEOFORGE)
                         .limit(1)
                         .findFirst()
-                        .orElseThrow()
-                        .fileId(), null);
+                        .orElse(null);
+                return idx == null ? null : createFile(this, idx.fileId(), null);
             }
 
             @Override
@@ -176,7 +175,7 @@ public class CurseForgePlatform implements ModPlatform {
 
             @Override
             public Object getModId() {
-                return file.modId();
+                return getFile().modId();
             }
 
             @Override
@@ -189,7 +188,7 @@ public class CurseForgePlatform implements ModPlatform {
             public PlatformMod getMod() {
                 if (mod == null) {
                     try {
-                        mod = createMod(api.getHelper().getMod(file.modId()).orElseThrow());
+                        mod = createMod(api.getHelper().getMod(getFile().modId()).orElseThrow());
                     } catch (CurseForgeException e) {
                         throw new RuntimeException(e);
                     }
@@ -227,7 +226,7 @@ public class CurseForgePlatform implements ModPlatform {
             private synchronized File getFile() {
                 if (this.file == null) {
                     try {
-                        file = api.getHelper().getModFile((Integer) mod.getId(), fileId).orElseThrow();
+                        file = api.getHelper().getFiles(fileId).orElseThrow().get(0);
                     } catch (CurseForgeException e) {
                         throw new RuntimeException(e);
                     }
