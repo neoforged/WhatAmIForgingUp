@@ -234,9 +234,9 @@ public class CurseForgePlatform implements ModPlatform {
                     try {
                         file = api.getHelper().getFiles(fileId).orElseThrow().get(0);
                     } catch (Exception ex) {
-                        Main.LOGGER.error("Exception trying to get file {}... retrying in 15 seconds", fileId, ex);
+                        Main.LOGGER.error("Exception trying to get file {}... retrying in 45 seconds", fileId, ex);
                         try {
-                            Thread.sleep(15 * 1000L);
+                            Thread.sleep(45 * 1000L);
                         } catch (Exception e) {
                             throw new RuntimeException(e);
                         }

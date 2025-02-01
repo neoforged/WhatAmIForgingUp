@@ -97,7 +97,7 @@ public class GameVersionIndexService implements Runnable {
                 // Reverse the order of the files so we index older ones first
                 Collections.reverse(files);
 
-                try (var exec = Executors.newFixedThreadPool(20, Thread.ofVirtual().name("mod-downloader-" + platform.getName() + "-" + version + "-", 0).factory())) {
+                try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-" + platform.getName() + "-" + version + "-", 0).factory())) {
                     indexer.downloadAndConsiderConcurrently(files, exec);
                 }
 
