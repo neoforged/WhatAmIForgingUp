@@ -77,6 +77,7 @@ public class GameVersionIndexService implements Runnable {
                 var itr = platform.searchMods(version);
                 while (itr.hasNext()) {
                     var next = itr.next();
+                    if (!next.isAvailable()) continue;
                     var file = next.getLatestFile(version);
                     if (file == null) continue;
 

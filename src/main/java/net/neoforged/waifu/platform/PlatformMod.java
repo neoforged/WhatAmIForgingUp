@@ -13,4 +13,8 @@ public interface PlatformMod {
     PlatformModFile getLatestFile(String gameVersion);
 
     Instant getLatestReleaseDate();
+
+    default boolean isAvailable() {
+        return true;
+    }
 }

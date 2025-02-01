@@ -12,6 +12,7 @@ import io.github.matyrobbrt.curseforgeapi.schemas.mod.Mod;
 import io.github.matyrobbrt.curseforgeapi.schemas.mod.ModLoaderType;
 import io.github.matyrobbrt.curseforgeapi.util.Constants;
 import io.github.matyrobbrt.curseforgeapi.util.CurseForgeException;
+import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
@@ -166,6 +167,11 @@ public class CurseForgePlatform implements ModPlatform {
                         .max(Comparator.comparing(Function.identity()))
                         .orElseThrow();
             }
+
+            @Override
+            public boolean isAvailable() {
+                return mod.isAvailable();
+            }
         };
     }
 
@@ -224,11 +230,11 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             private synchronized File getFile() {
-                if (this.file == null) {
+                while (this.file == null) {
                     try {
                         file = api.getHelper().getFiles(fileId).orElseThrow().get(0);
-                    } catch (CurseForgeException e) {
-                        throw new RuntimeException(e);
+                    } catch (Exception ex) {
+                        Main.LOGGER.error("Exception trying to get file {}... retrying", fileId, ex);
                     }
                 }
                 return file;
