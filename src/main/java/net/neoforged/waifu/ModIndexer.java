@@ -180,34 +180,13 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
 
     public List<IndexCandidate> getExpandedMods() {
         Map<String, ModFileInfo.NestedJar> contained = new LinkedHashMap<>();
-        Map<String, IndexCandidate> byModId = LinkedHashMap.newLinkedHashMap(candidateMods.size());
 
         for (IndexCandidate platformMod : candidateMods) {
             addNestedMods(contained, platformMod.file);
-
-            var mods = platformMod.file.getMods();
-            if (!mods.isEmpty()) {
-                byModId.put(mods.get(0).modId(), platformMod);
-            }
         }
 
-        contained.entrySet().removeIf((entry) -> {
-            var nested = entry.getValue().info();
-            if (!nested.getMods().isEmpty()) {
-                var modId = nested.getMods().get(0).modId();
-                byModId.merge(modId, new IndexCandidate(null, nested), (oldJar, newJar) -> {
-                    if (oldJar.file().getVersion().compareTo(newJar.file().getVersion()) < 0) {
-                        return newJar.platformFile() == null ? new IndexCandidate(oldJar.platformFile, newJar.file) : newJar;
-                    }
-                    return oldJar;
-                });
-                return true;
-            }
-            return false;
-        });
-
-        var finalList = new ArrayList<IndexCandidate>(contained.size() + byModId.size());
-        finalList.addAll(byModId.values());
+        var finalList = new ArrayList<IndexCandidate>(contained.size() + candidateMods.size());
+        finalList.addAll(candidateMods);
         for (ModFileInfo.NestedJar value : contained.values()) {
             finalList.add(new IndexCandidate(null, value.info()));
         }
