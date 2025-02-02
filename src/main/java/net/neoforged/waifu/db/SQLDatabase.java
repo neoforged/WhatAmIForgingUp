@@ -16,7 +16,9 @@ import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
 
 import java.nio.file.Files;
+import java.sql.Array;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -151,7 +153,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                     if (classes.isEmpty()) return;
 
                     try {
-                        var stmt = con.prepareStatement("select * from insert_class(?, ?, ?, ?, ?, ?, ?, ?)");
+                        var stmt = new BatchingStatement(con.prepareStatement("select * from insert_class(?, ?, ?, ?, ?, ?, ?, ?)"), 500);
                         for (var aClass : classes) {
                             stmt.setInt(1, modId);
                             stmt.setString(2, aClass.name());
@@ -175,7 +177,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                     if (tags.isEmpty()) return;
 
                     try {
-                        var stmt = con.prepareStatement("select * from insert_tag(?, ?, ?, ?)");
+                        var stmt = new BatchingStatement(con.prepareStatement("select * from insert_tag(?, ?, ?, ?)"), 250);
                         for (var tag : tags) {
                             stmt.setInt(1, modId);
                             stmt.setString(2, tag.name());
@@ -457,5 +459,48 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
 
     private static String orNull(String str) {
         return str.isBlank() ? null : str;
+    }
+
+    private static class BatchingStatement {
+        private final PreparedStatement statement;
+        private final int batchSize;
+
+        private int currentSize;
+
+        private BatchingStatement(PreparedStatement statement, int batchSize) {
+            this.statement = statement;
+            this.batchSize = batchSize;
+        }
+
+        public void setString(int pos, String arg) throws SQLException {
+            statement.setString(pos, arg);
+        }
+
+        public void setBoolean(int pos, boolean arg) throws SQLException {
+            statement.setBoolean(pos, arg);
+        }
+
+        public void setArray(int pos, Array array) throws SQLException {
+            statement.setArray(pos, array);
+        }
+
+        public void setInt(int pos, int arg) throws SQLException {
+            statement.setInt(pos, arg);
+        }
+
+        public void addBatch() throws SQLException {
+            statement.addBatch();
+            currentSize++;
+            if (currentSize == batchSize) {
+                executeBatch();
+            }
+        }
+
+        public void executeBatch() throws SQLException {
+            if (currentSize > 0) {
+                statement.executeBatch();
+                currentSize = 0;
+            }
+        }
     }
 }

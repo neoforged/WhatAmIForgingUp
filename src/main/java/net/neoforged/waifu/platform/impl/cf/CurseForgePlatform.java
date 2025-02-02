@@ -81,7 +81,12 @@ public class CurseForgePlatform implements ModPlatform {
     @Override
     public List<PlatformModFile> getFiles(List<Object> fileIds) {
         try {
-            return api.getHelper().getFiles(fileIds.stream().mapToInt(i -> (Integer) i).toArray())
+            return api.getHelper().getFiles(fileIds.stream().mapToInt(i -> {
+                        if (i instanceof Integer) {
+                            return (int) i;
+                        }
+                        return Integer.parseInt(((String) i));
+                    }).toArray())
                     .map(l -> l.stream().map(f -> createFile(null, f.id(), f)).toList())
                     .orElseThrow();
         } catch (CurseForgeException e) {
@@ -143,6 +148,7 @@ public class CurseForgePlatform implements ModPlatform {
     public void bulkFillData(List<PlatformModFile> files) {
         var castFiles = (List<CFModFile>) (List) new ArrayList<>(files);
         castFiles.removeIf(f -> f.getCachedFile() != null);
+        if (castFiles.isEmpty()) return;
 
         var byId = HashMap.<Integer, CFModFile>newHashMap(castFiles.size());
         for (CFModFile castFile : castFiles) {

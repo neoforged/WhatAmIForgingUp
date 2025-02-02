@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.hooks.EventListener;
+import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
@@ -24,7 +25,9 @@ import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 
 import java.awt.Color;
+import java.io.IOException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -75,7 +78,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 name = "index-version";
                 help = "Add a version to be indexed";
                 options = List.of(
-                        new OptionData(OptionType.STRING, "version", "The version to index")
+                        new OptionData(OptionType.STRING, "version", "The version to index", true)
                 );
             }
 
@@ -86,6 +89,74 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 event.reply("Started indexing version `" + version + "`").queue();
 
                 Main.schedule(version, DiscordBot.this, 30);
+            }
+        });
+        builder.addSlashCommand(new SlashCommand() {
+            {
+                name = "index-files";
+                help = "Force a list of files to be indexed";
+                options = List.of(
+                        new OptionData(OptionType.STRING, "version", "The game version of the files", true),
+                        new OptionData(OptionType.STRING, "platform", "The platform of the files", true)
+                                .addChoices(Main.PLATFORMS.stream().map(p -> new Command.Choice(p.getName(), p.getName())).toList()),
+                        new OptionData(OptionType.STRING, "files", "Comma-separated files to index", true)
+                );
+            }
+            @Override
+            protected void execute(SlashCommandEvent event) {
+                var platformName = event.optString("platform");
+                ModPlatform platform = Main.PLATFORMS.stream().filter(p -> p.getName().equals(platformName))
+                        .findFirst().orElseThrow();
+
+                event.reply("Started manual index...").complete();
+
+                var fileIds = Arrays.stream(event.optString("files", "").split(","))
+                        .map(s -> (Object) s.trim()).toList();
+                var files = platform.getFiles(fileIds);
+                platform.bulkFillData(files);
+
+                var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(event.optString("version")));
+                var counter = new Counter<>(new AtomicInteger(), new PlatformModFile[5]);
+                try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0).factory())) {
+                    indexer.downloadAndConsiderConcurrently(files, exec, counter);
+                }
+
+                var scanned = indexer.index(platform, GameVersionIndexService.VIRTUAL_THREAD_EXECUTOR, GameVersionIndexService.CONCURRENCY, new ProgressMonitor<>() {
+                    @Override
+                    public void setExpected(List<ModIndexer.IndexCandidate> elements) {
+
+                    }
+
+                    @Override
+                    public void unexpect(ModIndexer.IndexCandidate element) {
+
+                    }
+
+                    @Override
+                    public void markAsIndexed(ModIndexer.IndexCandidate element) {
+
+                    }
+
+                    @Override
+                    public void markAsStored(ModIndexer.IndexCandidate element) {
+
+                    }
+
+                    @Override
+                    public void raiseError(ModIndexer.IndexCandidate element, Throwable exception) {
+                        Main.LOGGER.error("Error indexing candidate {}:", element.file().getDisplayName() + (element.platformFile() != null ? " " + element.platformFile().getUrl() : ""), exception);
+                    }
+                }, Main.SANITIZER);
+
+                for (ModIndexer.IndexCandidate indexCandidate : scanned) {
+                    try {
+                        indexCandidate.file().close();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                event.getHook().editOriginal("Manual index successful. Indexed " + scanned.size() + " mods!").complete();
             }
         });
         return builder.build();

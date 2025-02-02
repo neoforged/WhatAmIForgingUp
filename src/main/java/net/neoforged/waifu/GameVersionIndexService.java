@@ -21,7 +21,8 @@ import java.util.concurrent.Executors;
 
 public class GameVersionIndexService implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(GameVersionIndexService.class);
-    private static final ExecutorService VIRTUAL_THREAD_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    public static final ExecutorService VIRTUAL_THREAD_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    public static final int CONCURRENCY = 100;
 
     private volatile boolean isRunning, pendingReRun;
 
@@ -40,7 +41,7 @@ public class GameVersionIndexService implements Runnable {
         this.sanitizer = sanitizer;
         this.listenerFactory = listenerFactory;
 
-        this.platformCache = Main.CACHE.resolve("platform");
+        this.platformCache = Main.PLATFORM_CACHE;
     }
 
     @Override
@@ -113,7 +114,7 @@ public class GameVersionIndexService implements Runnable {
                 }
 
                 var monitor = listener.startIndex();
-                var scanned = indexer.index(platform, VIRTUAL_THREAD_EXECUTOR, 100, monitor, sanitizer);
+                var scanned = indexer.index(platform, VIRTUAL_THREAD_EXECUTOR, CONCURRENCY, monitor, sanitizer);
 
                 for (ModIndexer.IndexCandidate indexCandidate : scanned) {
                     indexCandidate.file().close();

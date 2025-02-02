@@ -2,6 +2,7 @@ package net.neoforged.waifu;
 
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import net.neoforged.waifu.db.DataSanitizer;
+import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.db.SQLDatabase;
 import net.neoforged.waifu.discord.DiscordBot;
 import net.neoforged.waifu.platform.ModPlatform;
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public class Main {
     public static final Path CACHE = Path.of(".cache");
+    public static final Path PLATFORM_CACHE = Main.CACHE.resolve("platform");
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
     public static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(
             3, Thread.ofPlatform().name("indexer-").factory()
@@ -55,15 +57,18 @@ public class Main {
     }
 
     public static void schedule(String version, DiscordBot bot, long initialDelaySeconds) {
-        var indexDb = new SQLDatabase("jdbc:postgresql://" + System.getenv("POSTGRES_DB_URL") + "?currentSchema=" + version, System.getenv("POSTGRES_DB_USERNAME"), System.getenv("POSTGRES_DB_PASSWORD"));
-
-        indexDb.runFlyway();
-
+        var indexDb = createDatabase(version);
         EXECUTOR.scheduleWithFixedDelay(
                 new GameVersionIndexService(version, PLATFORMS, indexDb, SANITIZER, bot),
                 initialDelaySeconds,
                 DELAY_SEC,
                 TimeUnit.SECONDS
         );
+    }
+
+    public static IndexDatabase<?> createDatabase(String version) {
+        var indexDb = new SQLDatabase("jdbc:postgresql://" + System.getenv("POSTGRES_DB_URL") + "?currentSchema=" + version, System.getenv("POSTGRES_DB_USERNAME"), System.getenv("POSTGRES_DB_PASSWORD"));
+        indexDb.runFlyway();
+        return indexDb;
     }
 }
