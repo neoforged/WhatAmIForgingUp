@@ -120,7 +120,10 @@ public class GameVersionIndexService implements Runnable {
                 var scanned = indexer.index(platform, VIRTUAL_THREAD_EXECUTOR, CONCURRENCY, monitor, sanitizer);
 
                 for (ModIndexer.IndexCandidate indexCandidate : scanned) {
-                    indexCandidate.file().close();
+                    // Only manually close platform files as they'll propagate the close call to their nested jars in the correct order
+                    if (indexCandidate.platformFile() != null) {
+                        indexCandidate.file().close();
+                    }
                 }
 
                 listener.markFinish(scanned.size());

@@ -75,14 +75,17 @@ public class NeoForgeJarProvider {
                         "--write-result=node.stripClient.output.output:" + stripClientJar.toAbsolutePath(),
                         "--write-result=node.downloadClient.output.output:" + rawJar.toAbsolutePath());
 
-                Renamer.builder()
+                var renamer = Renamer.builder()
                         .logger(s -> {})
                         .map(mappings.toFile())
-                        .add(Transformer.parameterAnnotationFixerFactory())
+                        .add(Transformer.parameterAnnotationFixerFactory());
+
+                renamer = renamer
                         .add(Transformer.recordFixerFactory())
                         .add(Transformer.identifierFixerFactory(IdentifierFixerConfig.ALL))
-                        .add(Transformer.sourceFixerFactory(SourceFixerConfig.JAVA))
-                        .build()
+                        .add(Transformer.sourceFixerFactory(SourceFixerConfig.JAVA));
+
+                renamer.build()
                         .run(stripClientJar.toFile(), mcJarSlim.toFile());
 
                 merge(neoformMcJar, rawJar, mcJarSlim, mcVersion);

@@ -38,7 +38,8 @@ dependencies {
     implementation "net.dv8tion:JDA:5.2.3"
     implementation 'pw.chew:jda-chewtils:2.0'
 
-    implementation 'net.neoforged:AutoRenamingTool:2.0.8'
+    // we can't bump this because of https://github.com/neoforged/AutoRenamingTool/pull/13
+    implementation 'net.neoforged:AutoRenamingTool:2.0.3'
     implementation 'net.neoforged.installertools:binarypatcher:2.1.2'
 
     implementation 'io.github.matyrobbrt:curseforgeapi:2.1.0'
