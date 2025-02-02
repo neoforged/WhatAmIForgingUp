@@ -174,7 +174,7 @@ public class IndexingClassVisitor extends ClassVisitor {
     }
 
     private boolean shouldVisitAnnotations(String ann) {
-        // scala/reflect/ScalaSignature
-        return !ann.endsWith("kotlin/Metadata;") && !ann.contains("scala/reflect/");
+        // scala(3)/reflect/ScalaSignature
+        return !ann.endsWith("kotlin/Metadata;") && !ann.contains("scala/reflect/") && !ann.contains("scala3/reflect/");
     }
 }

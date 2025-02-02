@@ -221,6 +221,11 @@ public class ModrinthPlatform implements ModPlatform {
             public String getUrl() {
                 return "https://modrinth.com/mod/" + getModId() + "/version/" + getId();
             }
+
+            @Override
+            public String toString() {
+                return "MRModFile[id=" + version.id() + ", project=" + version.project_id() + "]";
+            }
         };
     }
 

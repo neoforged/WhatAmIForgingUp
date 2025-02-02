@@ -183,7 +183,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 editMessage(embed -> {
                     if (success) {
                         embed.addField("Step", "Success", false);
-                        embed.setDescription(indexed.get() + " mods indexed (JiJ included).\nLast indexed mods:\n");
+                        embed.setDescription("**" + indexed.get() + "** mods indexed (JiJ included).\nLast indexed mods:\n");
 
                         printToEmbed(stored, embed);
 
@@ -192,7 +192,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                             printToEmbed(failed, embed);
                             embed.setColor(Color.RED);
                         } else {
-                            embed.setColor(Color.GREEN);
+                            embed.setColor(indexed.get() == 0 ? Color.GRAY : Color.GREEN);
                         }
                     } else if (startedIndex) {
                         embed.addField("Step", "Indexing mods", false);
