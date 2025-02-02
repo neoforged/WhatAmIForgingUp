@@ -5,9 +5,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 
 class LibraryModFileInfo extends BaseModFileInfo implements ModFileInfo {
     private final Type type;
@@ -30,15 +32,7 @@ class LibraryModFileInfo extends BaseModFileInfo implements ModFileInfo {
         try {
             try (var str = Files.walk(path.rootDirectory())
                     .filter(f -> f.toString().endsWith(".class"))) {
-                return str.map(p -> {
-                            var spl = p.toString().split("/");
-                            var pkg = new StringBuilder();
-                            for (int i = 0; i < spl.length - 1; i++) {
-                                if (i != 0) pkg.append(".");
-                                pkg.append(spl[i]);
-                            }
-                            return pkg.toString();
-                        })
+                return str.map(p -> Arrays.stream(p.toString().split("/")).filter(s -> !s.isBlank()).collect(Collectors.joining(".")))
                         .findFirst()
                         .orElse("");
             }
