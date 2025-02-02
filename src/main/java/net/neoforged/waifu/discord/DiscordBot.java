@@ -114,10 +114,11 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         embed.addField("Step", "Success", false);
                         embed.setDescription(indexed.get() + " mods indexed (JiJ included).\nLast indexed mods:\n");
 
-                        printStoredToEmbed(embed);
+                        printToEmbed(stored, embed);
 
-                        if (failed.get() != 0) {
-                            embed.appendDescription("\n**" + failed.get() + " failures**. Check console for more information.");
+                        if (failed.getAmount() != 0) {
+                            embed.appendDescription("\n**" + failed.getAmount() + " failures**. Check console for more information.");
+                            printToEmbed(failed, embed);
                             embed.setColor(Color.RED);
                         } else {
                             embed.setColor(Color.GREEN);
@@ -129,10 +130,10 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         embed.appendDescription("Stored: %s/%s\n".formatted(stored.getAmount(), expected.get()));
 
                         embed.appendDescription("Last stored mods:\n");
-                        printStoredToEmbed(embed);
+                        printToEmbed(stored, embed);
 
-                        if (failed.get() != 0) {
-                            embed.appendDescription("\nFailed: %s".formatted(failed.get()));
+                        if (failed.getAmount() != 0) {
+                            embed.appendDescription("\nFailed: %s".formatted(failed.getAmount()));
                         }
                     } else if (downloadCounter != null) {
                         embed.addField("Step", "Downloading mods", false);
@@ -158,8 +159,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 });
             }
 
-            private void printStoredToEmbed(EmbedBuilder embed) {
-                for (ModIndexer.IndexCandidate element : stored.getElements()) {
+            private void printToEmbed(Counter<ModIndexer.IndexCandidate> counter, EmbedBuilder embed) {
+                for (ModIndexer.IndexCandidate element : counter.getElements()) {
                     if (element != null) {
                         var text = "`" + element.file().getDisplayName() + "`";
                         if (element.platformFile() != null) {
@@ -175,15 +176,15 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
             private volatile boolean startedIndex, success;
 
-            private final AtomicInteger expected = new AtomicInteger(), indexed = new AtomicInteger(), failed = new AtomicInteger();
-            private final Counter<ModIndexer.IndexCandidate> stored = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[20]);
+            private final AtomicInteger expected = new AtomicInteger(), indexed = new AtomicInteger();
+            private final Counter<ModIndexer.IndexCandidate> failed = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[10]);
+            private final Counter<ModIndexer.IndexCandidate> stored = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[15]);
 
             @Override
             public ProgressMonitor<ModIndexer.IndexCandidate> startIndex() {
                 startedIndex = true;
                 expected.set(0);
                 indexed.set(0);
-                failed.set(0);
                 return new ProgressMonitor<>() {
                     @Override
                     public void setExpected(List<ModIndexer.IndexCandidate> elements) {
@@ -207,8 +208,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
                     @Override
                     public void raiseError(ModIndexer.IndexCandidate element, Throwable exception) {
-                        Main.LOGGER.error("Error indexing candidate {}:", element.file().getDisplayName() + (element.platformFile() != null ? element.platformFile().getUrl() : ""), exception);
-                        failed.incrementAndGet();
+                        Main.LOGGER.error("Error indexing candidate {}:", element.file().getDisplayName() + (element.platformFile() != null ? " " + element.platformFile().getUrl() : ""), exception);
+                        failed.add(element);
                     }
                 };
             }

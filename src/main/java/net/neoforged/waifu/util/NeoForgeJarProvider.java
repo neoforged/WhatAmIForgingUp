@@ -117,8 +117,8 @@ public class NeoForgeJarProvider {
             Files.delete(installer);
         }
 
-        var neoMod = Objects.requireNonNull(ModFileInfo.read(ModFilePath.create(path), "net.neoforged:neoforge", neoVersion));
-        var mcMod = Objects.requireNonNull(ModFileInfo.read(ModFilePath.create(patched), "net.minecraft:minecraft", mcVersion));
+        var neoMod = Objects.requireNonNull(ModFileInfo.read(ModFilePath.create(path, path), "net.neoforged:neoforge", neoVersion));
+        var mcMod = Objects.requireNonNull(ModFileInfo.read(ModFilePath.create(patched, patched), "net.minecraft:minecraft", mcVersion));
 
         return List.of(neoMod, mcMod);
     }

@@ -323,7 +323,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                 appendMember(builder, next.getValue());
                 if (itr.hasNext()) builder.append(',');
             }
-            js.add(builder.toString());
+            js.add(builder.toString().replace("\u0000", "")); // Catch weird escapes for weird annotations like kotlin's (but in case we can't catch it)
 
             json.add(js);
         }

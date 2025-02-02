@@ -12,10 +12,14 @@ import java.nio.file.Path;
 public record ModFilePath(Path physicalLocation, Path rootDirectory, String hash, @Nullable Path temporaryPath) {
 
     public static ModFilePath create(Path inZip) throws IOException {
+       return create(inZip, null);
+    }
+
+    public static ModFilePath create(Path inZip, @Nullable Path tempPath) throws IOException {
         var hash = Hashing.sha1().putFile(inZip).hash();
         return new ModFilePath(
                 inZip, FileSystems.newFileSystem(inZip).getRootDirectories().iterator().next(),
-                hash, null
+                hash, tempPath
         );
     }
 

@@ -138,6 +138,7 @@ public class GameVersionIndexService implements Runnable {
                 var loaderMods = NeoForgeJarProvider.provide(loaderVersion);
                 for (ModFileInfo loaderMod : loaderMods) {
                     indexer.indexLoaderMod(loaderMod);
+                    loaderMod.close();
                 }
                 LOGGER.info("Indexed loader for game version {}", version);
             } catch (Exception exception) {

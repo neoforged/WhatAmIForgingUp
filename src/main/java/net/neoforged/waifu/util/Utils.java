@@ -68,7 +68,7 @@ public class Utils {
 
     public record RefLog(String commit, String message) {
         public String getDiscordReference() {
-            return "[" + message + "](https://github.com/neoforged/whatamiforgingup/commit/" + commit + ")";
+            return "[" + message + "](<https://github.com/neoforged/whatamiforgingup/commit/" + commit + ">)";
         }
     }
     public static List<RefLog> getCommits() {
