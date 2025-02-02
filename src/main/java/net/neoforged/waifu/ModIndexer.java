@@ -56,6 +56,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
 
     public List<IndexCandidate> index(ModPlatform platform, ExecutorService executor, int concurrency, ProgressMonitor<IndexCandidate> monitor, DataSanitizer sanitizer) {
         var expansionResult = getExpandedMods(platform);
+        if (expansionResult.candidates.isEmpty()) return List.of();
 
         var expanded = expansionResult.candidates();
         monitor.setExpected(expanded);
@@ -68,8 +69,12 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
             executor.submit(() -> {
                 try {
                     var runnable = run(fromPlatform, sanitizer);
+                    if (runnable == null) {
+                        monitor.unexpect(fromPlatform);
+                    } else {
+                        monitor.markAsIndexed(fromPlatform);
+                    }
                     cf.complete(Pair.of(runnable, fromPlatform));
-                    monitor.markAsIndexed(fromPlatform);
                 } catch (Throwable t) {
                     cf.completeExceptionally(t);
                     monitor.raiseError(fromPlatform, t);
@@ -103,22 +108,17 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
     }
 
     private void runCurrent(ProgressMonitor<IndexCandidate> monitor, List<CompletableFuture<Pair<Runnable, IndexCandidate>>> cfs) {
-        Utils.allOf(cfs)
-                .thenAccept(runs -> {
-                    for (var run : runs) {
-                        if (run.first() != null) {
-                            try {
-                                run.first().run();
-                                monitor.markAsStored(run.second());
-                            } catch (Throwable ex) {
-                                monitor.raiseError(run.second(), ex);
-                            }
-                        } else {
-                            monitor.unexpect(run.second());
-                        }
-                    }
-                })
-                .join();
+        var runs = Utils.allOf(cfs).join();
+        for (var run : runs) {
+            if (run.first() != null) {
+                try {
+                    run.first().run();
+                    monitor.markAsStored(run.second());
+                } catch (Throwable ex) {
+                    monitor.raiseError(run.second(), ex);
+                }
+            }
+        }
 
         cfs.clear();
     }
@@ -314,6 +314,8 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
                 this.candidateMods.add(indexCandidate);
             }
         }
+
+        Main.LOGGER.info("Finished downloading files");
     }
 
     private Path download(PlatformModFile file) throws IOException {
