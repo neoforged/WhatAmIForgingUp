@@ -85,7 +85,7 @@ public class IndexingClassVisitor extends ClassVisitor {
 
             @Override
             public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                if (includeAnnotations && visible && shouldVisitAnnotations(descriptor)) {
+                if (includeAnnotations && shouldVisitAnnotations(visible, descriptor)) {
                     var info = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
                     method.annotations().add(info);
                     return visitor(info);
@@ -97,7 +97,7 @@ public class IndexingClassVisitor extends ClassVisitor {
 
     @Override
     public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-        if (current != null && includeAnnotations && visible && shouldVisitAnnotations(descriptor)) {
+        if (current != null && includeAnnotations && shouldVisitAnnotations(visible, descriptor)) {
             var info = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
             current.annotations().add(info);
             return visitor(info);
@@ -112,7 +112,7 @@ public class IndexingClassVisitor extends ClassVisitor {
         return includeAnnotations ? new FieldVisitor(Opcodes.ASM9) {
             @Override
             public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                if (visible && shouldVisitAnnotations(descriptor)) {
+                if (shouldVisitAnnotations(visible, descriptor)) {
                     var info = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
                     field.annotations().add(info);
                     return visitor(info);
@@ -131,7 +131,7 @@ public class IndexingClassVisitor extends ClassVisitor {
 
             @Override
             public AnnotationVisitor visitAnnotation(String name, String descriptor) {
-                if (shouldVisitAnnotations(descriptor)) {
+                if (shouldVisitAnnotations(true, descriptor)) {
                     var newAn = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
                     annotationInfo.members().put(name, newAn);
                     return visitor(newAn);
@@ -156,7 +156,7 @@ public class IndexingClassVisitor extends ClassVisitor {
 
                     @Override
                     public AnnotationVisitor visitAnnotation(String name, String descriptor) {
-                        if (shouldVisitAnnotations(descriptor)) {
+                        if (shouldVisitAnnotations(true, descriptor)) {
                             var newAn = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
                             lst.add(newAn);
                             return visitor(newAn);
@@ -173,8 +173,11 @@ public class IndexingClassVisitor extends ClassVisitor {
         };
     }
 
-    private boolean shouldVisitAnnotations(String ann) {
+    private boolean shouldVisitAnnotations(boolean isVisible, String ann) {
         // scala(3)/reflect/ScalaSignature
-        return !ann.endsWith("kotlin/Metadata;") && !ann.contains("scala/reflect/") && !ann.contains("scala3/reflect/");
+        if (ann.endsWith("kotlin/Metadata;") || ann.contains("scala/reflect/") || ann.contains("scala3/reflect/")) {
+            return false;
+        }
+        return isVisible || ann.startsWith("Lorg/spongepowered/asm/mixin/") || ann.contains("/mixinextras/");
     }
 }
