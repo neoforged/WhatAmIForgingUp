@@ -87,7 +87,7 @@ public interface ModFileInfo {
             path.close();
             return null;
         }
-        return new LibraryModFileInfo(path, Type.get(attr), version, coordinates);
+        return new LibraryModFileInfo(path, Type.get(attr), version, man, coordinates);
     }
 
     private static Manifest readManifest(Path manPath) throws IOException {
