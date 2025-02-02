@@ -218,7 +218,7 @@ public class CurseForgePlatform implements ModPlatform {
 
             @Override
             public Object getModId() {
-                return getFile().modId();
+                return this.mod == null ? getFile().modId() : this.mod.getId();
             }
 
             @Override
@@ -300,6 +300,11 @@ public class CurseForgePlatform implements ModPlatform {
             @Override
             public void setCachedFile(File file) {
                 this.file = file;
+            }
+
+            @Override
+            public String toString() {
+                return "CFModFile[id=" + fileId + "]";
             }
         };
     }

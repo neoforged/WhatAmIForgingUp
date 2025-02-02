@@ -21,6 +21,7 @@ import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.ProgressMonitor;
+import net.neoforged.waifu.util.Utils;
 
 import java.awt.Color;
 import java.time.Instant;
@@ -50,7 +51,13 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
         channelId = Long.parseLong(System.getenv("DISCORD_CHANNEL_ID"));
         messageUpdateService = Executors.newScheduledThreadPool(3, Thread.ofVirtual().name("discord-update-service-", 0).factory());
 
-        getChannel().sendMessage("Hello world, WAIFU is available again!").queue();
+        var commits = Utils.getCommits();
+        if (commits.isEmpty()) {
+            getChannel().sendMessage("Hello world, WAIFU is available again!").queue();
+        } else {
+            getChannel().sendMessage("Hello world, WAIFU is available again! Latest commit: " + commits.get(0).getDiscordReference()).queue();
+        }
+
         Runtime.getRuntime().addShutdownHook(new Thread("discord-shutdown") {
             @Override
             public void run() {
@@ -117,7 +124,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         }
                     } else if (startedIndex) {
                         embed.addField("Step", "Indexing mods", false);
-                        embed.addField("Found mods", currentCounter.getAmount() + " mods found", false);
+                        embed.addField("Found mods", searchCounter.getAmount() + " mods found", false);
                         embed.appendDescription("Indexed: %s/%s\n".formatted(indexed.get(), expected.get()));
                         embed.appendDescription("Stored: %s/%s\n".formatted(stored.getAmount(), expected.get()));
 
@@ -127,12 +134,22 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         if (failed.get() != 0) {
                             embed.appendDescription("\nFailed: %s".formatted(failed.get()));
                         }
-                    } else if (currentCounter != null) {
+                    } else if (downloadCounter != null) {
+                        embed.addField("Step", "Downloading mods", false);
+                        embed.addField("Downloaded mods", downloadCounter.getAmount() + "/" + searchCounter.getAmount() + " mods currently downloaded", false);
+
+                        embed.appendDescription("Last 5 downloaded mods:\n");
+                        for (PlatformModFile element : downloadCounter.getElements()) {
+                            if (element != null) {
+                                embed.appendDescription("- " + element.getUrl() + "\n");
+                            }
+                        }
+                    } else if (searchCounter != null) {
                         embed.addField("Step", "Searching mods", false);
-                        embed.addField("Found mods", currentCounter.getAmount() + " mods currently found", false);
+                        embed.addField("Found mods", searchCounter.getAmount() + " mods currently found", false);
 
                         embed.appendDescription("Last 5 found mods:\n");
-                        for (PlatformModFile element : currentCounter.getElements()) {
+                        for (PlatformModFile element : searchCounter.getElements()) {
                             if (element != null) {
                                 embed.appendDescription("- " + element.getUrl() + "\n");
                             }
@@ -153,7 +170,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 }
             }
 
-            private volatile Counter<PlatformModFile> currentCounter;
+            private volatile Counter<PlatformModFile> searchCounter;
+            private volatile Counter<PlatformModFile> downloadCounter;
 
             private volatile boolean startedIndex, success;
 
@@ -196,8 +214,13 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             }
 
             @Override
-            public Counter<PlatformModFile> startPlatformScan(ModPlatform platform) {
-                return currentCounter = new Counter<>(new AtomicInteger(), new PlatformModFile[5]);
+            public Counter<PlatformModFile> startPlatformScan() {
+                return searchCounter = new Counter<>(new AtomicInteger(0), new PlatformModFile[5]);
+            }
+
+            @Override
+            public Counter<PlatformModFile> startDownload() {
+                return downloadCounter = new Counter<>(new AtomicInteger(0), new PlatformModFile[5]);
             }
 
             @Override
@@ -228,8 +251,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
                 consumer.accept(embed);
 
-                message.editMessage(MessageEditData.fromEmbeds(embed.build()))
-                        .setContent(null).complete();
+                message.editMessage(MessageEditData.fromEmbeds(embed.build())).setContent(null).complete();
             }
         }
 

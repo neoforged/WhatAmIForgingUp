@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -71,7 +72,9 @@ public class GameVersionIndexService implements Runnable {
                 var indexer = new ModIndexer<>(platformCache, db);
 
                 LOGGER.info("Scanning platform {} for game version {}", platform.getName(), version);
-                var counter = listener.startPlatformScan(platform);
+                var counter = listener.startPlatformScan();
+
+                var modIds = new HashSet<>();
 
                 var files = new ArrayList<PlatformModFile>();
                 var itr = platform.searchMods(version);
@@ -90,8 +93,12 @@ public class GameVersionIndexService implements Runnable {
                             continue;
                         }
                     }
-                    files.add(file);
-                    counter.add(file);
+
+                    // A mod might be updated just as we're paginating the list, which would shift all entries to the right and cause some entries to be duplicated
+                    if (modIds.add(file.getModId())) {
+                        files.add(file);
+                        counter.add(file);
+                    }
                 }
 
                 platform.bulkFillData(files);
@@ -99,8 +106,10 @@ public class GameVersionIndexService implements Runnable {
                 // Reverse the order of the files so we index older ones first
                 Collections.reverse(files);
 
+                var downloadCounter = listener.startDownload();
+
                 try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-" + platform.getName() + "-" + version + "-", 0).factory())) {
-                    indexer.downloadAndConsiderConcurrently(files, exec);
+                    indexer.downloadAndConsiderConcurrently(files, exec, downloadCounter);
                 }
 
                 var monitor = listener.startIndex();
@@ -147,7 +156,9 @@ public class GameVersionIndexService implements Runnable {
     public interface Listener {
         ProgressMonitor<ModIndexer.IndexCandidate> startIndex();
 
-        Counter<PlatformModFile> startPlatformScan(ModPlatform platform);
+        Counter<PlatformModFile> startPlatformScan();
+
+        Counter<PlatformModFile> startDownload();
 
         void markFinish(int scanned);
 

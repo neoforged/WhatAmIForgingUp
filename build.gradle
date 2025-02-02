@@ -55,8 +55,29 @@ dependencies {
     compileOnly 'org.jetbrains:annotations:26.0.2'
 }
 
+abstract class Log extends DefaultTask {
+    @OutputFile
+    abstract RegularFileProperty getOutput()
+
+    Log() {
+        outputs.upToDateWhen { false }
+    }
+
+    @TaskAction
+    void exec() {
+        new ProcessBuilder('git', 'log', '-5', '--pretty=oneline')
+                .redirectOutput(getOutput().asFile.get())
+                .start().waitFor()
+    }
+}
+
+tasks.register('gitLog', Log) {
+    it.output.set(new File(project.buildDir, 'gitlog'))
+}
+
 shadowJar {
     mergeServiceFiles()
     archiveClassifier = 'all'
     archiveFile.set(project.file("$buildDir/libs/waifu-all.jar"))
+    from(tasks.gitLog.output)
 }

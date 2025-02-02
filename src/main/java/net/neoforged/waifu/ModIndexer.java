@@ -10,6 +10,7 @@ import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFilePath;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
@@ -275,7 +276,8 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
         }
     }
 
-    public synchronized void downloadAndConsiderConcurrently(List<PlatformModFile> files, ExecutorService executor) {
+    public synchronized void downloadAndConsiderConcurrently(List<PlatformModFile> files, ExecutorService executor, Counter<PlatformModFile> downloadCounter) {
+        Main.LOGGER.info("Downloading {} files concurrently", files.size());
         var cfs = new ArrayList<CompletableFuture<IndexCandidate>>();
         for (PlatformModFile file : files) {
             var cf = new CompletableFuture<IndexCandidate>();
@@ -290,6 +292,8 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
                             ),
                             null, null
                     );
+
+                    downloadCounter.add(file);
 
                     if (mod != null) {
                         cf.complete(new IndexCandidate(file, mod));

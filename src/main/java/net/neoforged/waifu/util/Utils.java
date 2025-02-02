@@ -3,18 +3,15 @@ package net.neoforged.waifu.util;
 import com.electronwill.nightconfig.toml.TomlParser;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
@@ -69,4 +66,23 @@ public class Utils {
         return path;
     }
 
+    public record RefLog(String commit, String message) {
+        public String getDiscordReference() {
+            return "[" + message + "](https://github.com/neoforged/whatamiforgingup/commit/" + commit + ")";
+        }
+    }
+    public static List<RefLog> getCommits() {
+        try (var is = Utils.class.getResourceAsStream("/gitlog")) {
+            var lines = new String(is.readAllBytes()).split("\n");
+            return Arrays.stream(lines)
+                    .filter(s -> !s.isBlank())
+                    .map(s -> {
+                        var spl = s.split(" ", 2);
+                        return new RefLog(spl[0], spl[1]);
+                    })
+                    .toList();
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
 }
