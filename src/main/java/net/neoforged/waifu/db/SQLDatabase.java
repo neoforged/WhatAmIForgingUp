@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -316,7 +317,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
             var js = new JsonArray();
             js.add(ann.type().getInternalName());
             var builder = new StringBuilder();
-            var itr = ann.members().entrySet().iterator();
+            var itr = ann.members().entrySet().stream().sorted(Map.Entry.comparingByKey()).iterator();
             while (itr.hasNext()) {
                 var next = itr.next();
                 builder.append(next.getKey()).append("=");
@@ -336,7 +337,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
             case ClassData.AnnotationInfo ai -> {
                 builder.append("@").append(ai.type().getInternalName())
                         .append("(");
-                var itr = ai.members().entrySet().iterator();
+                var itr = ai.members().entrySet().stream().sorted(Map.Entry.comparingByKey()).iterator();
                 while (itr.hasNext()) {
                     var next = itr.next();
                     builder.append(next.getKey()).append("=");
