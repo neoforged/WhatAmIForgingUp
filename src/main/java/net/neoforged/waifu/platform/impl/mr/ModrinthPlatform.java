@@ -100,7 +100,12 @@ public class ModrinthPlatform implements ModPlatform {
 
     @Override
     public List<PlatformModFile> getFiles(List<Object> fileIds) {
-        throw new RuntimeException("unsupported");
+        var array = new JsonArray();
+        for (Object fileId : fileIds) {
+            array.add(fileId.toString());
+        }
+        var versions = sendRequest("/versions?ids=" + URLEncoder.encode(Utils.GSON.toJson(array), StandardCharsets.UTF_8), new TypeToken<List<Version>>() {});
+        return versions.stream().map(v -> createModFile(null, v)).toList();
     }
 
     @Override
