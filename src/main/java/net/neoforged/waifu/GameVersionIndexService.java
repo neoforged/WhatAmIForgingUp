@@ -8,6 +8,7 @@ import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.NeoForgeJarProvider;
 import net.neoforged.waifu.util.ProgressMonitor;
+import net.neoforged.waifu.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +22,8 @@ import java.util.concurrent.Executors;
 
 public class GameVersionIndexService implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(GameVersionIndexService.class);
-    public static final ExecutorService VIRTUAL_THREAD_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    public static final ExecutorService VIRTUAL_THREAD_EXECUTOR = Executors.newThreadPerTaskExecutor(Thread.ofVirtual()
+            .name("indexing-service-", 0).uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory());
     public static final int CONCURRENCY = 100;
 
     private volatile boolean isRunning, pendingReRun;
@@ -109,7 +111,8 @@ public class GameVersionIndexService implements Runnable {
 
                 var downloadCounter = listener.startDownload();
 
-                try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-" + platform.getName() + "-" + version + "-", 0).factory())) {
+                try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-" + platform.getName() + "-" + version + "-", 0)
+                        .uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory())) {
                     indexer.downloadAndConsiderConcurrently(files, exec, downloadCounter);
                 }
 

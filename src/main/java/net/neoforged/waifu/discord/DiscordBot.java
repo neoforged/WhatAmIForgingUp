@@ -117,7 +117,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
                 var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(event.optString("version")));
                 var counter = new Counter<>(new AtomicInteger(), new PlatformModFile[5]);
-                try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0).factory())) {
+                try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0)
+                        .uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory())) {
                     indexer.downloadAndConsiderConcurrently(files, exec, counter);
                 }
 

@@ -26,7 +26,7 @@ import java.util.zip.ZipInputStream;
 
 public class NeoForgeJarProvider {
     private static final URI NFRT_JAR = URI.create("https://maven.neoforged.net/releases/net/neoforged/neoform-runtime/1.0.19/neoform-runtime-1.0.19-all.jar");
-    private static final String LATEST_VERSION_URL = "https://maven.neoforged.net/api/maven/latest/version/releases/net%2Fneoforged%2Fneoforge?filter=%s&type=json";
+    private static final String LATEST_VERSION_URL = "https://maven.neoforged.net/api/maven/latest/version/releases/net/neoforged/neoforge?filter=%s&type=json";
     private static final String DOWNLOAD_URL = "https://maven.neoforged.net/releases/net/neoforged/neoforge/${version}/neoforge-${version}-${type}.jar";
 
     public static String getLatestVersion(String mcVersion) {
