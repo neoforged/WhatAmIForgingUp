@@ -23,6 +23,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -72,11 +73,19 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
     }
 
     @Override
-    public @Nullable SQLDatabase.SqlMod getMod(String coords) {
+    public @Nullable SQLDatabase.SqlMod getModByCoordinates(String coords) {
         return jdbi.withHandle(handle ->
                 handle.createQuery("select * from mods where maven_coordinates = ?")
                         .bind(0, coords)
                         .execute(returning(SqlMod::new)));
+    }
+
+    @Override
+    public List<SqlMod> getModsByName(String name) {
+        return jdbi.withHandle(handle ->
+                handle.createQuery("select * from mods where name = ?")
+                        .bind(0, name)
+                        .execute(returningListOf(SqlMod::new)));
     }
 
     @Override
@@ -259,6 +268,15 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         };
     }
 
+    private static <T> ResultProducer<List<T>> returningListOf(Mapper<T> function) {
+        return (statementSupplier, ctx) -> {
+            var res = statementSupplier.get().getResultSet();
+            var lst = new ArrayList<T>();
+            while (res.next()) lst.add(function.apply(res));
+            return lst;
+        };
+    }
+
     @FunctionalInterface
     private interface Mapper<T> {
         T apply(ResultSet rs) throws SQLException;
@@ -389,11 +407,17 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         private final String version;
         private final boolean loader;
 
+        private final int cfProjectId;
+        private final String modrinthProjectId;
+
         public SqlMod(ResultSet rs) throws SQLException {
             this.id = rs.getInt("id");
             this.mavenCoordinates = rs.getString("maven_coordinates");
             this.version = rs.getString("version");
             this.loader = rs.getBoolean("loader");
+
+            cfProjectId = rs.getInt("curseforge_project_id");
+            modrinthProjectId = rs.getString("modrinth_project_id");
         }
 
         @Override
@@ -404,6 +428,16 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         @Override
         public @Nullable String getMavenCoordinate() {
             return mavenCoordinates;
+        }
+
+        @Override
+        public @Nullable Integer getCurseForgeProjectId() {
+            return cfProjectId == 0 ? null : cfProjectId;
+        }
+
+        @Override
+        public @Nullable String getModrinthProjectId() {
+            return modrinthProjectId;
         }
 
         @Override

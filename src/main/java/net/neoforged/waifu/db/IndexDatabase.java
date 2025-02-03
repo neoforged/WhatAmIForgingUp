@@ -6,7 +6,6 @@ import net.neoforged.waifu.util.ThrowingConsumer;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.List;
 
 public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends AutoCloseable {
@@ -14,7 +13,9 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
     T getMod(PlatformModFile platformModFile);
 
     @Nullable
-    T getMod(String coords);
+    T getModByCoordinates(String coords);
+
+    List<T> getModsByName(String name);
 
     @Nullable
     T getModByFileHash(String fileSha1);
@@ -50,6 +51,12 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
 
         @Nullable
         String getMavenCoordinate();
+
+        @Nullable
+        Integer getCurseForgeProjectId();
+
+        @Nullable
+        String getModrinthProjectId();
 
         boolean isLoader();
 

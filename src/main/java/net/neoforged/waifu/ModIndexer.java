@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,12 +37,14 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private static final boolean KEEP_CACHES = Boolean.parseBoolean(System.getenv().getOrDefault("KEEP_PLATFORM_CACHES", "true"));
     private final Path baseCacheFolder;
     private final IndexDatabase<T> db;
+    private final String gameVersion;
 
     private final List<IndexCandidate> candidateMods = new ArrayList<>();
 
-    public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db) {
+    public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion) {
         this.baseCacheFolder = baseCacheFolder;
         this.db = db;
+        this.gameVersion = gameVersion;
     }
 
     public void indexLoaderMod(ModFileInfo info) throws IOException {
@@ -155,11 +158,42 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
             // TODO - heuristic to determine if files from different platforms are for the same project (besides file hashes)
             mod = db.getMod(file.platformFile);
             if (mod == null) {
-                mod = db.createMod(file.file());
-                mod.link(file.platformFile);
+                // Now we're going to try some more aggressive checks to see if we can merge this mod with an existing one just this time.
+                var sameName = db.getModsByName(file.file().getDisplayName());
+                var isCurseForge = file.platformFile.getPlatform() == Main.CURSE_FORGE_PLATFORM;
+                for (T candidateMod : sameName) {
+                    PlatformModFile otherFile = null;
+                    if (candidateMod.getCurseForgeProjectId() == null && isCurseForge && candidateMod.getModrinthProjectId() != null) {
+                        otherFile = Main.MODRINTH_PLATFORM.getModById(candidateMod.getModrinthProjectId()).getLatestFile(gameVersion);
+                    } else if (candidateMod.getModrinthProjectId() == null && !isCurseForge && candidateMod.getCurseForgeProjectId() != null) {
+                        otherFile = Main.CURSE_FORGE_PLATFORM.getModById(candidateMod.getCurseForgeProjectId()).getLatestFile(gameVersion);
+                    }
+
+                    if (otherFile != null) {
+                        try (var otherIn = otherFile.download();
+                            var thisIn = file.file().openStream()) {
+                            // If we find that this mod matches the other's mod jar (when we strip dates in zip entries or in the manifest) we're confident to link them
+                            if (Arrays.equals(
+                                    Utils.createCleanZip(otherIn),
+                                    Utils.createCleanZip(thisIn)
+                            )) {
+                                mod = candidateMod;
+                                mod.link(file.platformFile);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // TODO - other heuristics too???? pain pain pain
+
+                if (mod == null) {
+                    mod = db.createMod(file.file());
+                    mod.link(file.platformFile);
+                }
             }
         } else if (file.file.getMavenCoordinates() != null) {
-            mod = db.getMod(file.file.getMavenCoordinates());
+            mod = db.getModByCoordinates(file.file.getMavenCoordinates());
             if (mod == null) {
                 mod = db.createMod(file.file);
             } else if (new DefaultArtifactVersion(mod.getVersion()).compareTo(file.file().getVersion()) >= 0) {

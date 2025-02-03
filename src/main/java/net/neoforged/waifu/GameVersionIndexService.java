@@ -72,7 +72,7 @@ public class GameVersionIndexService implements Runnable {
             var listener = listenerFactory.startIndexingListener(version, platform);
 
             try {
-                var indexer = new ModIndexer<>(platformCache, db);
+                var indexer = new ModIndexer<>(platformCache, db, version);
 
                 LOGGER.info("Scanning platform {} for game version {}", platform.getName(), version);
                 var counter = listener.startPlatformScan();
@@ -141,7 +141,7 @@ public class GameVersionIndexService implements Runnable {
         if (mod == null || !mod.getVersion().equals(loaderVersion)) {
             LOGGER.info("Indexing loader for game version {}. Found new version: {}", version, loaderVersion);
             try {
-                var indexer = new ModIndexer<>(platformCache, db);
+                var indexer = new ModIndexer<>(platformCache, db, version);
                 var loaderMods = NeoForgeJarProvider.provide(loaderVersion);
                 for (ModFileInfo loaderMod : loaderMods) {
                     indexer.indexLoaderMod(loaderMod);

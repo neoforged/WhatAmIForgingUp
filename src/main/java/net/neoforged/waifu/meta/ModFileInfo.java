@@ -7,6 +7,7 @@ import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -39,6 +40,8 @@ public interface ModFileInfo {
     @Nullable ModFileMetadata getMetadata();
 
     void close() throws IOException;
+
+    InputStream openStream() throws IOException;
 
     // see https://github.com/neoforged/FancyModLoader/blob/a4927491af05437e5cbcc14aa9b19cc238d70ed7/loader/src/main/java/net/neoforged/fml/loading/TransformerDiscovererConstants.java#L20
     List<String> SERVICES = List.of(

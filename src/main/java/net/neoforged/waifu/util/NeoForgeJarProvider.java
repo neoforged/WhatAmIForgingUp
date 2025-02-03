@@ -176,7 +176,7 @@ public class NeoForgeJarProvider {
             ZipEntry entry;
             while ((entry = assetsIn.getNextEntry()) != null) {
                 if (entry.getName().endsWith(".json")) {
-                    zout.putNextEntry(copyEntry(entry));
+                    zout.putNextEntry(Utils.copyEntry(entry));
                     assetsIn.transferTo(zout);
                     zout.closeEntry();
                 }
@@ -184,17 +184,11 @@ public class NeoForgeJarProvider {
 
             while ((entry = patchedIn.getNextEntry()) != null) {
                 if (entry.getName().endsWith(".class")) {
-                    zout.putNextEntry(copyEntry(entry));
+                    zout.putNextEntry(Utils.copyEntry(entry));
                     patchedIn.transferTo(zout);
                     zout.closeEntry();
                 }
             }
         }
-    }
-
-    private static ZipEntry copyEntry(ZipEntry entry) {
-        var newEntry = new ZipEntry(entry.getName());
-        newEntry.setTime(628041600000L);
-        return newEntry;
     }
 }

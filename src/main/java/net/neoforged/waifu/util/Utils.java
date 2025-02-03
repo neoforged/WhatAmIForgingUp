@@ -7,7 +7,9 @@ import com.google.gson.JsonDeserializer;
 import net.neoforged.waifu.Main;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.file.Files;
@@ -16,8 +18,12 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 public class Utils {
     public static final Thread.UncaughtExceptionHandler LOG_EXCEPTIONS = (t, e) -> Main.LOGGER.error("Thread {} threw uncaught exception: ", t, e);
@@ -90,5 +96,33 @@ public class Utils {
         } catch (Exception ex) {
             return List.of();
         }
+    }
+
+    public static ZipEntry copyEntry(ZipEntry entry) {
+        var newEntry = new ZipEntry(entry.getName());
+        newEntry.setTime(628041600000L);
+        return newEntry;
+    }
+
+    public static byte[] createCleanZip(InputStream is) throws IOException {
+        var bos = new ByteArrayOutputStream();
+        var zos = new ZipOutputStream(bos);
+        try (var zis = new ZipInputStream(is)) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                zos.putNextEntry(copyEntry(entry));
+                if (entry.getName().equals(JarFile.MANIFEST_NAME)) {
+                    var man = new Manifest();
+                    man.read(zis);
+                    // Strip Implementation-Timestamp and co which prevent the jars from being the same (hopefully)
+                    man.getMainAttributes().entrySet().removeIf(e -> e.getKey() instanceof Attributes.Name nm && nm.toString().endsWith("-Timestamp"));
+                    man.write(zos);
+                } else {
+                    zis.transferTo(zos);
+                }
+                zos.closeEntry();
+            }
+        }
+        return bos.toByteArray();
     }
 }

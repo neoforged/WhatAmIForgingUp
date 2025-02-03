@@ -9,6 +9,7 @@ import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -50,6 +51,11 @@ abstract class BaseModFileInfo implements ModFileInfo {
         }
 
         path.close();
+    }
+
+    @Override
+    public InputStream openStream() throws IOException {
+        return Files.newInputStream(path.physicalLocation());
     }
 
     @Override
