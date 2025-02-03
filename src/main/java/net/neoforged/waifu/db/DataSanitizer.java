@@ -9,11 +9,11 @@ import java.util.Map;
 @FunctionalInterface
 public interface DataSanitizer {
     /**
-     * Remove private or package members.
+     * Remove private or package members with no annotations.
      */
     SanitizationRule REMOVE_PRIVATE_MEMBERS = (cls, ownedClasses) -> {
-        cls.methods().entrySet().removeIf(m -> isPrivateMember(m.getValue().accessLevel()));
-        cls.fields().entrySet().removeIf(f -> isPrivateMember(f.getValue().accessLevel()));
+        cls.methods().entrySet().removeIf(m -> isPrivateMember(m.getValue().accessLevel()) && m.getValue().annotations().isEmpty());
+        cls.fields().entrySet().removeIf(f -> isPrivateMember(f.getValue().accessLevel()) && f.getValue().annotations().isEmpty());
 
         return true;
     };
