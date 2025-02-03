@@ -2,9 +2,12 @@ plugins {
     id 'java'
     id 'application'
     id("com.gradleup.shadow") version "9.0.0-beta6"
+    id 'net.neoforged.gradleutils' version '3.0.0'
 }
 
 group = 'net.neoforged.waifu'
+
+println("Version: ${project.version = gradleutils.version}")
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
@@ -73,12 +76,18 @@ abstract class Log extends DefaultTask {
 }
 
 tasks.register('gitLog', Log) {
-    it.output.set(new File(project.buildDir, 'gitlog'))
+    it.output.set(project.layout.buildDirectory.file('gitlog'))
+}
+
+jar {
+    manifest.attributes([
+            'Implementation-Version': project.version
+    ])
 }
 
 shadowJar {
     mergeServiceFiles()
     archiveClassifier = 'all'
-    archiveFile.set(project.file("$buildDir/libs/waifu-all.jar"))
+    archiveFile.set(project.layout.buildDirectory.file("libs/waifu-all.jar"))
     from(tasks.gitLog.output)
 }

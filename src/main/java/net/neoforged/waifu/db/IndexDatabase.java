@@ -41,6 +41,8 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod> extends Auto
         void deleteCurrent();
 
         void markAsKnown(String fileSha1);
+
+        void setIndexDate(Instant date);
     }
 
     interface DatabaseMod {

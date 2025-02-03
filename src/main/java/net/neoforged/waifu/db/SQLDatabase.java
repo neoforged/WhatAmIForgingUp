@@ -21,6 +21,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -51,6 +52,13 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                 .createSchemas(true)
                 .load()
                 .migrate();
+
+        if (Utils.VERSION != null) {
+            jdbi.useHandle(handle -> handle.createUpdate("insert into waifu_versions(version, date_installed) values (?, ?) on conflict do nothing")
+                    .bind(0, Utils.VERSION)
+                    .bind(1, Timestamp.from(Instant.now()))
+                    .execute());
+        }
     }
 
     // TODO - reduce duplication?
@@ -216,6 +224,18 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                         var stmt = con.prepareStatement("insert into known_files(mod, sha1) values (?, ?)");
                         stmt.setInt(1, modId);
                         stmt.setString(2, fileSha1);
+                        stmt.execute();
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                @Override
+                public void setIndexDate(Instant date) {
+                    try {
+                        var stmt = con.prepareStatement("update mods set index_date = ? where id = ?");
+                        stmt.setTimestamp(1, Timestamp.from(date));
+                        stmt.setInt(2, modId);
                         stmt.execute();
                     } catch (SQLException e) {
                         throw new RuntimeException(e);

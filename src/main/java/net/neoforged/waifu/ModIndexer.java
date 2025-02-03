@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -183,6 +184,8 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
 
                 tracker.insertClasses(sanitized);
                 tracker.insertTags(tags);
+
+                tracker.setIndexDate(Instant.now());
 
                 if (!mod.isLoader()) {
                     tracker.markAsKnown(file.getFileHash());

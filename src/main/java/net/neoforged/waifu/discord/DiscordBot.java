@@ -192,6 +192,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                             embed.appendDescription("\n**" + failed.getAmount() + " failures**. Check console for more information.");
                             printToEmbed(failed, embed);
                             embed.setColor(Color.RED);
+
+                            message.pin().queue(); // Pin failures for visibility
                         } else {
                             embed.setColor(indexed.get() == 0 ? Color.GRAY : Color.GREEN);
                         }
