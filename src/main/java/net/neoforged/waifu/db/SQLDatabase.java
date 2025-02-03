@@ -395,7 +395,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                 }
                 builder.append(']');
             }
-            case String str -> builder.append('"').append(str).append("'");
+            case String str -> builder.append('"').append(str).append('"');
             case Type tp -> builder.append(tp.getInternalName()).append(".class");
             default -> builder.append(member);
         }
