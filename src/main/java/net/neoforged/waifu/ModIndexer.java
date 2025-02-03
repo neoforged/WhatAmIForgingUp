@@ -170,7 +170,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                     }
 
                     if (otherFile != null) {
-                        try (var otherIn = otherFile.download();
+                        try (var otherIn = Files.newInputStream(download(otherFile));
                             var thisIn = file.file().openStream()) {
                             // If we find that this mod matches the other's mod jar (when we strip dates in zip entries or in the manifest) we're confident to link them
                             if (Arrays.equals(
