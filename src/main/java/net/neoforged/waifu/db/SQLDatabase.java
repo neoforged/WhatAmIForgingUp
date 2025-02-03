@@ -383,7 +383,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         }
     }
 
-    public class SqlMod implements DatabaseMod {
+    public class SqlMod implements DatabaseMod<SqlMod> {
         private final int id;
         private final String mavenCoordinates;
         private final String version;
@@ -455,6 +455,14 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
             jdbi.useHandle(handle -> handle.createUpdate("update mods set maven_coordinates = ? where id = ?")
                     .bind(0, mavenCoords)
                     .bind(1, id)
+                    .execute());
+        }
+
+        @Override
+        public void transferTo(SqlMod other) {
+            jdbi.useHandle(handle -> handle.createUpdate("update known_files set mod = ? where mod = ?")
+                    .bind(0, other.id)
+                    .bind(1, this.id)
                     .execute());
         }
 

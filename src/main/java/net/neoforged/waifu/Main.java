@@ -33,16 +33,15 @@ public class Main {
     public static final long DELAY_SEC = 60 * 60;
 
     public static final CurseForgeAPI CF_API;
+    public static final CurseForgePlatform CURSE_FORGE_PLATFORM;
+    public static final ModrinthPlatform MODRINTH_PLATFORM = new ModrinthPlatform();
     public static final List<ModPlatform> PLATFORMS;
 
     static {
         try {
             CF_API = CurseForgeAPI.builder().apiKey(System.getenv("CF_API_KEY")).build();
-
-            PLATFORMS = List.of(
-                    new CurseForgePlatform(CF_API),
-                    new ModrinthPlatform()
-            );
+            CURSE_FORGE_PLATFORM = new CurseForgePlatform(CF_API);
+            PLATFORMS = List.of(CURSE_FORGE_PLATFORM, MODRINTH_PLATFORM);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }

@@ -32,7 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
+public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private static final boolean KEEP_CACHES = Boolean.parseBoolean(System.getenv().getOrDefault("KEEP_PLATFORM_CACHES", "true"));
     private final Path baseCacheFolder;
     private final IndexDatabase<T> db;
@@ -124,20 +124,25 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod> {
         cfs.clear();
     }
 
+    public static <T extends IndexDatabase.DatabaseMod<T>> void merge(IndexDatabase<T> db, T linkTo, PlatformModFile platformFile) {
+        var platformMod = db.getMod(platformFile);
+
+        // If we previously linked this file to a project and now we know this file is also part of a different project on a different platform
+        // keep the new project and delete the old one to make sure we do not duplicate mods
+        if (platformMod != null && !Objects.equals(platformMod, linkTo)) {
+            platformMod.transferTo(linkTo);
+            platformMod.delete();
+        }
+
+        linkTo.link(platformFile);
+    }
+
     private @Nullable Runnable run(IndexCandidate file, DataSanitizer sanitizer) throws IOException {
         var knownByHash = db.getModByFileHash(file.file.getFileHash());
         if (knownByHash != null) {
             // This file was indexed already so we'll skip up, but we'll just make sure that it's linked
             if (file.platformFile != null) {
-                var platformMod = db.getMod(file.platformFile);
-
-                // If we previously linked this file to a project and now we know this file is also part of a different project on a different platform
-                // keep the new project and delete the old one to make sure we do not duplicate mods
-                if (platformMod != null && !Objects.equals(platformMod, knownByHash)) {
-                    platformMod.delete();
-                }
-
-                knownByHash.link(file.platformFile);
+                merge(db, knownByHash, file.platformFile);
                 db.markKnownById(file.platformFile, file.platformFile.getMod().getLatestReleaseDate());
             } else if (file.file().getMavenCoordinates() != null && knownByHash.getMavenCoordinate() == null) {
                 knownByHash.link(file.file().getMavenCoordinates());

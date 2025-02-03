@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.interactions.commands.Command;
+import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
@@ -18,11 +19,13 @@ import net.neoforged.waifu.GameVersionIndexService;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.MainDatabase;
 import net.neoforged.waifu.ModIndexer;
+import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 
 import java.awt.Color;
 import java.io.IOException;
@@ -158,6 +161,41 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 }
 
                 event.getHook().editOriginal("Manual index successful. Indexed " + scanned.size() + " mods!").complete();
+            }
+        });
+        builder.addSlashCommand(new SlashCommand() {
+            {
+                this.name = "merge-mods";
+                this.help = "Merge 2 distinct mods in the database that are the same mod available on both platforms";
+                this.options = List.of(
+                        new OptionData(OptionType.STRING, "version", "Game version to merge for", true),
+                        new OptionData(OptionType.INTEGER, "curseforge", "CurseForge project ID", true),
+                        new OptionData(OptionType.STRING, "modrinth", "Modrinth project ID", true)
+                );
+            }
+
+            @Override
+            protected void execute(SlashCommandEvent event) {
+                event.deferReply().complete();
+                execute(event, Main.createDatabase(event.optString("version")));
+            }
+
+            private  <T extends IndexDatabase.DatabaseMod<T>> void execute(SlashCommandEvent event, IndexDatabase<T> db) {
+                var gameVersion = event.optString("version");
+                var cfMod = Main.CURSE_FORGE_PLATFORM.getModById(event.getOption("curseforge", OptionMapping::getAsInt)).getLatestFile(gameVersion);
+                var mrMod = Main.MODRINTH_PLATFORM.getModById(event.optString("modrinth")).getLatestFile(gameVersion);
+
+                var cfDb = db.getMod(cfMod);
+                var mrDb = db.getMod(mrMod);
+
+                // We prefer keeping the newest version of the mod
+                if (new DefaultArtifactVersion(cfDb.getVersion()).compareTo(new DefaultArtifactVersion(mrDb.getVersion())) >= 0) {
+                    ModIndexer.merge(db, cfDb, mrMod);
+                } else {
+                    ModIndexer.merge(db, mrDb, cfMod);
+                }
+
+                event.getHook().sendMessage("Successfully linked mods!").complete();
             }
         });
         return builder.build();

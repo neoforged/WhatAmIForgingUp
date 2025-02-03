@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
-public interface IndexDatabase<T extends IndexDatabase.DatabaseMod> extends AutoCloseable {
+public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends AutoCloseable {
     @Nullable
     T getMod(PlatformModFile platformModFile);
 
@@ -45,7 +45,7 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod> extends Auto
         void setIndexDate(Instant date);
     }
 
-    interface DatabaseMod {
+    interface DatabaseMod<T extends DatabaseMod<T>> {
         String getVersion();
 
         @Nullable
@@ -58,6 +58,8 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod> extends Auto
         void link(PlatformModFile platformFile);
 
         void link(String mavenCoords);
+
+        void transferTo(T other);
 
         void delete();
     }
