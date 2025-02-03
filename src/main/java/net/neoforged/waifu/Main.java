@@ -1,6 +1,7 @@
 package net.neoforged.waifu;
 
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
+import io.javalin.Javalin;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.db.SQLDatabase;
@@ -9,6 +10,7 @@ import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.impl.cf.CurseForgePlatform;
 import net.neoforged.waifu.platform.impl.mr.ModrinthPlatform;
 import net.neoforged.waifu.util.Utils;
+import net.neoforged.waifu.web.WebService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,12 +32,15 @@ public class Main {
     );
     public static final long DELAY_SEC = 60 * 60;
 
+    public static final CurseForgeAPI CF_API;
     public static final List<ModPlatform> PLATFORMS;
 
     static {
         try {
+            CF_API = CurseForgeAPI.builder().apiKey(System.getenv("CF_API_KEY")).build();
+
             PLATFORMS = List.of(
-                    new CurseForgePlatform(CurseForgeAPI.builder().apiKey(System.getenv("CF_API_KEY")).build()),
+                    new CurseForgePlatform(CF_API),
                     new ModrinthPlatform()
             );
         } catch (Exception ex) {
@@ -55,6 +60,9 @@ public class Main {
 
             initialDelay += 60 * 10;
         }
+
+        WebService web = new WebService(Javalin.create(cfg -> cfg.useVirtualThreads = true));
+        web.start();
     }
 
     public static void schedule(String version, DiscordBot bot, long initialDelaySeconds) {
