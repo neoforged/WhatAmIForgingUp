@@ -7,6 +7,7 @@ import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.util.MappingIterator;
 import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,9 +29,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 public class ModrinthPlatform implements ModPlatform {
+    public static final ModrinthPlatform INSTANCE = new ModrinthPlatform();
     private final HttpClient client;
 
-    public ModrinthPlatform() {
+    private ModrinthPlatform() {
         this.client = HttpClient.newHttpClient();
     }
 
@@ -51,10 +53,14 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     @Override
-    public Iterator<PlatformMod> searchMods(String version) {
+    public Iterator<PlatformMod> searchMods(String version, SearchSortField field) {
         record Project(String project_id, String slug) {}
         record SearchProjects(int total_hits, List<Project> hits) {}
-        Function<Integer, SearchProjects> collector = i -> sendRequest("/search?limit=100&index=updated&offset=" + i + "&facets=" + URLEncoder.encode("[[\"categories:neoforge\"],[\"versions:" + version + "\"],[\"project_type:mod\"]]", StandardCharsets.UTF_8), new TypeToken<SearchProjects>() {});
+        var indexType = switch (field) {
+            case LAST_UPDATED -> "updated";
+            case NEWEST_RELEASED -> "newest";
+        };
+        Function<Integer, SearchProjects> collector = i -> sendRequest("/search?limit=100&index=" + indexType + "&offset=" + i + "&facets=" + URLEncoder.encode("[[\"categories:neoforge\"],[\"versions:" + version + "\"],[\"project_type:mod\"]]", StandardCharsets.UTF_8), new TypeToken<SearchProjects>() {});
         return new Iterator<>() {
             private final AtomicInteger currentIndex = new AtomicInteger(-1);
             private final AtomicInteger size = new AtomicInteger();
@@ -138,6 +144,11 @@ public class ModrinthPlatform implements ModPlatform {
         return mods;
     }
 
+    @Override
+    public int pageLimit() {
+        return 100;
+    }
+
     private PlatformMod createMod(String id, String slug) {
         return new PlatformMod() {
             @Override
@@ -159,6 +170,11 @@ public class ModrinthPlatform implements ModPlatform {
                         .findFirst()
                         .orElse(null);
                 return file == null ? null : createModFile(this, file);
+            }
+
+            @Override
+            public Iterator<PlatformModFile> getAllFiles() {
+                return new MappingIterator<>(getVersions().iterator(), version -> createModFile(this, version));
             }
 
             @Override

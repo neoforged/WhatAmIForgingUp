@@ -4,6 +4,7 @@ import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModPlatform;
+import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.NeoForgeJarProvider;
@@ -17,8 +18,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class GameVersionIndexService implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(GameVersionIndexService.class);
@@ -79,8 +82,9 @@ public class GameVersionIndexService implements Runnable {
 
                 var modIds = new HashSet<>();
 
+                var knownPids = new HashSet<>();
                 var files = new ArrayList<PlatformModFile>();
-                var itr = platform.searchMods(version);
+                var itr = platform.searchMods(version, ModPlatform.SearchSortField.LAST_UPDATED);
                 while (itr.hasNext()) {
                     var next = itr.next();
                     if (!next.isAvailable()) continue;
@@ -101,6 +105,37 @@ public class GameVersionIndexService implements Runnable {
                     if (modIds.add(file.getModId())) {
                         files.add(file);
                         counter.add(file);
+                    }
+                }
+
+                // To make sure that we index all mods we get a page of the mods sorted by newest
+                // Note - this is based on project IDs rather than file IDs to avoid needing to make 100 more queries (in the case of Modrinth) to
+                // get the latest file for each project - after all if the file is new it would have already been indexed by the normal search anyway
+                var latestReleasedMod = new ArrayList<PlatformMod>();
+                int latestAmount = 0;
+                var latestItr = platform.searchMods(version, ModPlatform.SearchSortField.NEWEST_RELEASED);
+                while (latestItr.hasNext() && latestAmount < platform.pageLimit()) {
+                    var next = itr.next();
+                    if (!next.isAvailable()) continue;
+                    if (knownPids.add(next.getId())) {
+                        latestReleasedMod.add(next);
+                    }
+                }
+
+                // If we found at least one newest released mod that isn't about to be indexed
+                if (!latestReleasedMod.isEmpty()) {
+                    // ...try to get the mods of those newest released which we have NOT indexed yet
+                    var knownModIds = db.getMods(platform, latestReleasedMod.stream().map(PlatformMod::getId).toList())
+                            .stream().map(m -> m.getProjectId(platform))
+                            .filter(Objects::nonNull).collect(Collectors.toSet());
+                    for (PlatformMod mod : latestReleasedMod) {
+                        if (!knownModIds.contains(mod)) {
+                            // ...and queue them for indexing
+                            var file = mod.getLatestFile(version);
+                            if (file != null) {
+                                files.add(0, file);
+                            }
+                        }
                     }
                 }
 

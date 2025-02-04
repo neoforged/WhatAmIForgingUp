@@ -1,8 +1,11 @@
 package net.neoforged.waifu.db;
 
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import com.google.gson.JsonArray;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModInfo;
+import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.ThrowingConsumer;
 import net.neoforged.waifu.util.Utils;
@@ -25,9 +28,11 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
@@ -73,6 +78,15 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
     }
 
     @Override
+    public List<SqlMod> getMods(ModPlatform platform, List<Object> projectIds) {
+        var pidType = projectIds.get(0).getClass();
+        return jdbi.withHandle(handle ->
+                handle.createQuery("select * from mods where " + platform.getName() + "_project_id = any(?::" + (pidType == String.class ? "text" : "int") + "[])")
+                        .bindArray(0, pidType, projectIds)
+                        .execute(returningListOf(SqlMod::new)));
+    }
+
+    @Override
     public @Nullable SQLDatabase.SqlMod getModByCoordinates(String coords) {
         return jdbi.withHandle(handle ->
                 handle.createQuery("select * from mods where maven_coordinates = ?")
@@ -86,6 +100,22 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                 handle.createQuery("select * from mods where name = ?")
                         .bind(0, name)
                         .execute(returningListOf(SqlMod::new)));
+    }
+
+    @Override
+    public Multimap<String, SqlMod> getModsByNameAtLeast2() {
+        return jdbi.withHandle(handle ->
+                handle.createQuery("""
+with bycount as (select count(mods.id), mods.name from mods group by mods.name order by count desc)
+select mods.* from bycount
+join mods on mods.name = bycount.name
+where bycount.count = 2
+order by mods.name;""")
+                        .execute(map(returningListOf(SqlMod::new), sqlMods -> {
+                            var map = Multimaps.<String, SqlMod>newListMultimap(new HashMap<>(), () -> new ArrayList<>(2));
+                            sqlMods.forEach(mod -> map.put(mod.getName(), mod));
+                            return map;
+                        })));
     }
 
     @Override
@@ -277,6 +307,10 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         };
     }
 
+    private static <T, R> ResultProducer<R> map(ResultProducer<T> prod, Function<T, R> func) {
+        return (statementSupplier, ctx) -> func.apply(prod.produce(statementSupplier, ctx));
+    }
+
     @FunctionalInterface
     private interface Mapper<T> {
         T apply(ResultSet rs) throws SQLException;
@@ -404,7 +438,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
     public class SqlMod implements DatabaseMod<SqlMod> {
         private final int id;
         private final String mavenCoordinates;
-        private final String version;
+        private final String version, name;
         private final boolean loader;
 
         private final int cfProjectId;
@@ -414,6 +448,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
             this.id = rs.getInt("id");
             this.mavenCoordinates = rs.getString("maven_coordinates");
             this.version = rs.getString("version");
+            this.name = rs.getString("name");
             this.loader = rs.getBoolean("loader");
 
             cfProjectId = rs.getInt("curseforge_project_id");
@@ -423,6 +458,11 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         @Override
         public String getVersion() {
             return version;
+        }
+
+        @Override
+        public String getName() {
+            return name;
         }
 
         @Override

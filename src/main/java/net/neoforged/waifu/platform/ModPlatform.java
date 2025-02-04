@@ -13,7 +13,7 @@ public interface ModPlatform {
 
     PlatformMod getModById(Object id);
 
-    Iterator<PlatformMod> searchMods(String version);
+    Iterator<PlatformMod> searchMods(String version, SearchSortField field);
 
     List<PlatformModFile> getFiles(List<Object> fileIds);
 
@@ -21,7 +21,14 @@ public interface ModPlatform {
 
     List<@Nullable PlatformModFile> getFilesByFingerprint(List<ModFileInfo> files);
 
+    int pageLimit();
+
     default void bulkFillData(List<PlatformModFile> files) {
 
+    }
+
+    enum SearchSortField {
+        LAST_UPDATED,
+        NEWEST_RELEASED
     }
 }

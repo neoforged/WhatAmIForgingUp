@@ -64,12 +64,15 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public Iterator<PlatformMod> searchMods(String version) {
+    public Iterator<PlatformMod> searchMods(String version, SearchSortField sortField) {
         try {
             return new MappingIterator<>(api.getHelper().paginated(q -> Requests.searchModsPaginated(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
                             .gameVersion(version).classId(6) // 6 is mods
                             .sortOrder(ModSearchQuery.SortOrder.DESCENDENT)
-                            .sortField(ModSearchQuery.SortField.LAST_UPDATED)
+                            .sortField(switch (sortField) {
+                                case LAST_UPDATED -> ModSearchQuery.SortField.LAST_UPDATED;
+                                case NEWEST_RELEASED -> ModSearchQuery.SortField.RELEASED_DATE;
+                            })
                             .modLoaderType(ModLoaderType.NEOFORGE)
                             .paginated(q)), Function.identity())
                     .orElseThrow(), this::createMod);
@@ -181,6 +184,11 @@ public class CurseForgePlatform implements ModPlatform {
         }
     }
 
+    @Override
+    public int pageLimit() {
+        return 50;
+    }
+
     private PlatformMod createMod(Mod mod) {
         return new PlatformMod() {
             @Override
@@ -201,6 +209,17 @@ public class CurseForgePlatform implements ModPlatform {
                         .findFirst()
                         .orElse(null);
                 return idx == null ? null : createFile(this, idx.fileId(), null);
+            }
+
+            @Override
+            public Iterator<PlatformModFile> getAllFiles() {
+                try {
+                    return new MappingIterator<>(api.getHelper().listModFiles(mod)
+                            .orElseThrow(), fl -> createFile(this, fl.id(), fl));
+                } catch (Exception ex) {
+                    Utils.sneakyThrow(ex);
+                    throw null;
+                }
             }
 
             @Override

@@ -34,7 +34,7 @@ public class Main {
 
     public static final CurseForgeAPI CF_API;
     public static final CurseForgePlatform CURSE_FORGE_PLATFORM;
-    public static final ModrinthPlatform MODRINTH_PLATFORM = new ModrinthPlatform();
+    public static final ModrinthPlatform MODRINTH_PLATFORM = ModrinthPlatform.INSTANCE;
     public static final List<ModPlatform> PLATFORMS;
 
     static {

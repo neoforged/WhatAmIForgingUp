@@ -1,6 +1,9 @@
 package net.neoforged.waifu.db;
 
+import com.google.common.collect.Multimap;
+import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
+import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.ThrowingConsumer;
 import org.jetbrains.annotations.Nullable;
@@ -12,10 +15,14 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
     @Nullable
     T getMod(PlatformModFile platformModFile);
 
+    List<T> getMods(ModPlatform platform, List<Object> projectIds);
+
     @Nullable
     T getModByCoordinates(String coords);
 
     List<T> getModsByName(String name);
+
+    Multimap<String, T> getModsByNameAtLeast2();
 
     @Nullable
     T getModByFileHash(String fileSha1);
@@ -49,6 +56,8 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
     interface DatabaseMod<T extends DatabaseMod<T>> {
         String getVersion();
 
+        String getName();
+
         @Nullable
         String getMavenCoordinate();
 
@@ -57,6 +66,11 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
 
         @Nullable
         String getModrinthProjectId();
+
+        @Nullable
+        default Object getProjectId(ModPlatform platform) {
+            return platform == Main.MODRINTH_PLATFORM ? getModrinthProjectId() : getCurseForgeProjectId();
+        }
 
         boolean isLoader();
 
