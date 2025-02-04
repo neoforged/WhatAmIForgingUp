@@ -82,7 +82,6 @@ public class GameVersionIndexService implements Runnable {
 
                 var modIds = new HashSet<>();
 
-                var knownPids = new HashSet<>();
                 var files = new ArrayList<PlatformModFile>();
                 var itr = platform.searchMods(version, ModPlatform.SearchSortField.LAST_UPDATED);
                 while (itr.hasNext()) {
@@ -118,7 +117,7 @@ public class GameVersionIndexService implements Runnable {
                     var next = itr.next();
                     latestAmount++;
                     if (!next.isAvailable()) continue;
-                    if (knownPids.add(next.getId())) {
+                    if (modIds.add(next.getId())) {
                         latestReleasedMod.add(next);
                     }
                 }
