@@ -129,7 +129,7 @@ public class GameVersionIndexService implements Runnable {
                             .stream().map(m -> m.getProjectId(platform))
                             .filter(Objects::nonNull).collect(Collectors.toSet());
                     for (PlatformMod mod : latestReleasedMod) {
-                        if (!knownModIds.contains(mod)) {
+                        if (!knownModIds.contains(mod.getId())) {
                             // ...and queue them for indexing
                             var file = mod.getLatestFile(version);
                             if (file != null) {
