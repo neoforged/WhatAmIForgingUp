@@ -72,7 +72,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
 
             executor.submit(() -> {
                 try {
-                    var runnable = run(fromPlatform, sanitizer);
+                    var runnable = run(fromPlatform, sanitizer, monitor);
                     if (runnable == null) {
                         monitor.unexpect(fromPlatform);
                     } else {
@@ -140,7 +140,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
         linkTo.link(platformFile);
     }
 
-    private @Nullable Runnable run(IndexCandidate file, DataSanitizer sanitizer) throws IOException {
+    private @Nullable Runnable run(IndexCandidate file, DataSanitizer sanitizer, ProgressMonitor<IndexCandidate> monitor) throws IOException {
         var knownByHash = db.getModByFileHash(file.file.getFileHash());
         if (knownByHash != null) {
             // This file was indexed already so we'll skip up, but we'll just make sure that it's linked
@@ -190,12 +190,14 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                 if (mod == null) {
                     mod = db.createMod(file.file());
                     mod.link(file.platformFile);
+                    monitor.markAsNew(file);
                 }
             }
         } else if (file.file.getMavenCoordinates() != null) {
             mod = db.getModByCoordinates(file.file.getMavenCoordinates());
             if (mod == null) {
                 mod = db.createMod(file.file);
+                monitor.markAsNew(file);
             } else if (new DefaultArtifactVersion(mod.getVersion()).compareTo(file.file().getVersion()) >= 0) {
                 // Do not bother indexing an older version
                 return null;

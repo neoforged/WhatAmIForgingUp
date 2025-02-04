@@ -31,7 +31,9 @@ import java.awt.Color;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -228,7 +230,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         printToEmbed(stored, embed);
 
                         if (failed.getAmount() != 0) {
-                            embed.appendDescription("\n**" + failed.getAmount() + " failures**. Check console for more information.");
+                            embed.appendDescription("\n**" + failed.getAmount() + " failures**. Check console for more information.\n");
                             printToEmbed(failed, embed);
                             embed.setColor(Color.RED);
 
@@ -279,7 +281,11 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         if (element.platformFile() != null) {
                             text = "[" + text + "](" + element.platformFile().getUrl() + ")";
                         }
-                        embed.appendDescription("- " + text + "\n");
+                        embed.appendDescription("- " + text);
+                        if (newMods.contains(element)) {
+                            embed.appendDescription(" (**new**)");
+                        }
+                        embed.appendDescription("\n");
                     }
                 }
             }
@@ -292,6 +298,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             private final AtomicInteger expected = new AtomicInteger(), indexed = new AtomicInteger();
             private final Counter<ModIndexer.IndexCandidate> failed = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[10]);
             private final Counter<ModIndexer.IndexCandidate> stored = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[15]);
+
+            private final Set<ModIndexer.IndexCandidate> newMods = new LinkedHashSet<>();
 
             @Override
             public ProgressMonitor<ModIndexer.IndexCandidate> startIndex() {
@@ -317,6 +325,11 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                     @Override
                     public void markAsStored(ModIndexer.IndexCandidate element) {
                         stored.add(element);
+                    }
+
+                    @Override
+                    public void markAsNew(ModIndexer.IndexCandidate element) {
+                        newMods.add(element);
                     }
 
                     @Override

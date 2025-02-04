@@ -11,5 +11,7 @@ public interface ProgressMonitor<T> {
 
     void markAsStored(T element);
 
+    default void markAsNew(T element) {}
+
     void raiseError(T element, Throwable exception);
 }
