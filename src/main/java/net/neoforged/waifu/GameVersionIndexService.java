@@ -116,6 +116,7 @@ public class GameVersionIndexService implements Runnable {
                 var latestItr = platform.searchMods(version, ModPlatform.SearchSortField.NEWEST_RELEASED);
                 while (latestItr.hasNext() && latestAmount < platform.pageLimit()) {
                     var next = itr.next();
+                    latestAmount++;
                     if (!next.isAvailable()) continue;
                     if (knownPids.add(next.getId())) {
                         latestReleasedMod.add(next);
