@@ -240,6 +240,27 @@ order by mods.name;""")
                 }
 
                 @Override
+                public void insertEnumExtensions(List<EnumExtension> extensions) {
+                    if (extensions.isEmpty()) return;
+
+                    try {
+                        var stmt = new BatchingStatement(con.prepareStatement("select * from insert_enum_extension(?, ?, ?, ?, ?)"), 100);
+                        for (var ext : extensions) {
+                            stmt.setInt(1, modId);
+                            stmt.setString(2, ext.enumName());
+                            stmt.setString(3, ext.name());
+                            stmt.setString(4, ext.constructor());
+                            stmt.setString(5, Utils.GSON.toJson(ext.parameters()));
+                            stmt.addBatch();
+                        }
+
+                        stmt.executeBatch();
+                    } catch (SQLException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+                @Override
                 public void deleteCurrent() {
                     try {
                         {
@@ -249,6 +270,11 @@ order by mods.name;""")
                         }
                         {
                             var stmt = con.prepareStatement("delete from tags where mod = ?");
+                            stmt.setInt(1, modId);
+                            stmt.execute();
+                        }
+                        {
+                            var stmt = con.prepareStatement("delete from enum_extensions where mod = ?");
                             stmt.setInt(1, modId);
                             stmt.execute();
                         }

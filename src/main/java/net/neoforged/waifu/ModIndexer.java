@@ -4,6 +4,7 @@ import io.github.matyrobbrt.curseforgeapi.util.Pair;
 import net.neoforged.waifu.db.ClassData;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
+import net.neoforged.waifu.index.EnumExtensionCollector;
 import net.neoforged.waifu.index.IndexingClassVisitor;
 import net.neoforged.waifu.index.TagCollector;
 import net.neoforged.waifu.meta.ModFileInfo;
@@ -217,6 +218,8 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
 
         var tags = TagCollector.collect(file.getPath("data"));
 
+        var extensions = EnumExtensionCollector.collect(file);
+
         var sanitized = sanitizer.sanitize(classes);
 
         return () -> {
@@ -225,6 +228,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
 
                 tracker.insertClasses(sanitized);
                 tracker.insertTags(tags);
+                tracker.insertEnumExtensions(extensions);
 
                 tracker.setIndexDate(Instant.now());
 

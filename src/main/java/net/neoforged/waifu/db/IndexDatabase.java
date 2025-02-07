@@ -46,6 +46,8 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
 
         void insertTags(List<TagFile> tags);
 
+        void insertEnumExtensions(List<EnumExtension> extensions);
+
         void deleteCurrent();
 
         void markAsKnown(String fileSha1);
