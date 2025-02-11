@@ -109,7 +109,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
 with bycount as (select count(mods.id), mods.name from mods group by mods.name order by count desc)
 select mods.* from bycount
 join mods on mods.name = bycount.name
-where bycount.count = 2
+where bycount.count >= 2
 order by mods.name;""")
                         .execute(map(returningListOf(SqlMod::new), sqlMods -> {
                             var map = Multimaps.<String, SqlMod>newListMultimap(new HashMap<>(), () -> new ArrayList<>(2));
@@ -504,6 +504,14 @@ order by mods.name;""")
         @Override
         public @Nullable String getModrinthProjectId() {
             return modrinthProjectId;
+        }
+
+        @Override
+        public Map<String, Object> getPlatformIds() {
+            var map = new HashMap<String, Object>();
+            if (cfProjectId > 0) map.put(ModPlatform.CURSEFORGE, cfProjectId);
+            if (modrinthProjectId != null) map.put(ModPlatform.MODRINTH, modrinthProjectId);
+            return map;
         }
 
         @Override

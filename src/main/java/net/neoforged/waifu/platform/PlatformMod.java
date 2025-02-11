@@ -15,6 +15,8 @@ public interface PlatformMod {
 
     Iterator<PlatformModFile> getAllFiles();
 
+    Iterator<PlatformModFile> getFilesForVersion(String version);
+
     Instant getLatestReleaseDate();
 
     default boolean isAvailable() {

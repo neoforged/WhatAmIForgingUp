@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends AutoCloseable {
     @Nullable
@@ -68,6 +69,8 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
 
         @Nullable
         String getModrinthProjectId();
+
+        Map<String, Object> getPlatformIds();
 
         @Nullable
         default Object getProjectId(ModPlatform platform) {

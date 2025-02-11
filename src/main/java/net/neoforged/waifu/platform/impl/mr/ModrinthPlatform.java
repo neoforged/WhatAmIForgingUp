@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 public class ModrinthPlatform implements ModPlatform {
     public static final ModrinthPlatform INSTANCE = new ModrinthPlatform();
@@ -38,7 +39,7 @@ public class ModrinthPlatform implements ModPlatform {
 
     @Override
     public String getName() {
-        return "modrinth";
+        return MODRINTH;
     }
 
     @Override
@@ -175,6 +176,14 @@ public class ModrinthPlatform implements ModPlatform {
             @Override
             public Iterator<PlatformModFile> getAllFiles() {
                 return new MappingIterator<>(getVersions().iterator(), version -> createModFile(this, version));
+            }
+
+            @Override
+            public Iterator<PlatformModFile> getFilesForVersion(String gameVersion) {
+                return getVersions().stream()
+                        .filter(v -> v.loaders.contains("neoforge") && v.game_versions.contains(gameVersion))
+                        .map(v -> createModFile(this, v))
+                        .iterator();
             }
 
             @Override

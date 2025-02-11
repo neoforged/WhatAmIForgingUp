@@ -40,6 +40,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
@@ -59,12 +60,20 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
         channelId = Long.parseLong(System.getenv("DISCORD_CHANNEL_ID"));
         messageUpdateService = Executors.newScheduledThreadPool(3, Thread.ofVirtual().name("discord-update-service-", 0).factory());
 
-        var commits = Utils.getCommits();
-        if (commits.isEmpty()) {
-            getChannel().sendMessage("Hello world, WAIFU is available again!").queue();
-        } else {
-            getChannel().sendMessage("Hello world, WAIFU is available again! Latest commit: " + commits.get(0).getDiscordReference()).queue();
+        var message = new StringBuilder("Hello world, WAIFU is available again");
+        var versions = database.getIndexedGameVersions();
+        if (!versions.isEmpty()) {
+            message.append(" and indexing versions ")
+                    .append(versions.stream().map(v -> "`" + v + "`").collect(Collectors.joining(", ")));
         }
+        message.append("!");
+
+        var commits = Utils.getCommits();
+        if (!commits.isEmpty()) {
+            message.append("Latest commit: ").append(commits.get(0).getDiscordReference());
+        }
+
+        getChannel().sendMessage(message.toString()).queue();
 
         Runtime.getRuntime().addShutdownHook(new Thread("discord-shutdown") {
             @Override

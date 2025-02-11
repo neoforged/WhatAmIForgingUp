@@ -7,6 +7,9 @@ import java.util.Iterator;
 import java.util.List;
 
 public interface ModPlatform {
+    String MODRINTH = "modrinth";
+    String CURSEFORGE = "curseforge";
+
     String getName();
 
     String getLogoUrl();

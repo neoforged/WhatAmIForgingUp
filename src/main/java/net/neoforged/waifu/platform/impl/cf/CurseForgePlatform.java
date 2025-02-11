@@ -3,6 +3,7 @@ package net.neoforged.waifu.platform.impl.cf;
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.github.matyrobbrt.curseforgeapi.annotation.Nullable;
 import io.github.matyrobbrt.curseforgeapi.request.Requests;
+import io.github.matyrobbrt.curseforgeapi.request.query.FileListQuery;
 import io.github.matyrobbrt.curseforgeapi.request.query.ModSearchQuery;
 import io.github.matyrobbrt.curseforgeapi.schemas.HashAlgo;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.File;
@@ -34,6 +35,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -46,7 +48,7 @@ public class CurseForgePlatform implements ModPlatform {
 
     @Override
     public String getName() {
-        return "curseforge";
+        return CURSEFORGE;
     }
 
     @Override
@@ -215,6 +217,18 @@ public class CurseForgePlatform implements ModPlatform {
             public Iterator<PlatformModFile> getAllFiles() {
                 try {
                     return new MappingIterator<>(api.getHelper().listModFiles(mod)
+                            .orElseThrow(), fl -> createFile(this, fl.id(), fl));
+                } catch (Exception ex) {
+                    Utils.sneakyThrow(ex);
+                    throw null;
+                }
+            }
+
+            @Override
+            public Iterator<PlatformModFile> getFilesForVersion(String version) {
+                try {
+                    return new MappingIterator<>(api.getHelper().listModFiles(mod.id(), FileListQuery.of()
+                                    .gameVersion(version).modLoaderType(ModLoaderType.NEOFORGE))
                             .orElseThrow(), fl -> createFile(this, fl.id(), fl));
                 } catch (Exception ex) {
                     Utils.sneakyThrow(ex);
