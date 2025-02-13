@@ -3,6 +3,7 @@ package net.neoforged.waifu.db;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.gson.JsonArray;
+import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModInfo;
 import net.neoforged.waifu.platform.ModPlatform;
@@ -10,6 +11,9 @@ import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.ThrowingConsumer;
 import net.neoforged.waifu.util.Utils;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.callback.Callback;
+import org.flywaydb.core.api.callback.Context;
+import org.flywaydb.core.api.callback.Event;
 import org.jdbi.v3.core.ConnectionFactory;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.result.ResultProducer;
@@ -56,6 +60,57 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                 .locations("classpath:indexdb/migration")
                 .dataSource(url, username, password)
                 .createSchemas(true)
+                .callbacks(new Callback() {
+
+                    @Override
+                    public boolean supports(Event event, Context context) {
+                        return event == Event.AFTER_EACH_MIGRATE;
+                    }
+
+                    @Override
+                    public boolean canHandleInTransaction(Event event, Context context) {
+                        return true;
+                    }
+
+                    @Override
+                    public void handle(Event event, Context context) {
+                        if (context.getMigrationInfo().getVersion().getMajor().intValue() == 7) {
+                            try {
+                                var byId = new HashMap<Integer, String>();
+                                try (var stmt = context.getConnection().createStatement()) {
+                                    var res = stmt.executeQuery("select mods.id, mods.mods_toml from mods where mods_toml is not null");
+                                    while (res.next()) {
+                                        byId.put(res.getInt(1), res.getString(2));
+                                    }
+                                }
+
+                                if (byId.isEmpty()) return;
+                                try (var batch = new BatchingStatement(context.getConnection().prepareStatement("update mods set mods_toml_json = (?::jsonb) where id = ?"), 250)) {
+                                    for (var entry : byId.entrySet()) {
+                                        try {
+                                            batch.setString(1, Utils.tomlToJson(entry.getValue()));
+                                            batch.setInt(2, entry.getKey());
+                                            batch.addBatch();
+                                        } catch (Exception ignored) {
+                                            // Ignore invalid tomls
+                                        }
+                                    }
+
+                                    batch.executeBatch();
+                                }
+
+                                Main.LOGGER.info("Migrated {} mods from text mods.toml to json mods.toml", byId.size());
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public String getCallbackName() {
+                        return "migrate_mods_toml_v7";
+                    }
+                })
                 .load()
                 .migrate();
 
@@ -524,16 +579,21 @@ order by mods.name;""")
             var meta = info.getMetadata();
 
             String mtoml = null;
+            String mtomlJson = null;
             try {
                 mtoml = Files.readString(info.getPath("META-INF/neoforge.mods.toml"));
+                mtomlJson = Utils.tomlToJson(mtoml);
             } catch (Exception ignored) {
 
             }
 
-            String modsToml = mtoml;
+            String modsToml = mtoml, modsTomlJson = mtomlJson;
 
             // TODO - find a better way that retains old data in case we update from a JiJ artifact that's also linked to a project
-            jdbi.useHandle(handle -> handle.createUpdate("update mods set version = ?, name = ?, mod_ids = ?, authors = ?, update_json = ?, nested_tree = ?, maven_coordinates = ?, license = ?, language_loader = ?, mods_toml = ? where id = ?")
+            jdbi.useHandle(handle -> handle.createUpdate("update mods set " +
+                            "version = ?, name = ?, mod_ids = ?, authors = ?, update_json = ?," +
+                            "nested_tree = ?, maven_coordinates = ?, license = ?, language_loader = ?, mods_toml = ?, mods_toml_json = (?::jsonb)" +
+                            "where id = ?")
                     .bind(0, info.getVersion().toString())
                     .bind(1, info.getDisplayName())
                     .bind(2, info.getMods().stream().map(ModInfo::modId).toArray(String[]::new))
@@ -546,7 +606,8 @@ order by mods.name;""")
                     .bind(7, meta == null ? null : meta.license())
                     .bind(8, meta == null ? null : meta.languageLoader())
                     .bind(9, modsToml)
-                    .bind(10, id)
+                    .bind(10, modsTomlJson)
+                    .bind(11, id)
                     .execute());
         }
 
@@ -597,7 +658,7 @@ order by mods.name;""")
         return str.isBlank() ? null : str;
     }
 
-    private static class BatchingStatement {
+    private static class BatchingStatement implements AutoCloseable {
         private final PreparedStatement statement;
         private final int batchSize;
 
@@ -637,6 +698,11 @@ order by mods.name;""")
                 statement.executeBatch();
                 currentSize = 0;
             }
+        }
+
+        @Override
+        public void close() throws Exception {
+            statement.close();
         }
     }
 }

@@ -214,7 +214,7 @@ public class GameVersionIndexService implements Runnable {
         if (lastMerge == 0L || (System.currentTimeMillis() - lastMerge) >= 24 * 60 * 60 * 1000L) {
             var mergedMods = attemptToMergeMods(db);
             if (!mergedMods.isEmpty()) {
-                LOGGER.info("Merged {} mods for game version {}: {}", mergedMods.size(), version, mergedMods
+                LOGGER.info("Merged {} mods for game version {}:\n{}", mergedMods.size(), version, mergedMods
                         .stream().map(l -> "\t - " + l.stream().map(m -> m.getPlatformIds().toString()).collect(Collectors.joining(" + ")))
                         .collect(Collectors.joining("\n")));
             }

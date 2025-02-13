@@ -1,5 +1,7 @@
 package net.neoforged.waifu.util;
 
+import com.electronwill.nightconfig.core.io.ConfigWriter;
+import com.electronwill.nightconfig.json.MinimalJsonWriter;
 import com.electronwill.nightconfig.toml.TomlParser;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -31,6 +33,7 @@ public class Utils {
             .registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) -> Instant.parse(json.getAsString()))
             .create();
     public static final TomlParser TOML = new TomlParser();
+    public static final ConfigWriter JSON_NC = new MinimalJsonWriter();
 
     @Nullable
     public static final String VERSION = Utils.class.getPackage().getImplementationVersion();
@@ -124,5 +127,9 @@ public class Utils {
             }
         }
         return bos.toByteArray();
+    }
+
+    public static String tomlToJson(String toml) {
+        return JSON_NC.writeToString(TOML.parse(toml));
     }
 }

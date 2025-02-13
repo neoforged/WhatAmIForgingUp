@@ -66,7 +66,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             message.append(" and indexing versions ")
                     .append(versions.stream().map(v -> "`" + v + "`").collect(Collectors.joining(", ")));
         }
-        message.append("!");
+        message.append("! ");
 
         var commits = Utils.getCommits();
         if (!commits.isEmpty()) {
