@@ -3,6 +3,7 @@ package net.neoforged.waifu.db;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModInfo;
@@ -592,7 +593,7 @@ order by mods.name;""")
             // TODO - find a better way that retains old data in case we update from a JiJ artifact that's also linked to a project
             jdbi.useHandle(handle -> handle.createUpdate("update mods set " +
                             "version = ?, name = ?, mod_ids = ?, authors = ?, update_json = ?," +
-                            "nested_tree = ?, maven_coordinates = ?, license = ?, language_loader = ?, mods_toml = ?, mods_toml_json = (?::jsonb)" +
+                            "nested_tree = (?::jsonb), maven_coordinates = ?, license = ?, language_loader = ?, mods_toml = ?, mods_toml_json = (?::jsonb)" +
                             "where id = ?")
                     .bind(0, info.getVersion().toString())
                     .bind(1, info.getDisplayName())
@@ -601,7 +602,7 @@ order by mods.name;""")
                             .filter(Objects::nonNull)
                             .collect(Collectors.joining("; "))))
                     .bind(4, info.getMods().isEmpty() ? null : info.getMods().get(0).updateJSONURL())
-                    .bind(5, orNull(getNestedTree(info)))
+                    .bind(5, nestedTree(info))
                     .bind(6, info.getMavenCoordinates() == null ? mavenCoordinates : info.getMavenCoordinates())
                     .bind(7, meta == null ? null : meta.license())
                     .bind(8, meta == null ? null : meta.languageLoader())
@@ -648,10 +649,25 @@ order by mods.name;""")
         }
     }
 
-    private static String getNestedTree(ModFileInfo info) {
-        return info.getNestedJars().stream()
-                .map(jar -> jar.identifier() + (jar.info().getNestedJars().isEmpty() ? "" : " (" + getNestedTree(jar.info()) + ")"))
-                .collect(Collectors.joining(", "));
+    @Nullable
+    private static String nestedTree(ModFileInfo info) {
+        if (info.getNestedJars().isEmpty()) return null;
+        return Utils.GSON.toJson(computeNestedTree(info));
+    }
+
+    private static JsonArray computeNestedTree(ModFileInfo info) {
+        var arr = new JsonArray();
+        for (ModFileInfo.NestedJar nestedJar : info.getNestedJars()) {
+            var json = new JsonObject();
+            json.addProperty("id", nestedJar.identifier());
+            json.addProperty("version", nestedJar.version().toString());
+            var children = computeNestedTree(nestedJar.info());
+            if (!children.isEmpty()) {
+                json.add("nested", children);
+            }
+            arr.add(json);
+        }
+        return arr;
     }
 
     private static String orNull(String str) {
