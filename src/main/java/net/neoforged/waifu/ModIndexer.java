@@ -10,10 +10,12 @@ import net.neoforged.waifu.index.TagCollector;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFilePath;
 import net.neoforged.waifu.platform.ModPlatform;
+import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,10 +31,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private static final boolean KEEP_CACHES = Boolean.parseBoolean(System.getenv().getOrDefault("KEEP_PLATFORM_CACHES", "true"));
@@ -162,14 +167,22 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                 // Now we're going to try some more aggressive checks to see if we can merge this mod with an existing one just this time.
                 var sameName = db.getModsByName(file.file().getDisplayName());
                 var isCurseForge = file.platformFile.getPlatform() == Main.CURSE_FORGE_PLATFORM;
+
+                var ownHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(file.platformFile.getMod().getFilesForVersion(gameVersion), Spliterator.ORDERED), false)
+                        .map(PlatformModFile::getHash)
+                        .collect(Collectors.toSet());
+
                 for (T candidateMod : sameName) {
-                    PlatformModFile otherFile = null;
+                    PlatformMod otherMod = null;
                     if (candidateMod.getCurseForgeProjectId() == null && isCurseForge && candidateMod.getModrinthProjectId() != null) {
-                        otherFile = Main.MODRINTH_PLATFORM.getModById(candidateMod.getModrinthProjectId()).getLatestFile(gameVersion);
+                        otherMod = Main.MODRINTH_PLATFORM.getModById(candidateMod.getModrinthProjectId());
                     } else if (candidateMod.getModrinthProjectId() == null && !isCurseForge && candidateMod.getCurseForgeProjectId() != null) {
-                        otherFile = Main.CURSE_FORGE_PLATFORM.getModById(candidateMod.getCurseForgeProjectId()).getLatestFile(gameVersion);
+                        otherMod = Main.CURSE_FORGE_PLATFORM.getModById(candidateMod.getCurseForgeProjectId());
                     }
 
+                    if (otherMod == null) continue;
+
+                    var otherFile = otherMod.getLatestFile(gameVersion);
                     if (otherFile != null) {
                         try (var otherIn = Files.newInputStream(download(otherFile));
                             var thisIn = file.file().openStream()) {
@@ -183,6 +196,18 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                                 break;
                             }
                         }
+                    }
+
+                    var candidateHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(otherMod.getFilesForVersion(gameVersion), Spliterator.ORDERED), false)
+                            .map(PlatformModFile::getHash)
+                            .collect(Collectors.toSet());
+
+                    // If the two mods have at least one file in common for the same game version merge them
+                    var common = CollectionUtils.intersection(ownHashes, candidateHashes);
+                    if (!common.isEmpty()) {
+                        mod = candidateMod;
+                        mod.link(file.platformFile);
+                        break;
                     }
                 }
 

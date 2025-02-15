@@ -10,30 +10,18 @@ import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.NeoForgeJarProvider;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Spliterator;
-import java.util.Spliterators;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 public class GameVersionIndexService implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(GameVersionIndexService.class);
@@ -43,12 +31,9 @@ public class GameVersionIndexService implements Runnable {
 
     private volatile boolean isRunning, pendingReRun;
 
-    private long lastMerge;
-
     private final String version;
 
     private final List<ModPlatform> platforms;
-    private final Map<String, ModPlatform> platformById;
 
     private final IndexDatabase<?> db;
     private final DataSanitizer sanitizer;
@@ -64,8 +49,6 @@ public class GameVersionIndexService implements Runnable {
         this.listenerFactory = listenerFactory;
 
         this.platformCache = Main.PLATFORM_CACHE;
-
-        this.platformById = platforms.stream().collect(Collectors.toMap(ModPlatform::getName, Function.identity()));
     }
 
     @Override
@@ -207,90 +190,6 @@ public class GameVersionIndexService implements Runnable {
                 listenerFactory.informError("Failed to index loader version `" + loaderVersion + "`: " + exception.getMessage() + "\nCheck the log for more details.");
             }
         }
-
-        // Attempt to merge mods every 24 hours
-        // This merges any mods which have the same name, are on different platforms but their projects
-        // have at least a common file (based on hash) on this game version
-        if (lastMerge == 0L || (System.currentTimeMillis() - lastMerge) >= 24 * 60 * 60 * 1000L) {
-            var mergedMods = attemptToMergeMods(db);
-            if (!mergedMods.isEmpty()) {
-                LOGGER.info("Merged {} mods for game version {}:\n{}", mergedMods.size(), version, mergedMods
-                        .stream().map(l -> "\t - " + l.stream().map(m -> m.getPlatformIds().toString()).collect(Collectors.joining(" + ")))
-                        .collect(Collectors.joining("\n")));
-            }
-
-            lastMerge = System.currentTimeMillis();
-        }
-    }
-
-    private <M extends IndexDatabase.DatabaseMod<M>> List<List<M>> attemptToMergeMods(IndexDatabase<M> db) {
-        var result = new ArrayList<List<M>>();
-        var mods = db.getModsByNameAtLeast2();
-        for (var list : mods.asMap().values()) {
-            record ModEntry<M extends IndexDatabase.DatabaseMod<M>>(M mod, Object projectId,
-                                                                    AtomicReference<PlatformModFile> latestFile) {
-            }
-
-            var byPlatform = new HashMap<String, ModEntry<M>>();
-
-            for (M m : list) {
-                var byId = m.getPlatformIds();
-                if (byId.size() == 1) {
-                    var entry = byId.entrySet().iterator().next();
-                    byPlatform.put(entry.getKey(), new ModEntry<>(m, entry.getValue(), new AtomicReference<>()));
-                }
-            }
-
-            if (byPlatform.size() < 2) continue;
-
-            @Nullable Collection<String> commonHashes = null;
-            for (var set : byPlatform.entrySet()) {
-                var platform = platformById.get(set.getKey());
-                if (platform != null) {
-                    var hashes = StreamSupport.stream(
-                            Spliterators.spliteratorUnknownSize(
-                                    platform.getModById(set.getValue().mod().getProjectId(platform))
-                                            .getFilesForVersion(version),
-                                    Spliterator.ORDERED
-                            ),
-                            false
-                    ).peek(file -> {
-                        if (set.getValue().latestFile().get() == null) {
-                            set.getValue().latestFile().set(file);
-                        }
-                    }).map(PlatformModFile::getHash).toList();
-
-                    if (commonHashes == null) {
-                        commonHashes = hashes;
-                    } else {
-                        commonHashes = CollectionUtils.intersection(commonHashes, hashes);
-                    }
-                }
-            }
-
-            if (commonHashes != null && !commonHashes.isEmpty()) {
-                var lst = new ArrayList<M>(byPlatform.size());
-
-                var newestMod = byPlatform.values().stream()
-                        .map(ModEntry::mod)
-                        .max(Comparator.comparing(m -> new DefaultArtifactVersion(m.getVersion())))
-                        .orElseThrow();
-
-                for (ModEntry<M> entry : byPlatform.values()) {
-                    var mod = entry.mod();
-                    if (mod != newestMod) {
-                        mod.transferTo(newestMod);
-                        newestMod.link(entry.latestFile().get());
-                        mod.delete();
-                    }
-
-                    lst.add(mod);
-                }
-
-                result.add(lst);
-            }
-        }
-        return result;
     }
 
     public interface ListenerFactory {

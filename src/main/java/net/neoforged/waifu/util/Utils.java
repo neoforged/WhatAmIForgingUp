@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
@@ -118,7 +119,7 @@ public class Utils {
                     var man = new Manifest();
                     man.read(zis);
                     // Strip Implementation-Timestamp and co which prevent the jars from being the same (hopefully)
-                    man.getMainAttributes().entrySet().removeIf(e -> e.getKey() instanceof Attributes.Name nm && nm.toString().endsWith("-Timestamp"));
+                    man.getMainAttributes().entrySet().removeIf(e -> e.getKey() instanceof Attributes.Name nm && nm.toString().toLowerCase(Locale.ROOT).endsWith("timestamp"));
                     man.write(zos);
                 } else {
                     zis.transferTo(zos);
