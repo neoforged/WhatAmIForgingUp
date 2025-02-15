@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
@@ -593,7 +595,8 @@ order by mods.name;""")
             // TODO - find a better way that retains old data in case we update from a JiJ artifact that's also linked to a project
             jdbi.useHandle(handle -> handle.createUpdate("update mods set " +
                             "version = ?, name = ?, mod_ids = ?, authors = ?, update_json = ?," +
-                            "nested_tree = (?::jsonb), maven_coordinates = ?, license = ?, language_loader = ?, mods_toml = ?, mods_toml_json = (?::jsonb)" +
+                            "nested_tree = (?::jsonb), maven_coordinates = ?, license = ?, language_loader = ?," +
+                            "mods_toml = ?, mods_toml_json = (?::jsonb), manifest = (?::jsonb)" +
                             "where id = ?")
                     .bind(0, info.getVersion().toString())
                     .bind(1, info.getDisplayName())
@@ -606,9 +609,11 @@ order by mods.name;""")
                     .bind(6, info.getMavenCoordinates() == null ? mavenCoordinates : info.getMavenCoordinates())
                     .bind(7, meta == null ? null : meta.license())
                     .bind(8, meta == null ? null : meta.languageLoader())
+
                     .bind(9, modsToml)
                     .bind(10, modsTomlJson)
-                    .bind(11, id)
+                    .bind(11, Utils.GSON.toJson(manifestToJson(info.getManifest())))
+                    .bind(12, id)
                     .execute());
         }
 
@@ -668,6 +673,29 @@ order by mods.name;""")
             arr.add(json);
         }
         return arr;
+    }
+
+    private static JsonObject manifestToJson(Manifest manifest) {
+        var json = new JsonObject();
+        var main = new JsonObject();
+        manifest.getMainAttributes().forEach((key, val) -> {
+            if (key instanceof Attributes.Name) {
+                main.addProperty(key.toString(), val.toString());
+            }
+        });
+        json.add("", main);
+
+        manifest.getEntries().forEach((entryKey, entry) -> {
+            var entryJson = new JsonObject();
+            entry.forEach((key, val) -> {
+                if (key instanceof Attributes.Name) {
+                    entryJson.addProperty(key.toString(), val.toString());
+                }
+            });
+            json.add(entryKey, entryJson);
+        });
+
+        return json;
     }
 
     private static String orNull(String str) {

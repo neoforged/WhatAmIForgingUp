@@ -33,6 +33,8 @@ public interface ModFileInfo {
 
     Path getRootDirectory();
 
+    Manifest getManifest();
+
     String getFileHash();
 
     long computeMurmur2() throws IOException;
@@ -73,7 +75,7 @@ public interface ModFileInfo {
                 if (toml != null) {
                     var mods = toml.<List<CommentedConfig>>get("mods");
                     if (mods != null && !mods.isEmpty()) {
-                        return new MetadataPoweredModFileInfo(path, version, toml, coordinates);
+                        return new MetadataPoweredModFileInfo(path, man, version, toml, coordinates);
                     }
                 }
             }
@@ -90,7 +92,7 @@ public interface ModFileInfo {
             path.close();
             return null;
         }
-        return new LibraryModFileInfo(path, Type.get(attr), version, man, coordinates);
+        return new LibraryModFileInfo(path, man, Type.get(attr), version, coordinates);
     }
 
     private static Manifest readManifest(Path manPath) throws IOException {

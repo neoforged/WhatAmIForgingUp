@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.jar.Manifest;
 
 class MetadataPoweredModFileInfo extends BaseModFileInfo {
     private final List<ModInfo> mods;
@@ -16,8 +17,8 @@ class MetadataPoweredModFileInfo extends BaseModFileInfo {
 
     @Nullable
     private final String coordinates;
-    MetadataPoweredModFileInfo(ModFilePath path, String jarVersion, Config toml, String coordinates) throws IOException  {
-        super(path);
+    MetadataPoweredModFileInfo(ModFilePath path, Manifest man, String jarVersion, Config toml, String coordinates) throws IOException  {
+        super(path, man);
         this.coordinates = coordinates;
 
         this.metadata = new ModFileMetadata(

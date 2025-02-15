@@ -16,15 +16,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.jar.Manifest;
 
 abstract class BaseModFileInfo implements ModFileInfo {
     private static final Path JIJ_CACHE = Main.CACHE.resolve("jij");
 
     private final ModFilePath path;
+    private final Manifest manifest;
     private final List<NestedJar> nestedJars;
 
-    BaseModFileInfo(ModFilePath path) throws IOException {
+    BaseModFileInfo(ModFilePath path, Manifest manifest) throws IOException {
         this.path = path;
+        this.manifest = manifest;
 
         this.nestedJars = readNestedJars();
     }
@@ -42,6 +45,11 @@ abstract class BaseModFileInfo implements ModFileInfo {
     @Override
     public Path getRootDirectory() {
         return path.rootDirectory();
+    }
+
+    @Override
+    public Manifest getManifest() {
+        return manifest;
     }
 
     @Override

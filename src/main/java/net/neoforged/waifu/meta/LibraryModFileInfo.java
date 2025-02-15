@@ -16,13 +16,13 @@ class LibraryModFileInfo extends BaseModFileInfo implements ModFileInfo {
     private final DefaultArtifactVersion version;
     private final String coordinates;
     private final String name;
-    LibraryModFileInfo(ModFilePath path, Type type, String version, Manifest manifest, @Nullable String coordinates) throws IOException {
-        super(path);
+    LibraryModFileInfo(ModFilePath path, Manifest man, Type type, String version, @Nullable String coordinates) throws IOException {
+        super(path, man);
         this.type = type;
         this.version = new DefaultArtifactVersion(version);
         this.coordinates = coordinates;
 
-        this.name = computeName(path, manifest, coordinates);
+        this.name = computeName(path, man, coordinates);
     }
 
     private static String computeName(ModFilePath path, Manifest man, @Nullable String coords) {
