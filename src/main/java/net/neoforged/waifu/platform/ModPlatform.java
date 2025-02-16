@@ -1,7 +1,6 @@
 package net.neoforged.waifu.platform;
 
 import net.neoforged.waifu.meta.ModFileInfo;
-import net.neoforged.waifu.util.ModLoader;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Iterator;

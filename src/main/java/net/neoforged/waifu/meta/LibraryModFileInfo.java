@@ -16,8 +16,8 @@ class LibraryModFileInfo extends BaseModFileInfo implements ModFileInfo {
     private final DefaultArtifactVersion version;
     private final String coordinates;
     private final String name;
-    LibraryModFileInfo(ModFilePath path, Manifest man, Type type, String version, @Nullable String coordinates) throws IOException {
-        super(path, man);
+    LibraryModFileInfo(ModFilePath path, Manifest man, ModFileReader reader, Type type, String version, @Nullable String coordinates) throws IOException {
+        super(path, man, reader);
         this.type = type;
         this.version = new DefaultArtifactVersion(version);
         this.coordinates = coordinates;

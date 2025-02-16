@@ -25,11 +25,11 @@ abstract class BaseModFileInfo implements ModFileInfo {
     private final Manifest manifest;
     private final List<NestedJar> nestedJars;
 
-    BaseModFileInfo(ModFilePath path, Manifest manifest) throws IOException {
+    BaseModFileInfo(ModFilePath path, Manifest manifest, ModFileReader reader) throws IOException {
         this.path = path;
         this.manifest = manifest;
 
-        this.nestedJars = readNestedJars();
+        this.nestedJars = readNestedJars(reader);
     }
 
     @Override
@@ -81,7 +81,7 @@ abstract class BaseModFileInfo implements ModFileInfo {
         return getClass().getSimpleName() + "[name=" + getDisplayName() + ", path=" + path + "]";
     }
 
-    private List<NestedJar> readNestedJars() throws IOException {
+    private List<NestedJar> readNestedJars(ModFileReader reader) throws IOException {
         final Path path = getPath("META-INF/jarjar/metadata.json");
         if (Files.exists(path)) {
             var nested = new ArrayList<NestedJar>();
@@ -115,7 +115,7 @@ abstract class BaseModFileInfo implements ModFileInfo {
 
                 }
 
-                var jar = ModFileInfo.read(new ModFilePath(
+                var jar = reader.read(new ModFilePath(
                         newPath, FileSystems.newFileSystem(newPath).getRootDirectories().iterator().next(),
                         fileHash, newPath
                 ), id, version);

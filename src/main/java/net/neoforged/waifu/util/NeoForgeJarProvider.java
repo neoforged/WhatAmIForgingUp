@@ -8,6 +8,7 @@ import net.neoforged.binarypatcher.Patcher;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFilePath;
+import net.neoforged.waifu.meta.ModFileReader;
 
 import java.io.IOException;
 import java.net.URI;
@@ -120,8 +121,8 @@ public class NeoForgeJarProvider {
             Files.delete(installer);
         }
 
-        var neoMod = Objects.requireNonNull(ModFileInfo.read(ModFilePath.create(path, path), "net.neoforged:neoforge", neoVersion));
-        var mcMod = Objects.requireNonNull(ModFileInfo.read(ModFilePath.create(patched, patched), "net.minecraft:minecraft", mcVersion));
+        var neoMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(path, path), "net.neoforged:neoforge", neoVersion));
+        var mcMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(patched, patched), "net.minecraft:minecraft", mcVersion));
 
         return List.of(neoMod, mcMod);
     }

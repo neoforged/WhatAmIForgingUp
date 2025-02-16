@@ -9,7 +9,7 @@ import net.neoforged.waifu.discord.DiscordBot;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.impl.cf.CurseForgePlatform;
 import net.neoforged.waifu.platform.impl.mr.ModrinthPlatform;
-import net.neoforged.waifu.util.ModLoader;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.util.Utils;
 import net.neoforged.waifu.web.WebService;
 import org.slf4j.Logger;

@@ -17,8 +17,8 @@ class MetadataPoweredModFileInfo extends BaseModFileInfo {
 
     @Nullable
     private final String coordinates;
-    MetadataPoweredModFileInfo(ModFilePath path, Manifest man, String jarVersion, Config toml, String coordinates) throws IOException  {
-        super(path, man);
+    MetadataPoweredModFileInfo(ModFilePath path, Manifest man, ModFileReader reader, String jarVersion, Config toml, String coordinates) throws IOException  {
+        super(path, man, reader);
         this.coordinates = coordinates;
 
         this.metadata = new ModFileMetadata(

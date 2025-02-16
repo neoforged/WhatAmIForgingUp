@@ -3,12 +3,11 @@ package net.neoforged.waifu;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.meta.ModFileInfo;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
-import net.neoforged.waifu.util.ModLoader;
-import net.neoforged.waifu.util.NeoForgeJarProvider;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import org.slf4j.Logger;
@@ -63,7 +62,7 @@ public class GameVersionIndexService implements Runnable {
 
         isRunning = true;
 
-        LOGGER.info("Starting index for game version {}", version);
+        LOGGER.info("Starting index for game version {} and loader {}", version, loader);
 
         runWithExceptions();
 
@@ -82,7 +81,7 @@ public class GameVersionIndexService implements Runnable {
             try {
                 var indexer = new ModIndexer<>(platformCache, db, version, loader);
 
-                LOGGER.info("Scanning platform {} for game version {}", platform.getName(), version);
+                LOGGER.info("Scanning platform {} for game version {} and loader {}", platform.getName(), version, loader);
                 var counter = listener.startPlatformScan();
 
                 var modIds = new HashSet<>();
@@ -168,29 +167,32 @@ public class GameVersionIndexService implements Runnable {
 
                 listener.markFinish(scanned.size());
 
-                LOGGER.info("Finished indexing platform {} for game version {}", platform.getName(), version);
+                LOGGER.info("Finished indexing platform {} for game version {} and loader {}", platform.getName(), version, loader);
             } catch (Exception exception) {
-                LOGGER.error("Fatal error raised while indexing platform {} for game version {}", platform.getName(), version, exception);
+                LOGGER.error("Fatal error raised while indexing platform {} for game version {} and loader {}", platform.getName(), version, loader, exception);
                 listener.raiseFatalException(exception);
             }
         }
 
-        var loaderVersion = NeoForgeJarProvider.getLatestVersion(version);
-        var loaderDbMod = db.getLoaderMod("net.neoforged:neoforge");
+        var loaderProvider = loader.getVersionProvider();
+        if (loaderProvider != null) {
+            var loaderVersion = loaderProvider.latestVersion().apply(version);
+            var loaderDbMod = db.getLoaderMod(loaderProvider.artifactName());
 
-        if (loaderDbMod == null || !loaderDbMod.getVersion().equals(loaderVersion)) {
-            LOGGER.info("Indexing loader for game version {}. Found new version: {}", version, loaderVersion);
-            try {
-                var indexer = new ModIndexer<>(platformCache, db, version, loader);
-                var loaderMods = NeoForgeJarProvider.provide(loaderVersion);
-                for (ModFileInfo loaderMod : loaderMods) {
-                    indexer.indexLoaderMod(loaderMod);
-                    loaderMod.close();
+            if (loaderDbMod == null || !loaderDbMod.getVersion().equals(loaderVersion)) {
+                LOGGER.info("Indexing loader {} for game version {}. Found new version: {}", loader, version, loaderVersion);
+                try {
+                    var indexer = new ModIndexer<>(platformCache, db, version, loader);
+                    var loaderMods = loaderProvider.jarProvider().apply(loaderVersion);
+                    for (ModFileInfo loaderMod : loaderMods) {
+                        indexer.indexLoaderMod(loaderMod);
+                        loaderMod.close();
+                    }
+                    LOGGER.info("Indexed loader {} for game version {}", loader, version);
+                } catch (Exception exception) {
+                    LOGGER.error("Failed indexing loader {} version {} for game version {}", loader, loaderVersion, version, exception);
+                    listenerFactory.informError("Failed to index loader version `" + loaderVersion + "`: " + exception.getMessage() + "\nCheck the log for more details.");
                 }
-                LOGGER.info("Indexed loader for game version {}", version);
-            } catch (Exception exception) {
-                LOGGER.error("Failed indexing loader {} for game version {}", loaderVersion, version, exception);
-                listenerFactory.informError("Failed to index loader version `" + loaderVersion + "`: " + exception.getMessage() + "\nCheck the log for more details.");
             }
         }
     }

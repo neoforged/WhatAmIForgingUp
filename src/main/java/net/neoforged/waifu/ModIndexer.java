@@ -9,11 +9,11 @@ import net.neoforged.waifu.index.IndexingClassVisitor;
 import net.neoforged.waifu.index.TagCollector;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFilePath;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
-import net.neoforged.waifu.util.ModLoader;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import org.apache.commons.collections4.CollectionUtils;
@@ -361,7 +361,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                 try {
                     var path = download(file);
 
-                    var mod = ModFileInfo.read(
+                    var mod = loader.getReader().read(
                             new ModFilePath(
                                     path, FileSystems.newFileSystem(path).getRootDirectories().iterator().next(),
                                     file.getHash(), KEEP_CACHES ? null : path

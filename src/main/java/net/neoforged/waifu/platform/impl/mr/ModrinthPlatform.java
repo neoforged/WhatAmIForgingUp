@@ -8,7 +8,7 @@ import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.MappingIterator;
-import net.neoforged.waifu.util.ModLoader;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 public class ModrinthPlatform implements ModPlatform {
     public static final ModrinthPlatform INSTANCE = new ModrinthPlatform();

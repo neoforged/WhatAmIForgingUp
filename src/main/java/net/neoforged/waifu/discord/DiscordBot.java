@@ -23,7 +23,7 @@ import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
-import net.neoforged.waifu.util.ModLoader;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;

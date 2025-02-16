@@ -19,7 +19,7 @@ import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.MappingIterator;
-import net.neoforged.waifu.util.ModLoader;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.util.Utils;
 
 import java.io.IOException;
@@ -36,7 +36,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 

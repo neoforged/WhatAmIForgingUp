@@ -1,6 +1,6 @@
 package net.neoforged.waifu;
 
-import net.neoforged.waifu.util.ModLoader;
+import net.neoforged.waifu.platform.ModLoader;
 import org.flywaydb.core.Flyway;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.enums.EnumByName;
