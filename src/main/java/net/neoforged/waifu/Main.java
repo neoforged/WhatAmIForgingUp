@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -55,8 +56,8 @@ public class Main {
         var bot = new DiscordBot(System.getenv("DISCORD_TOKEN"), db);
 
         long initialDelay = 15;
-        for (String version : db.getIndexedGameVersions()) {
-            schedule(version, bot, initialDelay);
+        for (var version : db.getIndexedGameVersions()) {
+            schedule(version.gameVersion(), version.loader(), bot, initialDelay);
 
             initialDelay += 60 * 10;
         }
@@ -65,19 +66,19 @@ public class Main {
         web.start();
     }
 
-    public static void schedule(String version, DiscordBot bot, long initialDelaySeconds) {
-        var indexDb = createDatabase(version);
-        // TODO - we'll have to make the loader configurable at some point
+    public static void schedule(String version, ModLoader loader, DiscordBot bot, long initialDelaySeconds) {
+        var indexDb = createDatabase(version, loader);
         EXECUTOR.scheduleWithFixedDelay(
-                new GameVersionIndexService(version, ModLoader.NEOFORGE, PLATFORMS, indexDb, SANITIZER, bot),
+                new GameVersionIndexService(version, loader, PLATFORMS, indexDb, SANITIZER, bot),
                 initialDelaySeconds,
                 DELAY_SEC,
                 TimeUnit.SECONDS
         );
     }
 
-    public static IndexDatabase<?> createDatabase(String version) {
-        var indexDb = new SQLDatabase("jdbc:postgresql://" + System.getenv("POSTGRES_DB_URL") + "?currentSchema=" + version, System.getenv("POSTGRES_DB_USERNAME"), System.getenv("POSTGRES_DB_PASSWORD"));
+    public static IndexDatabase<?> createDatabase(String version, ModLoader loader) {
+        var indexDb = new SQLDatabase("jdbc:postgresql://" + System.getenv("POSTGRES_DB_URL") + "?currentSchema=" + version + "-" + loader.name().toLowerCase(Locale.ROOT),
+                System.getenv("POSTGRES_DB_USERNAME"), System.getenv("POSTGRES_DB_PASSWORD"));
         indexDb.runFlyway();
         return indexDb;
     }

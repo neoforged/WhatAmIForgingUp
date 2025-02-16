@@ -27,6 +27,7 @@ import net.neoforged.waifu.util.ModLoader;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.codehaus.plexus.util.StringUtils;
 
 import java.awt.Color;
 import java.io.IOException;
@@ -45,6 +46,9 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class DiscordBot implements GameVersionIndexService.ListenerFactory {
+    private static final List<Command.Choice> LOADERS = Arrays.stream(ModLoader.values())
+            .map(l -> new Command.Choice(StringUtils.capitalise(l.name().toLowerCase(Locale.ROOT)), l.name()))
+            .toList();
 
     private final JDA jda;
     private final long channelId;
@@ -94,17 +98,20 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 name = "index-version";
                 help = "Add a version to be indexed";
                 options = List.of(
-                        new OptionData(OptionType.STRING, "version", "The version to index", true)
+                        new OptionData(OptionType.STRING, "version", "The version to index", true),
+                        new OptionData(OptionType.STRING, "loader", "The loader to index", true)
+                                .addChoices(LOADERS)
                 );
             }
 
             @Override
             protected void execute(SlashCommandEvent event) {
                 var version = event.optString("version", "");
-                database.addGameVersion(version);
+                var loader = ModLoader.valueOf(event.optString("loader"));
+                database.addGameVersion(version, loader);
                 event.reply("Started indexing version `" + version + "`").queue();
 
-                Main.schedule(version, DiscordBot.this, 30);
+                Main.schedule(version, loader, DiscordBot.this, 30);
             }
         });
         builder.addSlashCommand(new SlashCommand() {
@@ -113,14 +120,16 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 help = "Force a list of files to be indexed";
                 options = List.of(
                         new OptionData(OptionType.STRING, "version", "The game version of the files", true),
+                        new OptionData(OptionType.STRING, "loader", "The loader of the files", true).addChoices(LOADERS),
                         new OptionData(OptionType.STRING, "platform", "The platform of the files", true)
                                 .addChoices(Main.PLATFORMS.stream().map(p -> new Command.Choice(p.getName(), p.getName())).toList()),
                         new OptionData(OptionType.STRING, "files", "Comma-separated files to index", true)
                 );
             }
+
             @Override
             protected void execute(SlashCommandEvent event) {
-                var loader = ModLoader.NEOFORGE; // TODO - we'll have to make this configurable
+                var loader = ModLoader.valueOf(event.optString("loader"));
 
                 var platformName = event.optString("platform");
                 ModPlatform platform = Main.PLATFORMS.stream().filter(p -> p.getName().equals(platformName))
@@ -134,7 +143,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 platform.bulkFillData(files);
 
                 var gv = event.optString("version");
-                var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gv), gv, loader);
+                var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gv, loader), gv, loader);
                 var counter = new Counter<>(new AtomicInteger(), new PlatformModFile[5]);
                 try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0)
                         .uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory())) {
@@ -185,6 +194,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 this.help = "Merge 2 distinct mods in the database that are the same mod available on both platforms";
                 this.options = List.of(
                         new OptionData(OptionType.STRING, "version", "Game version to merge for", true),
+                        new OptionData(OptionType.STRING, "loader", "Loader to merge for", true)
+                                .addChoices(LOADERS),
                         new OptionData(OptionType.INTEGER, "curseforge", "CurseForge project ID", true),
                         new OptionData(OptionType.STRING, "modrinth", "Modrinth project ID", true)
                 );
@@ -193,12 +204,11 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             @Override
             protected void execute(SlashCommandEvent event) {
                 event.deferReply().complete();
-                execute(event, Main.createDatabase(event.optString("version")));
+                var loader = ModLoader.valueOf(event.optString("loader"));
+                execute(event, loader, Main.createDatabase(event.optString("version"), loader));
             }
 
-            private  <T extends IndexDatabase.DatabaseMod<T>> void execute(SlashCommandEvent event, IndexDatabase<T> db) {
-                var loader = ModLoader.NEOFORGE; // TODO - we'll have to make this configurable
-
+            private <T extends IndexDatabase.DatabaseMod<T>> void execute(SlashCommandEvent event, ModLoader loader, IndexDatabase<T> db) {
                 var gameVersion = event.optString("version");
                 var cfMod = Main.CURSE_FORGE_PLATFORM.getModById(event.getOption("curseforge", OptionMapping::getAsInt)).getLatestFile(gameVersion, loader);
                 var mrMod = Main.MODRINTH_PLATFORM.getModById(event.optString("modrinth")).getLatestFile(gameVersion, loader);
