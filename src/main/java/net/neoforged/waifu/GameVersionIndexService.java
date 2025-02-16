@@ -7,6 +7,7 @@ import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
+import net.neoforged.waifu.util.ModLoader;
 import net.neoforged.waifu.util.NeoForgeJarProvider;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
@@ -32,6 +33,7 @@ public class GameVersionIndexService implements Runnable {
     private volatile boolean isRunning, pendingReRun;
 
     private final String version;
+    private final ModLoader loader;
 
     private final List<ModPlatform> platforms;
 
@@ -41,8 +43,9 @@ public class GameVersionIndexService implements Runnable {
 
     private final Path platformCache;
 
-    public GameVersionIndexService(String version, List<ModPlatform> platforms, IndexDatabase<?> db, DataSanitizer sanitizer, ListenerFactory listenerFactory) {
+    public GameVersionIndexService(String version, ModLoader loader, List<ModPlatform> platforms, IndexDatabase<?> db, DataSanitizer sanitizer, ListenerFactory listenerFactory) {
         this.version = version;
+        this.loader = loader;
         this.platforms = platforms;
         this.db = db;
         this.sanitizer = sanitizer;
@@ -77,7 +80,7 @@ public class GameVersionIndexService implements Runnable {
             var listener = listenerFactory.startIndexingListener(version, platform);
 
             try {
-                var indexer = new ModIndexer<>(platformCache, db, version);
+                var indexer = new ModIndexer<>(platformCache, db, version, loader);
 
                 LOGGER.info("Scanning platform {} for game version {}", platform.getName(), version);
                 var counter = listener.startPlatformScan();
@@ -85,11 +88,11 @@ public class GameVersionIndexService implements Runnable {
                 var modIds = new HashSet<>();
 
                 var files = new ArrayList<PlatformModFile>();
-                var itr = platform.searchMods(version, ModPlatform.SearchSortField.LAST_UPDATED);
+                var itr = platform.searchMods(version, loader, ModPlatform.SearchSortField.LAST_UPDATED);
                 while (itr.hasNext()) {
                     var next = itr.next();
                     if (!next.isAvailable()) continue;
-                    var file = next.getLatestFile(version);
+                    var file = next.getLatestFile(version, loader);
                     if (file == null) continue;
 
                     var latestKnown = db.getKnownLatestProjectFileDate(file);
@@ -114,7 +117,7 @@ public class GameVersionIndexService implements Runnable {
                 // get the latest file for each project - after all if the file is new it would have already been indexed by the normal search anyway
                 var latestReleasedMod = new ArrayList<PlatformMod>();
                 int latestAmount = 0;
-                var latestItr = platform.searchMods(version, ModPlatform.SearchSortField.NEWEST_RELEASED);
+                var latestItr = platform.searchMods(version, loader, ModPlatform.SearchSortField.NEWEST_RELEASED);
                 while (latestItr.hasNext() && latestAmount < platform.pageLimit()) {
                     var next = latestItr.next();
                     latestAmount++;
@@ -133,7 +136,7 @@ public class GameVersionIndexService implements Runnable {
                     for (PlatformMod mod : latestReleasedMod) {
                         if (!knownModIds.contains(mod.getId())) {
                             // ...and queue them for indexing
-                            var file = mod.getLatestFile(version);
+                            var file = mod.getLatestFile(version, loader);
                             if (file != null) {
                                 files.add(0, file);
                             }
@@ -178,7 +181,7 @@ public class GameVersionIndexService implements Runnable {
         if (loaderDbMod == null || !loaderDbMod.getVersion().equals(loaderVersion)) {
             LOGGER.info("Indexing loader for game version {}. Found new version: {}", version, loaderVersion);
             try {
-                var indexer = new ModIndexer<>(platformCache, db, version);
+                var indexer = new ModIndexer<>(platformCache, db, version, loader);
                 var loaderMods = NeoForgeJarProvider.provide(loaderVersion);
                 for (ModFileInfo loaderMod : loaderMods) {
                     indexer.indexLoaderMod(loaderMod);

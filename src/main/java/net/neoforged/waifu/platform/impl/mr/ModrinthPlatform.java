@@ -8,6 +8,7 @@ import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.MappingIterator;
+import net.neoforged.waifu.util.ModLoader;
 import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,14 +55,14 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     @Override
-    public Iterator<PlatformMod> searchMods(String version, SearchSortField field) {
+    public Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField field) {
         record Project(String project_id, String slug) {}
         record SearchProjects(int total_hits, List<Project> hits) {}
         var indexType = switch (field) {
             case LAST_UPDATED -> "updated";
             case NEWEST_RELEASED -> "newest";
         };
-        Function<Integer, SearchProjects> collector = i -> sendRequest("/search?limit=100&index=" + indexType + "&offset=" + i + "&facets=" + URLEncoder.encode("[[\"categories:neoforge\"],[\"versions:" + version + "\"],[\"project_type:mod\"]]", StandardCharsets.UTF_8), new TypeToken<SearchProjects>() {});
+        Function<Integer, SearchProjects> collector = i -> sendRequest("/search?limit=100&index=" + indexType + "&offset=" + i + "&facets=" + URLEncoder.encode("[[\"categories:" + loader(loader) + "\"],[\"versions:" + version + "\"],[\"project_type:mod\"]]", StandardCharsets.UTF_8), new TypeToken<SearchProjects>() {});
         return new Iterator<>() {
             private final AtomicInteger currentIndex = new AtomicInteger(-1);
             private final AtomicInteger size = new AtomicInteger();
@@ -165,9 +166,10 @@ public class ModrinthPlatform implements ModPlatform {
             private volatile List<Version> versions;
 
             @Override
-            public PlatformModFile getLatestFile(String gameVersion) {
+            public PlatformModFile getLatestFile(String gameVersion, ModLoader loader) {
+                var ld = loader(loader);
                 var file = getVersions().stream()
-                        .filter(v -> v.loaders.contains("neoforge") && v.game_versions.contains(gameVersion))
+                        .filter(v -> v.loaders.contains(ld) && v.game_versions.contains(gameVersion))
                         .findFirst()
                         .orElse(null);
                 return file == null ? null : createModFile(this, file);
@@ -179,9 +181,10 @@ public class ModrinthPlatform implements ModPlatform {
             }
 
             @Override
-            public Iterator<PlatformModFile> getFilesForVersion(String gameVersion) {
+            public Iterator<PlatformModFile> getFilesForVersion(String gameVersion, ModLoader loader) {
+                var ld = loader(loader);
                 return getVersions().stream()
-                        .filter(v -> v.loaders.contains("neoforge") && v.game_versions.contains(gameVersion))
+                        .filter(v -> v.loaders.contains(ld) && v.game_versions.contains(gameVersion))
                         .map(v -> createModFile(this, v))
                         .iterator();
             }
@@ -291,6 +294,12 @@ public class ModrinthPlatform implements ModPlatform {
         }
 
         return Utils.GSON.fromJson(res.body(), type);
+    }
+
+    private static String loader(ModLoader loader) {
+        return switch (loader) {
+            case NEOFORGE -> "neoforge";
+        };
     }
 
     private record ProjectResponse(String id) {}

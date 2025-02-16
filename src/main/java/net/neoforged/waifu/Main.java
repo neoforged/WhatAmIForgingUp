@@ -9,6 +9,7 @@ import net.neoforged.waifu.discord.DiscordBot;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.impl.cf.CurseForgePlatform;
 import net.neoforged.waifu.platform.impl.mr.ModrinthPlatform;
+import net.neoforged.waifu.util.ModLoader;
 import net.neoforged.waifu.util.Utils;
 import net.neoforged.waifu.web.WebService;
 import org.slf4j.Logger;
@@ -66,8 +67,9 @@ public class Main {
 
     public static void schedule(String version, DiscordBot bot, long initialDelaySeconds) {
         var indexDb = createDatabase(version);
+        // TODO - we'll have to make the loader configurable at some point
         EXECUTOR.scheduleWithFixedDelay(
-                new GameVersionIndexService(version, PLATFORMS, indexDb, SANITIZER, bot),
+                new GameVersionIndexService(version, ModLoader.NEOFORGE, PLATFORMS, indexDb, SANITIZER, bot),
                 initialDelaySeconds,
                 DELAY_SEC,
                 TimeUnit.SECONDS

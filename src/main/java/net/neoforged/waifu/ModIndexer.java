@@ -13,6 +13,7 @@ import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
+import net.neoforged.waifu.util.ModLoader;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import org.apache.commons.collections4.CollectionUtils;
@@ -44,13 +45,15 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private final Path baseCacheFolder;
     private final IndexDatabase<T> db;
     private final String gameVersion;
+    private final ModLoader loader;
 
     private final List<IndexCandidate> candidateMods = new ArrayList<>();
 
-    public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion) {
+    public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion, ModLoader loader) {
         this.baseCacheFolder = baseCacheFolder;
         this.db = db;
         this.gameVersion = gameVersion;
+        this.loader = loader;
     }
 
     public void indexLoaderMod(ModFileInfo info) throws IOException {
@@ -168,7 +171,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                 var sameName = db.getModsByName(file.file().getDisplayName());
                 var isCurseForge = file.platformFile.getPlatform() == Main.CURSE_FORGE_PLATFORM;
 
-                var ownHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(file.platformFile.getMod().getFilesForVersion(gameVersion), Spliterator.ORDERED), false)
+                var ownHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(file.platformFile.getMod().getFilesForVersion(gameVersion, loader), Spliterator.ORDERED), false)
                         .map(PlatformModFile::getHash)
                         .collect(Collectors.toSet());
 
@@ -182,7 +185,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
 
                     if (otherMod == null) continue;
 
-                    var otherFile = otherMod.getLatestFile(gameVersion);
+                    var otherFile = otherMod.getLatestFile(gameVersion, loader);
                     if (otherFile != null) {
                         try (var otherIn = Files.newInputStream(download(otherFile));
                             var thisIn = file.file().openStream()) {
@@ -198,7 +201,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                         }
                     }
 
-                    var candidateHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(otherMod.getFilesForVersion(gameVersion), Spliterator.ORDERED), false)
+                    var candidateHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(otherMod.getFilesForVersion(gameVersion, loader), Spliterator.ORDERED), false)
                             .map(PlatformModFile::getHash)
                             .collect(Collectors.toSet());
 

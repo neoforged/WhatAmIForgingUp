@@ -19,6 +19,7 @@ import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.MappingIterator;
+import net.neoforged.waifu.util.ModLoader;
 import net.neoforged.waifu.util.Utils;
 
 import java.io.IOException;
@@ -66,7 +67,7 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public Iterator<PlatformMod> searchMods(String version, SearchSortField sortField) {
+    public Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField sortField) {
         try {
             return new MappingIterator<>(api.getHelper().paginated(q -> Requests.searchModsPaginated(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
                             .gameVersion(version).classId(6) // 6 is mods
@@ -75,7 +76,7 @@ public class CurseForgePlatform implements ModPlatform {
                                 case LAST_UPDATED -> ModSearchQuery.SortField.LAST_UPDATED;
                                 case NEWEST_RELEASED -> ModSearchQuery.SortField.RELEASED_DATE;
                             })
-                            .modLoaderType(ModLoaderType.NEOFORGE)
+                            .modLoaderType(loader(loader))
                             .paginated(q)), Function.identity())
                     .orElseThrow(), this::createMod);
         } catch (CurseForgeException e) {
@@ -204,9 +205,10 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             @Override
-            public PlatformModFile getLatestFile(String gameVersion) {
+            public PlatformModFile getLatestFile(String gameVersion, ModLoader loader) {
+                var ld = loader(loader);
                 var idx = mod.latestFilesIndexes().stream()
-                        .filter(f -> f.gameVersion().equals(gameVersion) && f.modLoader() != null && f.modLoaderType() == ModLoaderType.NEOFORGE)
+                        .filter(f -> f.gameVersion().equals(gameVersion) && f.modLoader() != null && f.modLoaderType() == ld)
                         .limit(1)
                         .findFirst()
                         .orElse(null);
@@ -225,10 +227,10 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             @Override
-            public Iterator<PlatformModFile> getFilesForVersion(String version) {
+            public Iterator<PlatformModFile> getFilesForVersion(String version, ModLoader loader) {
                 try {
                     return new MappingIterator<>(api.getHelper().listModFiles(mod.id(), FileListQuery.of()
-                                    .gameVersion(version).modLoaderType(ModLoaderType.NEOFORGE))
+                                    .gameVersion(version).modLoaderType(loader(loader)))
                             .orElseThrow(), fl -> createFile(this, fl.id(), fl));
                 } catch (Exception ex) {
                     Utils.sneakyThrow(ex);
@@ -345,6 +347,12 @@ public class CurseForgePlatform implements ModPlatform {
             public String toString() {
                 return "CFModFile[id=" + fileId + "]";
             }
+        };
+    }
+
+    private static ModLoaderType loader(ModLoader loader) {
+        return switch (loader) {
+            case NEOFORGE -> ModLoaderType.NEOFORGE;
         };
     }
 

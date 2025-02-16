@@ -23,6 +23,7 @@ import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
+import net.neoforged.waifu.util.ModLoader;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
@@ -118,6 +119,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             }
             @Override
             protected void execute(SlashCommandEvent event) {
+                var loader = ModLoader.NEOFORGE; // TODO - we'll have to make this configurable
+
                 var platformName = event.optString("platform");
                 ModPlatform platform = Main.PLATFORMS.stream().filter(p -> p.getName().equals(platformName))
                         .findFirst().orElseThrow();
@@ -130,7 +133,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 platform.bulkFillData(files);
 
                 var gv = event.optString("version");
-                var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gv), gv);
+                var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gv), gv, loader);
                 var counter = new Counter<>(new AtomicInteger(), new PlatformModFile[5]);
                 try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0)
                         .uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory())) {
@@ -193,9 +196,11 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             }
 
             private  <T extends IndexDatabase.DatabaseMod<T>> void execute(SlashCommandEvent event, IndexDatabase<T> db) {
+                var loader = ModLoader.NEOFORGE; // TODO - we'll have to make this configurable
+
                 var gameVersion = event.optString("version");
-                var cfMod = Main.CURSE_FORGE_PLATFORM.getModById(event.getOption("curseforge", OptionMapping::getAsInt)).getLatestFile(gameVersion);
-                var mrMod = Main.MODRINTH_PLATFORM.getModById(event.optString("modrinth")).getLatestFile(gameVersion);
+                var cfMod = Main.CURSE_FORGE_PLATFORM.getModById(event.getOption("curseforge", OptionMapping::getAsInt)).getLatestFile(gameVersion, loader);
+                var mrMod = Main.MODRINTH_PLATFORM.getModById(event.optString("modrinth")).getLatestFile(gameVersion, loader);
 
                 var cfDb = db.getMod(cfMod);
                 var mrDb = db.getMod(mrMod);
