@@ -34,6 +34,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -228,8 +229,9 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
     }
 
     @Override
-    public GameVersionIndexService.Listener startIndexingListener(String gameVersion, ModPlatform platform) {
-        var message = getChannel().sendMessage("Started indexing game version `" + gameVersion + "`, platform " + platform.getName() + "...").complete();
+    public GameVersionIndexService.Listener startIndexingListener(String gameVersion, ModLoader loaderType, ModPlatform platform) {
+        var loader = loaderType.name().toLowerCase(Locale.ROOT);
+        var message = getChannel().sendMessage("Started indexing game version `" + gameVersion + "`, loader `" + loader + "`, platform " + platform.getName() + "...").complete();
         var start = Instant.now();
         class Listener implements GameVersionIndexService.Listener, Runnable {
             Future<?> task;
@@ -381,14 +383,14 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
             private void editMessage(Consumer<EmbedBuilder> consumer) {
                 var embed = new EmbedBuilder();
-                embed.setTitle("Indexing version `" + gameVersion + "`, platform " + platform.getName());
+                embed.setTitle("Indexing version `" + gameVersion + "`, loader `" + loader + "`, platform " + platform.getName());
                 embed.setAuthor(platform.getName(), null, platform.getLogoUrl());
 
                 embed.setTimestamp(start);
 
                 var secs = Instant.now().getEpochSecond() - start.getEpochSecond();
 
-                embed.setFooter("Time elapsed: " + secs / 60 + " minutes and " + (secs % 60) + " seconds");
+                embed.setFooter("Time elapsed: " + secs / 60 + " minutes and " + (secs % 60) + " seconds", loaderType.getLogoUrl());
 
                 consumer.accept(embed);
 

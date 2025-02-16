@@ -77,7 +77,7 @@ public class GameVersionIndexService implements Runnable {
 
     public void runWithExceptions() {
         for (ModPlatform platform : platforms) {
-            var listener = listenerFactory.startIndexingListener(version, platform);
+            var listener = listenerFactory.startIndexingListener(version, loader, platform);
 
             try {
                 var indexer = new ModIndexer<>(platformCache, db, version, loader);
@@ -196,7 +196,7 @@ public class GameVersionIndexService implements Runnable {
     }
 
     public interface ListenerFactory {
-        Listener startIndexingListener(String gameVersion, ModPlatform platform);
+        Listener startIndexingListener(String gameVersion, ModLoader loader, ModPlatform platform);
 
         void informError(String error);
     }
