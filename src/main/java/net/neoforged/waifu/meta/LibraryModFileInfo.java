@@ -32,7 +32,7 @@ class LibraryModFileInfo extends BaseModFileInfo implements ModFileInfo {
         try {
             try (var str = Files.walk(path.rootDirectory())
                     .filter(f -> f.toString().endsWith(".class"))) {
-                return str.map(p -> Arrays.stream(p.toString().split("/")).filter(s -> !s.isBlank()).collect(Collectors.joining(".")))
+                return str.map(p -> Arrays.stream(p.toString().replace(".class", "").split("/")).filter(s -> !s.isBlank()).collect(Collectors.joining(".")))
                         .findFirst()
                         .orElse("");
             }
