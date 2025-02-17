@@ -298,6 +298,7 @@ public class ModrinthPlatform implements ModPlatform {
     private static String loader(ModLoader loader) {
         return switch (loader) {
             case NEOFORGE -> "neoforge";
+            case FORGE -> "forge";
         };
     }
 

@@ -16,7 +16,7 @@ public enum ModLoader {
             NeoForgeJarProvider::getLatestVersion,
             NeoForgeJarProvider::provide
     ), ModFileReader.NEOFORGE),
-    
+
     // TODO - forge jar provider. Will be a bit of a pain because of tool mismatches
     FORGE("https://github.com/minecraftforge.png", null, ModFileReader.FORGE);
 
