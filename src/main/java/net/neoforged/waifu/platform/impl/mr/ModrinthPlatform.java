@@ -299,6 +299,7 @@ public class ModrinthPlatform implements ModPlatform {
         return switch (loader) {
             case NEOFORGE -> "neoforge";
             case FORGE -> "forge";
+            case FABRIC -> "fabric";
         };
     }
 

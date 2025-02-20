@@ -144,6 +144,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 platform.bulkFillData(files);
 
                 var gv = event.optString("version");
+                // TODO - we need remapping here
                 var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gv, loader), gv, loader);
                 var counter = new Counter<>(new AtomicInteger(), new PlatformModFile[5]);
                 try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0)

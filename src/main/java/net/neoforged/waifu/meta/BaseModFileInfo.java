@@ -1,5 +1,6 @@
 package net.neoforged.waifu.meta;
 
+import com.google.gson.JsonElement;
 import io.github.matyrobbrt.curseforgeapi.util.Pair;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.util.Utils;
@@ -79,7 +80,8 @@ abstract class BaseModFileInfo implements ModFileInfo {
         if (reader.getMetadataFileName().endsWith(".toml")) {
             return Pair.of(text, Utils.tomlToJson(text));
         } else if (reader.getMetadataFileName().endsWith(".json")) {
-            return Pair.of(text, text);
+            // Do a read-write cycle of the JSON to get rid of comments and compress it
+            return Pair.of(text, Utils.GSON.toJson(Utils.GSON.fromJson(text, JsonElement.class)));
         }
         return null;
     }

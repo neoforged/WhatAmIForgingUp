@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 public enum ModLoader {
@@ -38,14 +39,14 @@ public enum ModLoader {
             if (version.compareTo(MC_1_20_6) < 0) {
                 var joined = Utils.readFromZip(URI.create(MCP_CONFIG_URL.formatted(gameVersion)), "config/joined.tsrg", IMappingFile::load);
 
-                var clientMappings = Utils.read(
+                var namedToObf = Utils.read(
                         MinecraftMetaUtils.getVersion(gameVersion).get()
                                 .download("client_mappings").url(),
                         IMappingFile::load
                 );
 
-                var srgToNamed = clientMappings.chain(joined).reverse();
-                // This number is based off 1.20.1 data
+                var srgToNamed = namedToObf.chain(joined).reverse();
+                // This number is based on 1.20.1 data
                 var methods = new HashMap<String, String>(30_000);
                 var fields = new HashMap<String, String>(30_000);
 
@@ -63,12 +64,49 @@ public enum ModLoader {
                 }
 
                 return new Remapper.DumbPrefixedId(
+                        null, Map.of(),
                         "m_", methods,
                         "f_", fields
                 );
             }
 
             return Remapper.NOOP;
+        }
+    },
+    FABRIC("https://github.com/fabricmc.png", null, ModFileReader.FABRIC) {
+        private static final String INTERMEDIARY_URL = "https://maven.fabricmc.net/net/fabricmc/intermediary/%s/intermediary-%<s-v2.jar";
+
+        @Override
+        public Remapper createRemapper(String gameVersion) throws IOException {
+            var obfToInter = Utils.readFromZip(URI.create(INTERMEDIARY_URL.formatted(gameVersion)), "mappings/mappings.tiny", IMappingFile::load);
+
+            var namedToObf = Utils.read(
+                    MinecraftMetaUtils.getVersion(gameVersion).get().download("client_mappings").url(),
+                    IMappingFile::load
+            );
+
+            var interToNamed = namedToObf.chain(obfToInter).reverse();
+
+            var classes = HashMap.<String, String>newHashMap(interToNamed.getClasses().size());
+            // This number is based on 1.20.1 data
+            var methods = new HashMap<String, String>(30_000);
+            var fields = new HashMap<String, String>(30_000);
+
+            for (IMappingFile.IClass cls : interToNamed.getClasses()) {
+                classes.put(cls.getOriginal(), cls.getMapped());
+                for (IMappingFile.IMethod method : cls.getMethods()) {
+                    methods.put(method.getOriginal(), method.getMapped());
+                }
+                for (IMappingFile.IField field : cls.getFields()) {
+                    fields.put(field.getOriginal(), field.getMapped());
+                }
+            }
+
+            return new Remapper.DumbPrefixedId(
+                    "net/minecraft/class_", classes,
+                    "method_", methods,
+                    "field_", fields
+            );
         }
     };
 

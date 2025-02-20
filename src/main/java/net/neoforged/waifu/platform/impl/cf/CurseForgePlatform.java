@@ -353,6 +353,7 @@ public class CurseForgePlatform implements ModPlatform {
         return switch (loader) {
             case NEOFORGE -> ModLoaderType.NEOFORGE;
             case FORGE -> ModLoaderType.FORGE;
+            case FABRIC -> ModLoaderType.FABRIC;
         };
     }
 

@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public interface ModFileReader {
     // see https://github.com/neoforged/FancyModLoader/blob/a4927491af05437e5cbcc14aa9b19cc238d70ed7/loader/src/main/java/net/neoforged/fml/loading/TransformerDiscovererConstants.java#L20
@@ -38,6 +40,8 @@ public interface ModFileReader {
             "net.minecraftforge.forgespi.locating.IModLocator",
             "net.minecraftforge.forgespi.locating.IDependencyLocator"
     ));
+
+    ModFileReader FABRIC = new FabricReader();
 
     @Nullable
     ModFileInfo read(ModFilePath path, @Nullable String coordinates, @Nullable String versionFallback) throws IOException;
@@ -159,4 +163,72 @@ public interface ModFileReader {
         }
     }
 
+    class FabricReader implements ModFileReader {
+        @Override
+        public String getMetadataFileName() {
+            return "fabric.mod.json";
+        }
+
+        @Override
+        public @Nullable ModFileInfo read(ModFilePath path, @Nullable String coordinates, @Nullable String versionFallback) throws IOException {
+            var metadataFile = path.resolve(getMetadataFileName());
+            var man = readManifest(path.resolve("META-INF/MANIFEST.MF"));
+            var version = man.getMainAttributes().getValue(Attributes.Name.IMPLEMENTATION_VERSION);
+            if (version == null) version = versionFallback;
+            if (version == null) version = "0.0NONE";
+
+            if (Files.exists(metadataFile)) {
+                try (var reader = Files.newBufferedReader(metadataFile)) {
+                    JsonObject json = null;
+                    try {
+                        json = Utils.GSON.fromJson(reader, JsonObject.class); // invalid JSON is invalid
+                    } catch (Exception ignored) {
+                        Main.LOGGER.error("File at {} has invalid JSON", path.physicalLocation());
+                    }
+
+                    if (json != null) {
+                        // Adapt the Fabric configuration format to the NeoForge one to save us needing multiple parsers for the metadata
+
+                        var cfg = CommentedConfig.inMemory();
+                        if (json.has("license")) {
+                            var lic = json.get("license");
+                            if (lic.isJsonArray()) {
+                                cfg.set("license", StreamSupport.stream(lic.getAsJsonArray().spliterator(), false)
+                                        .map(JsonElement::getAsString).collect(Collectors.joining(", ")));
+                            } else {
+                                cfg.set("license", lic.getAsString());
+                            }
+                        }
+
+                        var mod = CommentedConfig.inMemory();
+
+                        mod.set("modId", json.get("id").getAsString());
+                        mod.set("version", json.get("version").getAsString());
+
+                        if (json.has("name")) {
+                            mod.set("displayName", json.get("name").getAsString());
+                        }
+
+                        if (json.has("authors")) {
+                            var auth = json.get("authors").getAsJsonArray();
+                            mod.set("authors", StreamSupport.stream(auth.spliterator(), false)
+                                    .map(e -> e.isJsonObject() ? e.getAsJsonObject().get("name").getAsString() : e.getAsString())
+                                    .collect(Collectors.joining(", ")));
+                        }
+
+                        cfg.set("mods", List.of(mod));
+
+                        return new MetadataPoweredModFileInfo(path, man, this, version, cfg, coordinates);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        @Override
+        public List<ModFileInfo.NestedJar> readNestedJars(ModFileInfo rootFile) throws IOException {
+            return List.of(); // TODO - we REALLY need to fix this... somehow... Fabric doesn't exactly have coordinates in JiJ metadata so... yay
+        }
+    }
 }
