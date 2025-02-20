@@ -228,7 +228,57 @@ public interface ModFileReader {
 
         @Override
         public List<ModFileInfo.NestedJar> readNestedJars(ModFileInfo rootFile) throws IOException {
-            return List.of(); // TODO - we REALLY need to fix this... somehow... Fabric doesn't exactly have coordinates in JiJ metadata so... yay
+            var fmjFile = rootFile.getPath(getMetadataFileName());
+            if (Files.notExists(fmjFile)) return List.of();
+            try (var reader = Files.newBufferedReader(fmjFile)) {
+                var fmj = Utils.GSON.fromJson(reader, JsonObject.class);
+                if (fmj.has("jars")) {
+                    var jars = fmj.get("jars").getAsJsonArray();
+                    var nested = new ArrayList<ModFileInfo.NestedJar>(jars.size());
+                    for (JsonElement jar : jars) {
+                        var path = rootFile.getPath(jar.getAsJsonObject().get("file").getAsString());
+
+                        var fileHash = Hashing.sha1().putFile(path).hash();
+
+                        var hash = Hashing.sha1()
+                                .putString(rootFile.getFileHash())
+                                .putString(fileHash)
+                                .hash();
+
+                        var newPath = BaseModFileInfo.JIJ_CACHE.resolve(hash);
+                        Files.createDirectories(newPath.getParent());
+                        try {
+                            Files.copy(path, newPath);
+                        } catch (FileAlreadyExistsException ignored) {
+
+                        }
+
+                        var modRoot = FileSystems.newFileSystem(newPath).getRootDirectories().iterator().next();
+                        var subFmj = modRoot.resolve(getMetadataFileName());
+                        if (Files.exists(subFmj)) {
+                            try (var subReader = Files.newBufferedReader(subFmj)) {
+                                var json = Utils.GSON.fromJson(subReader, JsonObject.class);
+                                var id = json.get("id").getAsString(); // This is not actually a maven coordinate but oh well... Fabric JiJ is just a list of jars to include
+                                var version = json.get("version").getAsString();
+
+                                var subJar = read(new ModFilePath(
+                                        newPath, modRoot, fileHash, newPath
+                                ), id, version);
+
+                                if (subJar != null) {
+                                    nested.add(new ModFileInfo.NestedJar(
+                                            id, new DefaultArtifactVersion(version), subJar
+                                    ));
+                                }
+                            }
+                        }
+                    }
+
+                    return nested;
+                }
+            }
+
+            return List.of();
         }
     }
 }
