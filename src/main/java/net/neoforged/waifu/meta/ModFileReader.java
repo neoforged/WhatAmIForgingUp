@@ -43,9 +43,28 @@ public interface ModFileReader {
 
     ModFileReader FABRIC = new FabricReader();
 
+    ModFileReader LIBRARY = new ModFileReader() {
+        @Override
+        public ModFileInfo read(ModFilePath path, @Nullable String coordinates, @Nullable String versionFallback) throws IOException {
+            var man = readManifest(path.resolve("META-INF/MANIFEST.MF"));
+            return new LibraryModFileInfo(path, man, this, ModFileInfo.Type.GAMELIBRARY, versionFallback, coordinates);
+        }
+
+        @Override
+        public String getMetadataFileName() {
+            return null;
+        }
+
+        @Override
+        public List<ModFileInfo.NestedJar> readNestedJars(ModFileInfo rootFile) throws IOException {
+            return List.of();
+        }
+    };
+
     @Nullable
     ModFileInfo read(ModFilePath path, @Nullable String coordinates, @Nullable String versionFallback) throws IOException;
 
+    @Nullable
     String getMetadataFileName();
 
     List<ModFileInfo.NestedJar> readNestedJars(ModFileInfo rootFile) throws IOException;

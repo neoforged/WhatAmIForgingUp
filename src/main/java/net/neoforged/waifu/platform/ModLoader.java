@@ -4,6 +4,7 @@ import net.neoforged.srgutils.IMappingFile;
 import net.neoforged.waifu.index.Remapper;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFileReader;
+import net.neoforged.waifu.util.MinecraftJarProvider;
 import net.neoforged.waifu.util.MinecraftMetaUtils;
 import net.neoforged.waifu.util.NeoForgeJarProvider;
 import net.neoforged.waifu.util.ThrowingFunction;
@@ -73,7 +74,12 @@ public enum ModLoader {
             return Remapper.NOOP;
         }
     },
-    FABRIC("https://github.com/fabricmc.png", null, ModFileReader.FABRIC) {
+
+    FABRIC("https://github.com/fabricmc.png", new VersionProvider(
+            "net.minecraft:minecraft",
+            Function.identity(), // Fabric only needs to process vanilla Minecraft
+            MinecraftJarProvider::provide
+    ), ModFileReader.FABRIC) {
         private static final String INTERMEDIARY_URL = "https://maven.fabricmc.net/net/fabricmc/intermediary/%s/intermediary-%<s-v2.jar";
 
         @Override

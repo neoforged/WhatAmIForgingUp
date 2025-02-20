@@ -76,6 +76,8 @@ abstract class BaseModFileInfo implements ModFileInfo {
 
     @Override
     public Pair<String, String> getModMetadata() throws Exception {
+        if (reader.getMetadataFileName() == null) return null;
+
         var text = Files.readString(getPath(reader.getMetadataFileName()), StandardCharsets.UTF_8);
         if (reader.getMetadataFileName().endsWith(".toml")) {
             return Pair.of(text, Utils.tomlToJson(text));
