@@ -14,6 +14,7 @@ import net.neoforged.waifu.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -170,7 +171,12 @@ public class GameVersionIndexService implements Runnable {
                 for (ModIndexer.IndexCandidate indexCandidate : scanned) {
                     // Only manually close platform files as they'll propagate the close call to their nested jars in the correct order
                     if (indexCandidate.platformFile() != null) {
-                        indexCandidate.file().close();
+                        try {
+                            indexCandidate.file().close();
+                        } catch (NoSuchFileException ignored) {
+                            // We ignore this exception since sometimes mods JiJing files that end up with the same file cache
+                            // will be "closed" twice
+                        }
                     }
                 }
 
