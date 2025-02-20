@@ -6,6 +6,7 @@ import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.index.EnumExtensionCollector;
 import net.neoforged.waifu.index.IndexingClassVisitor;
+import net.neoforged.waifu.index.Remapper;
 import net.neoforged.waifu.index.TagCollector;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFilePath;
@@ -47,13 +48,20 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private final String gameVersion;
     private final ModLoader loader;
 
+    private final Remapper remapper;
+
     private final List<IndexCandidate> candidateMods = new ArrayList<>();
 
     public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion, ModLoader loader) {
+        this(baseCacheFolder, db, gameVersion, loader, Remapper.NOOP);
+    }
+
+    public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion, ModLoader loader, Remapper remapper) {
         this.baseCacheFolder = baseCacheFolder;
         this.db = db;
         this.gameVersion = gameVersion;
         this.loader = loader;
+        this.remapper = remapper;
     }
 
     public void indexLoaderMod(ModFileInfo info) throws IOException {
@@ -242,7 +250,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     }
 
     private Runnable indexAndPrepareUpload(@Nullable PlatformModFile platform, ModFileInfo file, T mod, boolean refs, DataSanitizer sanitizer) throws IOException {
-        List<ClassData> classes = IndexingClassVisitor.collect(file.getRootDirectory(), refs, refs); // TODO - do we want a separate parameter?
+        List<ClassData> classes = IndexingClassVisitor.collect(file.getRootDirectory(), refs, refs, remapper); // TODO - do we want a separate parameter?
 
         var tags = TagCollector.collect(file.getPath("data"));
 

@@ -69,17 +69,28 @@ public class Utils {
 
     public static Path downloadFromZip(URI uri, String name, Path path) throws IOException {
         Files.createDirectories(path.getParent());
-        try (var is = new ZipInputStream(uri.toURL().openStream());
-             var os = Files.newOutputStream(path)) {
+        try (var os = Files.newOutputStream(path)) {
+            readFromZip(uri, name, is -> is.transferTo(os));
+        }
+        return path;
+    }
+
+    public static <R> R readFromZip(URI uri, String name, ThrowingFunction<InputStream, R, IOException> func) throws IOException {
+        try (var is = new ZipInputStream(uri.toURL().openStream())) {
             ZipEntry entry;
             while ((entry = is.getNextEntry()) != null) {
                 if (entry.getName().equals(name)) {
-                    is.transferTo(os);
-                    break;
+                    return func.apply(is);
                 }
             }
         }
-        return path;
+        return null;
+    }
+
+    public static <R> R read(URI uri, ThrowingFunction<InputStream, R, IOException> func) throws IOException {
+        try (var is = uri.toURL().openStream()) {
+            return func.apply(is);
+        }
     }
 
     public record RefLog(String commit, String message) {

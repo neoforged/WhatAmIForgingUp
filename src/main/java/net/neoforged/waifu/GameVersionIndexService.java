@@ -2,6 +2,7 @@ package net.neoforged.waifu;
 
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
+import net.neoforged.waifu.index.Remapper;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
@@ -75,11 +76,19 @@ public class GameVersionIndexService implements Runnable {
     }
 
     public void runWithExceptions() {
+        Remapper remapper = Remapper.NOOP;
+        try {
+            remapper = loader.createRemapper(version);
+        } catch (Exception exception) {
+            Main.LOGGER.error("Failed to create remapper for game version {}, loader {}: ", version, loader, exception);
+            listenerFactory.informError("Failed to create remapper for game version " + version + ", loader " + loader + ": " + exception.getMessage());
+        }
+
         for (ModPlatform platform : platforms) {
             var listener = listenerFactory.startIndexingListener(version, loader, platform);
 
             try {
-                var indexer = new ModIndexer<>(platformCache, db, version, loader);
+                var indexer = new ModIndexer<>(platformCache, db, version, loader, remapper);
 
                 LOGGER.info("Scanning platform {} for game version {} and loader {}", platform.getName(), version, loader);
                 var counter = listener.startPlatformScan();

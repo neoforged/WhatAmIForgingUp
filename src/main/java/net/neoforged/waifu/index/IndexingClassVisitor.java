@@ -24,18 +24,21 @@ public class IndexingClassVisitor extends ClassVisitor {
     private final boolean includeReferences;
     private final boolean includeAnnotations;
 
+    private final Remapper remapper;
+
     private ClassData current;
 
-    public IndexingClassVisitor(List<ClassData> classList, boolean includeReferences, boolean includeAnnotations) {
+    public IndexingClassVisitor(List<ClassData> classList, boolean includeReferences, boolean includeAnnotations, Remapper remapper) {
         super(Opcodes.ASM9);
         this.classList = classList;
         this.includeReferences = includeReferences;
         this.includeAnnotations = includeAnnotations;
+        this.remapper = remapper;
     }
 
-    public static List<ClassData> collect(Path directory, boolean includeReferences, boolean includeAnnotations) throws IOException {
+    public static List<ClassData> collect(Path directory, boolean includeReferences, boolean includeAnnotations, Remapper remapper) throws IOException {
         List<ClassData> classes = new ArrayList<>();
-        var indexer = new IndexingClassVisitor(classes, includeReferences, includeAnnotations);
+        var indexer = new IndexingClassVisitor(classes, includeReferences, includeAnnotations, remapper);
 
         Files.walkFileTree(directory, new SimpleFileVisitor<>() {
             @Override
@@ -65,6 +68,10 @@ public class IndexingClassVisitor extends ClassVisitor {
 
     @Override
     public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+        var originalName = name;
+        name = remapper.remapMethod(current.name(), originalName, descriptor);
+        descriptor = remapper.remapMethodDesc(current.name(), originalName, descriptor);
+
         var method = new ClassData.MethodInfo(name, descriptor, access, new ArrayList<>(0));
         current.methods().put(name + descriptor, method);
         return includeReferences || includeAnnotations ? new MethodVisitor(Opcodes.ASM9) {
@@ -72,14 +79,22 @@ public class IndexingClassVisitor extends ClassVisitor {
             @Override
             public void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
                 if (includeReferences) {
-                    current.methodRefs().merge(new ClassData.Reference(owner, name, descriptor), 1, Integer::sum);
+                    current.methodRefs().merge(new ClassData.Reference(
+                            remapper.remapClass(owner),
+                            remapper.remapMethod(owner, name, descriptor),
+                            remapper.remapMethodDesc(owner, name, descriptor)
+                    ), 1, Integer::sum);
                 }
             }
 
             @Override
             public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
                 if (includeReferences) {
-                    current.fieldRefs().merge(new ClassData.Reference(owner, name, Type.getType(descriptor).getInternalName()), 1, Integer::sum);
+                    current.fieldRefs().merge(new ClassData.Reference(
+                            remapper.remapClass(owner),
+                            remapper.remapField(owner, name, descriptor),
+                            Type.getType(descriptor).getInternalName() // TODO - what do we need to do here?
+                    ), 1, Integer::sum);
                 }
             }
 
@@ -107,6 +122,10 @@ public class IndexingClassVisitor extends ClassVisitor {
 
     @Override
     public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+        var originalName = name;
+
+        name = remapper.remapField(current.name(), originalName, descriptor);
+
         var field = new ClassData.FieldInfo(name, Type.getType(descriptor), access, new ArrayList<>(0));
         current.fields().put(name, field);
         return includeAnnotations ? new FieldVisitor(Opcodes.ASM9) {
