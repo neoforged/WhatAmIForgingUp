@@ -93,7 +93,7 @@ public class IndexingClassVisitor extends ClassVisitor {
                     current.fieldRefs().merge(new ClassData.Reference(
                             remapper.remapClass(owner),
                             remapper.remapField(owner, name, descriptor),
-                            Type.getType(descriptor).getInternalName() // TODO - what do we need to do here?
+                            Type.getType(remapper.remapFieldDesc(owner, name, descriptor)).getInternalName()
                     ), 1, Integer::sum);
                 }
             }
@@ -101,7 +101,7 @@ public class IndexingClassVisitor extends ClassVisitor {
             @Override
             public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
                 if (includeAnnotations && shouldVisitAnnotations(visible, descriptor)) {
-                    var info = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
+                    var info = new ClassData.AnnotationInfo(Type.getType(remapper.remapDesc(descriptor)), new HashMap<>(2));
                     method.annotations().add(info);
                     return visitor(info);
                 }
@@ -113,7 +113,7 @@ public class IndexingClassVisitor extends ClassVisitor {
     @Override
     public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
         if (current != null && includeAnnotations && shouldVisitAnnotations(visible, descriptor)) {
-            var info = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
+            var info = new ClassData.AnnotationInfo(Type.getType(remapper.remapDesc(descriptor)), new HashMap<>(2));
             current.annotations().add(info);
             return visitor(info);
         }
@@ -125,6 +125,7 @@ public class IndexingClassVisitor extends ClassVisitor {
         var originalName = name;
 
         name = remapper.remapField(current.name(), originalName, descriptor);
+        descriptor = remapper.remapFieldDesc(current.name(), originalName, descriptor);
 
         var field = new ClassData.FieldInfo(name, Type.getType(descriptor), access, new ArrayList<>(0));
         current.fields().put(name, field);
@@ -132,7 +133,7 @@ public class IndexingClassVisitor extends ClassVisitor {
             @Override
             public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
                 if (shouldVisitAnnotations(visible, descriptor)) {
-                    var info = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
+                    var info = new ClassData.AnnotationInfo(Type.getType(remapper.remapDesc(descriptor)), new HashMap<>(2));
                     field.annotations().add(info);
                     return visitor(info);
                 }
@@ -151,7 +152,7 @@ public class IndexingClassVisitor extends ClassVisitor {
             @Override
             public AnnotationVisitor visitAnnotation(String name, String descriptor) {
                 if (shouldVisitAnnotations(true, descriptor)) {
-                    var newAn = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
+                    var newAn = new ClassData.AnnotationInfo(Type.getType(remapper.remapDesc(descriptor)), new HashMap<>(2));
                     annotationInfo.members().put(name, newAn);
                     return visitor(newAn);
                 }
@@ -160,7 +161,7 @@ public class IndexingClassVisitor extends ClassVisitor {
 
             @Override
             public void visitEnum(String name, String descriptor, String value) {
-                annotationInfo.members().put(name, new ClassData.EnumValue(Type.getType(descriptor), value));
+                annotationInfo.members().put(name, new ClassData.EnumValue(Type.getType(remapper.remapDesc(descriptor)), value));
             }
 
             @Override
@@ -176,7 +177,7 @@ public class IndexingClassVisitor extends ClassVisitor {
                     @Override
                     public AnnotationVisitor visitAnnotation(String name, String descriptor) {
                         if (shouldVisitAnnotations(true, descriptor)) {
-                            var newAn = new ClassData.AnnotationInfo(Type.getType(descriptor), new HashMap<>(2));
+                            var newAn = new ClassData.AnnotationInfo(Type.getType(remapper.remapDesc(descriptor)), new HashMap<>(2));
                             lst.add(newAn);
                             return visitor(newAn);
                         }
@@ -185,7 +186,7 @@ public class IndexingClassVisitor extends ClassVisitor {
 
                     @Override
                     public void visitEnum(String name, String descriptor, String value) {
-                        lst.add(new ClassData.EnumValue(Type.getType(descriptor), value));
+                        lst.add(new ClassData.EnumValue(Type.getType(remapper.remapDesc(descriptor)), value));
                     }
                 };
             }

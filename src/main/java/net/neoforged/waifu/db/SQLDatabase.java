@@ -584,8 +584,11 @@ order by mods.name;""")
             String mtoml = null;
             String mtomlJson = null;
             try {
-                mtoml = Files.readString(info.getPath("META-INF/neoforge.mods.toml"));
-                mtomlJson = Utils.tomlToJson(mtoml);
+                var met = info.getModMetadata();
+                if (met != null) {
+                    mtoml = met.first();
+                    mtomlJson = met.second();
+                }
             } catch (Exception ignored) {
 
             }
@@ -594,26 +597,24 @@ order by mods.name;""")
 
             // TODO - find a better way that retains old data in case we update from a JiJ artifact that's also linked to a project
             jdbi.useHandle(handle -> handle.createUpdate("update mods set " +
-                            "version = ?, name = ?, mod_ids = ?, authors = ?, update_json = ?," +
-                            "nested_tree = (?::jsonb), maven_coordinates = ?, license = ?, language_loader = ?," +
-                            "mods_toml = ?, mods_toml_json = (?::jsonb), manifest = (?::jsonb)" +
-                            "where id = ?")
-                    .bind(0, info.getVersion().toString())
-                    .bind(1, info.getDisplayName())
-                    .bind(2, info.getMods().stream().map(ModInfo::modId).toArray(String[]::new))
-                    .bind(3, orNull(info.getMods().stream().map(ModInfo::authors)
+                            "version = :ver, name = :name, mod_ids = :mids, authors = :authors," +
+                            "nested_tree = (:nested::jsonb), maven_coordinates = :coords, license = :license," +
+                            "mod_metadata = :meta, mod_metadata_json = (:metajson::jsonb), manifest = (:man::jsonb)" +
+                            "where id = :id")
+                    .bind("ver", info.getVersion().toString())
+                    .bind("name", info.getDisplayName())
+                    .bind("mids", info.getMods().stream().map(ModInfo::modId).toArray(String[]::new))
+                    .bind("authors", orNull(info.getMods().stream().map(ModInfo::authors)
                             .filter(Objects::nonNull)
                             .collect(Collectors.joining("; "))))
-                    .bind(4, info.getMods().isEmpty() ? null : info.getMods().get(0).updateJSONURL())
-                    .bind(5, nestedTree(info))
-                    .bind(6, info.getMavenCoordinates() == null ? mavenCoordinates : info.getMavenCoordinates())
-                    .bind(7, meta == null ? null : meta.license())
-                    .bind(8, meta == null ? null : meta.languageLoader())
+                    .bind("nested", nestedTree(info))
+                    .bind("coords", info.getMavenCoordinates() == null ? mavenCoordinates : info.getMavenCoordinates())
+                    .bind("license", meta == null ? null : meta.license())
 
-                    .bind(9, modsToml)
-                    .bind(10, modsTomlJson)
-                    .bind(11, Utils.GSON.toJson(manifestToJson(info.getManifest())))
-                    .bind(12, id)
+                    .bind("meta", modsToml)
+                    .bind("metajson", modsTomlJson)
+                    .bind("man", Utils.GSON.toJson(manifestToJson(info.getManifest())))
+                    .bind("id", id)
                     .execute());
         }
 

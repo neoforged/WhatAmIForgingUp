@@ -1,5 +1,6 @@
 package net.neoforged.waifu.meta;
 
+import io.github.matyrobbrt.curseforgeapi.util.Pair;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.jetbrains.annotations.Nullable;
 
@@ -38,6 +39,8 @@ public interface ModFileInfo {
     void close() throws IOException;
 
     InputStream openStream() throws IOException;
+
+    Pair<String, String> getModMetadata() throws Exception;
 
     enum Type {
         MOD,

@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -70,7 +71,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
         var versions = database.getIndexedGameVersions();
         if (!versions.isEmpty()) {
             message.append(" and indexing versions ")
-                    .append(versions.stream().map(v -> "`" + v + "`").collect(Collectors.joining(", ")));
+                    .append(versions.stream().map(Objects::toString).collect(Collectors.joining(", ")));
         }
         message.append("! ");
 

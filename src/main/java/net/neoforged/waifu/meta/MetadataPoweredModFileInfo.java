@@ -22,9 +22,8 @@ class MetadataPoweredModFileInfo extends BaseModFileInfo {
         this.coordinates = coordinates;
 
         this.metadata = new ModFileMetadata(
-                toml.getOrElse("license", "All Rights Reserved"),
-                toml.get("issueTrackerURL"),
-                toml.get("modLoader")
+                toml.get("license"),
+                toml.get("issueTrackerURL")
         );
 
         this.mods = toml.<List<CommentedConfig>>get("mods")
