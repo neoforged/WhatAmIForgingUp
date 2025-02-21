@@ -47,7 +47,7 @@ dependencies {
     implementation 'net.neoforged:AutoRenamingTool:2.0.3'
     implementation 'net.neoforged.installertools:binarypatcher:2.1.2'
 
-    implementation 'io.github.matyrobbrt:curseforgeapi:2.3.1'
+    implementation 'io.github.matyrobbrt:curseforgeapi:2.3.2'
 
     implementation 'org.flywaydb:flyway-core:11.3.0'
     runtimeOnly 'org.flywaydb:flyway-database-postgresql:11.3.0'
