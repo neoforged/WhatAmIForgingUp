@@ -150,6 +150,8 @@ public interface ModFileReader {
                     final String version = obj.getAsJsonObject("version").get("artifactVersion").getAsString();
 
                     var jarPath = rootFile.getPath(obj.get("path").getAsString());
+                    if (Files.notExists(jarPath)) continue; // Skip JiJ'd jars that do not exist... somehow
+
                     var fileHash = Hashing.sha1().putFile(jarPath).hash();
 
                     var hash = Hashing.sha1()
@@ -256,6 +258,7 @@ public interface ModFileReader {
                     var nested = new ArrayList<ModFileInfo.NestedJar>(jars.size());
                     for (JsonElement jar : jars) {
                         var path = rootFile.getPath(jar.getAsJsonObject().get("file").getAsString());
+                        if (Files.notExists(path)) continue; // Skip JiJ'd jars that do not exist... somehow
 
                         var fileHash = Hashing.sha1().putFile(path).hash();
 
