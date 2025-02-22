@@ -16,6 +16,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.ProviderNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.jar.Attributes;
@@ -169,8 +170,11 @@ public interface ModFileReader {
 
                     }
 
+                    var modPath = ModFileReader.openRoot(newPath);
+                    if (modPath == null) continue;
+
                     var jar = read(new ModFilePath(
-                            newPath, FileSystems.newFileSystem(newPath).getRootDirectories().iterator().next(),
+                            newPath, modPath,
                             fileHash, newPath
                     ), id, version);
                     if (jar != null) {
@@ -275,7 +279,9 @@ public interface ModFileReader {
 
                         }
 
-                        var modRoot = FileSystems.newFileSystem(newPath).getRootDirectories().iterator().next();
+                        var modRoot = ModFileReader.openRoot(newPath);
+                        if (modRoot == null) continue;
+
                         var subFmj = modRoot.resolve(getMetadataFileName());
                         if (Files.exists(subFmj)) {
                             try (var subReader = Files.newBufferedReader(subFmj)) {
@@ -301,6 +307,15 @@ public interface ModFileReader {
             }
 
             return List.of();
+        }
+    }
+
+    @Nullable
+    private static Path openRoot(Path jar) throws IOException {
+        try {
+            return FileSystems.newFileSystem(jar).getRootDirectories().iterator().next();
+        } catch (ProviderNotFoundException ex) {
+            return null;
         }
     }
 }

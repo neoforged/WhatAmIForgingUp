@@ -2,6 +2,7 @@ package net.neoforged.waifu.platform.impl.mr;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
@@ -295,10 +296,9 @@ public class ModrinthPlatform implements ModPlatform {
 
         try {
             return Utils.GSON.fromJson(res.body(), type);
-        } catch (IllegalStateException ex) {
-            Main.LOGGER.error("Failed to decode request body from {} ({}): {}", res.uri(), res, res.body());
-            throw new IllegalStateException("Failed to decode body of request to " + builder.build().uri() + " (first 100 chars) \"" +
-                    res.body().substring(0, Math.min(100, res.body().length())) + "\": " + ex.getMessage(), ex);
+        } catch (JsonSyntaxException ex) {
+            Main.LOGGER.error("Failed to decode request body from {} ({}): {}", res.uri(), res, res.body(), ex);
+            throw ex;
         }
     }
 
