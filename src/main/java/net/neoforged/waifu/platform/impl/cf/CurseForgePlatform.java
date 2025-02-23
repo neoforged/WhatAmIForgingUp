@@ -15,11 +15,11 @@ import io.github.matyrobbrt.curseforgeapi.util.Constants;
 import io.github.matyrobbrt.curseforgeapi.util.CurseForgeException;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.MappingIterator;
-import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.util.Utils;
 
 import java.io.IOException;
@@ -31,11 +31,15 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -68,16 +72,65 @@ public class CurseForgePlatform implements ModPlatform {
     @Override
     public Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField sortField) {
         try {
-            return new MappingIterator<>(api.getHelper().paginated(q -> Requests.searchModsPaginated(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
+            Supplier<ModSearchQuery> baseQuery = () -> ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
                             .gameVersion(version).classId(6) // 6 is mods
-                            .sortOrder(ModSearchQuery.SortOrder.DESCENDENT)
                             .sortField(switch (sortField) {
                                 case LAST_UPDATED -> ModSearchQuery.SortField.LAST_UPDATED;
                                 case NEWEST_RELEASED -> ModSearchQuery.SortField.RELEASED_DATE;
                             })
-                            .modLoaderType(loader(loader))
+                            .modLoaderType(loader(loader));
+
+            var itr = new MappingIterator<>(api.getHelper().paginated(q -> Requests.searchModsPaginated(baseQuery.get()
+                            .sortOrder(ModSearchQuery.SortOrder.DESCENDENT)
                             .paginated(q)), Function.identity())
                     .orElseThrow(), this::createMod);
+            return new Iterator<>() {
+                final Set<Object> known = new HashSet<>();
+                Iterator<PlatformMod> delegate;
+
+                @Override
+                public boolean hasNext() {
+                    if (delegate != null) return delegate.hasNext();
+
+                    if (known.size() == 10_000) return true;
+                    return itr.hasNext();
+                }
+
+                @Override
+                public PlatformMod next() {
+                    if (delegate != null) return delegate.next();
+
+                    if (!itr.hasNext() && known.size() == 10_000) {
+                        try {
+                            var oppositeDir = new MappingIterator<>(api.getHelper().paginated(q -> Requests.searchModsPaginated(baseQuery.get()
+                                            .sortOrder(ModSearchQuery.SortOrder.ASCENDENT)
+                                            .paginated(q)), Function.identity())
+                                    .orElseThrow(), CurseForgePlatform.this::createMod);
+
+                            var items = new ArrayList<PlatformMod>();
+                            while (oppositeDir.hasNext()) {
+                                var next = oppositeDir.next();
+                                if (known.contains(next.getId())) {
+                                    break;
+                                } else {
+                                    items.add(next);
+                                }
+                            }
+
+                            Collections.reverse(items);
+                            delegate = items.iterator();
+
+                            return delegate.next();
+                        } catch (CurseForgeException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    var nxt = itr.next();
+                    known.add(nxt.getId());
+                    return nxt;
+                }
+            };
         } catch (CurseForgeException e) {
             throw new RuntimeException(e);
         }
