@@ -86,13 +86,14 @@ public class CurseForgePlatform implements ModPlatform {
                     .orElseThrow(), this::createMod);
             return new Iterator<>() {
                 final Set<Object> known = new HashSet<>();
+                int knownAmount = 0;
                 Iterator<PlatformMod> delegate;
 
                 @Override
                 public boolean hasNext() {
                     if (delegate != null) return delegate.hasNext();
 
-                    if (known.size() == 10_000) return true;
+                    if (knownAmount == 10_000) return true;
                     return itr.hasNext();
                 }
 
@@ -100,7 +101,7 @@ public class CurseForgePlatform implements ModPlatform {
                 public PlatformMod next() {
                     if (delegate != null) return delegate.next();
 
-                    if (!itr.hasNext() && known.size() == 10_000) {
+                    if (!itr.hasNext() && knownAmount == 10_000) {
                         try {
                             var oppositeDir = new MappingIterator<>(api.getHelper().paginated(q -> Requests.searchModsPaginated(baseQuery.get()
                                             .sortOrder(ModSearchQuery.SortOrder.ASCENDENT)
@@ -128,6 +129,7 @@ public class CurseForgePlatform implements ModPlatform {
 
                     var nxt = itr.next();
                     known.add(nxt.getId());
+                    knownAmount++;
                     return nxt;
                 }
             };
