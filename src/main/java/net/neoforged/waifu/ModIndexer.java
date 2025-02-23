@@ -169,53 +169,54 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
 
         T mod = null;
         if (file.platformFile != null) {
-            // TODO - heuristic to determine if files from different platforms are for the same project (besides file hashes)
             mod = db.getMod(file.platformFile);
             if (mod == null) {
                 // Now we're going to try some more aggressive checks to see if we can merge this mod with an existing one just this time.
                 var sameName = db.getModsByName(file.file().getDisplayName());
-                var isCurseForge = file.platformFile.getPlatform() == Main.CURSE_FORGE_PLATFORM;
+                if (!sameName.isEmpty()) {
+                    var isCurseForge = file.platformFile.getPlatform() == Main.CURSE_FORGE_PLATFORM;
 
-                var ownHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(file.platformFile.getMod().getFilesForVersion(gameVersion, loader), Spliterator.ORDERED), false)
-                        .map(PlatformModFile::getHash)
-                        .collect(Collectors.toSet());
-
-                for (T candidateMod : sameName) {
-                    PlatformMod otherMod = null;
-                    if (candidateMod.getCurseForgeProjectId() == null && isCurseForge && candidateMod.getModrinthProjectId() != null) {
-                        otherMod = Main.MODRINTH_PLATFORM.getModById(candidateMod.getModrinthProjectId());
-                    } else if (candidateMod.getModrinthProjectId() == null && !isCurseForge && candidateMod.getCurseForgeProjectId() != null) {
-                        otherMod = Main.CURSE_FORGE_PLATFORM.getModById(candidateMod.getCurseForgeProjectId());
-                    }
-
-                    if (otherMod == null) continue;
-
-                    var otherFile = otherMod.getLatestFile(gameVersion, loader);
-                    if (otherFile != null) {
-                        try (var otherIn = Files.newInputStream(download(otherFile));
-                            var thisIn = file.file().openStream()) {
-                            // If we find that this mod matches the other's mod jar (when we strip dates in zip entries or in the manifest) we're confident to link them
-                            if (Arrays.equals(
-                                    Utils.createCleanZip(otherIn),
-                                    Utils.createCleanZip(thisIn)
-                            )) {
-                                mod = candidateMod;
-                                mod.link(file.platformFile);
-                                break;
-                            }
-                        }
-                    }
-
-                    var candidateHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(otherMod.getFilesForVersion(gameVersion, loader), Spliterator.ORDERED), false)
+                    var ownHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(file.platformFile.getMod().getFilesForVersion(gameVersion, loader), Spliterator.ORDERED), false)
                             .map(PlatformModFile::getHash)
                             .collect(Collectors.toSet());
 
-                    // If the two mods have at least one file in common for the same game version merge them
-                    var common = CollectionUtils.intersection(ownHashes, candidateHashes);
-                    if (!common.isEmpty()) {
-                        mod = candidateMod;
-                        mod.link(file.platformFile);
-                        break;
+                    for (T candidateMod : sameName) {
+                        PlatformMod otherMod = null;
+                        if (candidateMod.getCurseForgeProjectId() == null && isCurseForge && candidateMod.getModrinthProjectId() != null) {
+                            otherMod = Main.MODRINTH_PLATFORM.getModById(candidateMod.getModrinthProjectId());
+                        } else if (candidateMod.getModrinthProjectId() == null && !isCurseForge && candidateMod.getCurseForgeProjectId() != null) {
+                            otherMod = Main.CURSE_FORGE_PLATFORM.getModById(candidateMod.getCurseForgeProjectId());
+                        }
+
+                        if (otherMod == null) continue;
+
+                        var otherFile = otherMod.getLatestFile(gameVersion, loader);
+                        if (otherFile != null) {
+                            try (var otherIn = Files.newInputStream(download(otherFile));
+                                 var thisIn = file.file().openStream()) {
+                                // If we find that this mod matches the other's mod jar (when we strip dates in zip entries or in the manifest) we're confident to link them
+                                if (Arrays.equals(
+                                        Utils.createCleanZip(otherIn),
+                                        Utils.createCleanZip(thisIn)
+                                )) {
+                                    mod = candidateMod;
+                                    mod.link(file.platformFile);
+                                    break;
+                                }
+                            }
+                        }
+
+                        var candidateHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(otherMod.getFilesForVersion(gameVersion, loader), Spliterator.ORDERED), false)
+                                .map(PlatformModFile::getHash)
+                                .collect(Collectors.toSet());
+
+                        // If the two mods have at least one file in common for the same game version merge them
+                        var common = CollectionUtils.intersection(ownHashes, candidateHashes);
+                        if (!common.isEmpty()) {
+                            mod = candidateMod;
+                            mod.link(file.platformFile);
+                            break;
+                        }
                     }
                 }
 
