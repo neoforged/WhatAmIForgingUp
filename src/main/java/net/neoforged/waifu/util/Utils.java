@@ -17,6 +17,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -24,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -42,7 +44,7 @@ public class Utils {
     public static <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futuresList) {
         CompletableFuture<Void> allFuturesResult = CompletableFuture.allOf(futuresList.toArray(CompletableFuture[]::new));
         return allFuturesResult.thenApply(v ->
-                futuresList.stream().map(CompletableFuture::join).toList()
+                futuresList.stream().map(CompletableFuture::join).collect(Collectors.toCollection(ArrayList::new))
         );
     }
 

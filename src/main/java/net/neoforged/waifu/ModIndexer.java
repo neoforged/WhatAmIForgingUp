@@ -97,11 +97,8 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                     }
                     cf.complete(Pair.of(runnable, fromPlatform));
                 } catch (Throwable t) {
-                    cf.completeExceptionally(t);
                     monitor.raiseError(fromPlatform, t);
-                    throw t;
-                } finally {
-                    cf.complete(null);
+                    cf.complete(null); // We can't completeExceptionally to avoid join throwing
                 }
 
                 return null;
@@ -131,7 +128,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private void runCurrent(ProgressMonitor<IndexCandidate> monitor, List<CompletableFuture<Pair<Runnable, IndexCandidate>>> cfs) {
         var runs = Utils.allOf(cfs).join();
         for (var run : runs) {
-            if (run.first() != null) {
+            if (run != null && run.first() != null) {
                 try {
                     run.first().run();
                     monitor.markAsStored(run.second());
