@@ -70,6 +70,8 @@ begin
             return json_object('enum': posenum[1], 'value': posenum[2])::jsonb;
         end if;
     end if;
+exception when others then
+    return to_jsonb(val);
 end
 $function$
 ;
