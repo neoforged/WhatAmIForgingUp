@@ -3,7 +3,9 @@ package net.neoforged.waifu.db;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModInfo;
@@ -23,7 +25,6 @@ import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
 
-import java.nio.file.Files;
 import java.sql.Array;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -474,19 +475,104 @@ order by mods.name;""")
         for (ClassData.AnnotationInfo ann : anns) {
             var js = new JsonArray();
             js.add(ann.type().getInternalName());
-            var builder = new StringBuilder();
-            var itr = ann.members().entrySet().stream().sorted(Map.Entry.comparingByKey()).iterator();
-            while (itr.hasNext()) {
-                var next = itr.next();
-                builder.append(next.getKey()).append("=");
-                appendMember(builder, next.getValue());
-                if (itr.hasNext()) builder.append(',');
-            }
-            js.add(builder.toString().replace("\u0000", "")); // Catch weird escapes for weird annotations like kotlin's (but in case we can't catch it)
+
+            var obj = new JsonObject();
+            ann.members().entrySet().stream().sorted(Map.Entry.comparingByKey())
+                    .forEach(v -> obj.add(v.getKey(), toJson(v.getValue())));
+            js.add(obj);
 
             json.add(js);
         }
         return json;
+    }
+
+    private static JsonElement toJson(Object member) {
+        return switch (member) {
+            case ClassData.AnnotationInfo ai -> {
+                var o = new JsonObject();
+                ai.members().entrySet().stream().sorted(Map.Entry.comparingByKey())
+                        .forEach(v -> o.add(v.getKey(), toJson(v.getValue())));
+                o.addProperty("_$tp", ai.type().getInternalName());
+                yield o;
+            }
+            case List<?> list -> {
+                var ar = new JsonArray(list.size());
+                for (Object o : list) {
+                    ar.add(toJson(o));
+                }
+                yield ar;
+            }
+            case String str -> new JsonPrimitive(str.replace("\u0000", "")); // Catch weird escapes for weird annotations like kotlin's (but in case we can't catch it)
+            case Character c -> new JsonPrimitive(c == '\u0000' ? "" : String.valueOf(c));
+            case Boolean b -> new JsonPrimitive(b);
+            case Number n -> new JsonPrimitive(n);
+            case Type tp -> new JsonPrimitive(tp.getInternalName());
+            case ClassData.EnumValue ev -> {
+                var o = new JsonObject();
+                o.addProperty("enum", ev.enumType().getInternalName());
+                o.addProperty("value", ev.value());
+                yield o;
+            }
+
+            case byte[] in -> {
+                var ar = new JsonArray(in.length);
+                for (var i : in) {
+                    ar.add(i);
+                }
+                yield ar;
+            }
+            case boolean[] in -> {
+                var ar = new JsonArray(in.length);
+                for (var i : in) {
+                    ar.add(i);
+                }
+                yield ar;
+            }
+            case short[] in -> {
+                var ar = new JsonArray(in.length);
+                for (var i : in) {
+                    ar.add(i);
+                }
+                yield ar;
+            }
+            case char[] in -> {
+                var ar = new JsonArray(in.length);
+                for (var i : in) {
+                    ar.add(i);
+                }
+                yield ar;
+            }
+            case int[] in -> {
+                var ar = new JsonArray(in.length);
+                for (var i : in) {
+                    ar.add(i);
+                }
+                yield ar;
+            }
+            case long[] in -> {
+                var ar = new JsonArray(in.length);
+                for (var i : in) {
+                    ar.add(i);
+                }
+                yield ar;
+            }
+            case float[] in -> {
+                var ar = new JsonArray(in.length);
+                for (var i : in) {
+                    ar.add(i);
+                }
+                yield ar;
+            }
+            case double[] in -> {
+                var ar = new JsonArray(in.length);
+                for (var i : in) {
+                    ar.add(i);
+                }
+                yield ar;
+            }
+
+            default -> null;
+        };
     }
 
     @SuppressWarnings("DuplicatedCode")
