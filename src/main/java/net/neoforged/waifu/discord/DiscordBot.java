@@ -20,10 +20,10 @@ import net.neoforged.waifu.Main;
 import net.neoforged.waifu.MainDatabase;
 import net.neoforged.waifu.ModIndexer;
 import net.neoforged.waifu.db.IndexDatabase;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
-import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
@@ -94,10 +94,11 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
         var builder = new CommandClientBuilder();
         builder.setOwnerId("0");
         builder.setActivity(Activity.of(Activity.ActivityType.WATCHING, "naughty modders"));
-        builder.addSlashCommand(new SlashCommand() {
+
+        var trackVersionCommand = new SlashCommand() {
             {
-                name = "index-version";
-                help = "Add a version to be indexed";
+                name = "track";
+                help = "Add a version to be tracked and indexed";
                 options = List.of(
                         new OptionData(OptionType.STRING, "version", "The version to index", true),
                         new OptionData(OptionType.STRING, "loader", "The loader to index", true)
@@ -113,6 +114,50 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 event.reply("Started indexing version `" + version + "`").queue();
 
                 Main.schedule(version, loader, DiscordBot.this, 30);
+            }
+        };
+
+        var untrackVersionCommand = new SlashCommand() {
+            {
+                name = "untrack";
+                help = "Untrack a version to stop it from being idexed";
+                options = List.of(
+                        new OptionData(OptionType.STRING, "version", "The version to untrack", true),
+                        new OptionData(OptionType.STRING, "loader", "The loader to untrack", true)
+                                .addChoices(LOADERS),
+                        new OptionData(OptionType.BOOLEAN, "force-cancel", "Force the current run to cancel", false)
+                );
+            }
+
+            @Override
+            protected void execute(SlashCommandEvent event) {
+                var version = event.optString("version", "");
+                var loader = ModLoader.valueOf(event.optString("loader"));
+                if (database.deleteVersion(version, loader)) {
+                    event.reply("Stopped indexing version `" + version + "` for loader `" + loader.name().toLowerCase(Locale.ROOT) + "`.").queue();
+
+                    var future = Main.getService(version, loader);
+                    if (future != null) {
+                        future.cancel(event.optBoolean("force-cancel", false));
+                    }
+                } else {
+                    event.reply("Version is not tracked for that loader!").setEphemeral(true).queue();
+                }
+            }
+        };
+
+        builder.addSlashCommand(new SlashCommand() {
+            {
+                name = "game-version";
+                help = "Track and untrack game versions";
+                children = new SlashCommand[] {
+                        trackVersionCommand, untrackVersionCommand
+                };
+            }
+
+            @Override
+            protected void execute(SlashCommandEvent event) {
+
             }
         });
         builder.addSlashCommand(new SlashCommand() {

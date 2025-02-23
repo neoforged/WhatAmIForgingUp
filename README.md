@@ -27,6 +27,6 @@ As for memory usage, 16 gigabytes are recommended.
 
 You will have to persist the `/home/waifu` folder.
 
-Once WAIFU is started, in order to start indexing a version you will have to use the `/index-version` Discord command. After that, in 10 seconds the bot will
+Once WAIFU is started, in order to start indexing a version you will have to use the `/game-version track` Discord command. After that, in 10 seconds the bot will
 start the initial index of all mods for that game version (this can take hours). After that, the bot will look for new mods and files on both CurseForge and Modrinth
 every hour, with a 10 minute delay between game versions (if you want to index more than one version).

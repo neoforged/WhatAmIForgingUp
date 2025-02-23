@@ -12,13 +12,17 @@ import net.neoforged.waifu.platform.impl.cf.CurseForgePlatform;
 import net.neoforged.waifu.platform.impl.mr.ModrinthPlatform;
 import net.neoforged.waifu.util.Utils;
 import net.neoforged.waifu.web.WebService;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -38,6 +42,8 @@ public class Main {
     public static final CurseForgePlatform CURSE_FORGE_PLATFORM;
     public static final ModrinthPlatform MODRINTH_PLATFORM = ModrinthPlatform.INSTANCE;
     public static final List<ModPlatform> PLATFORMS;
+
+    private static final Map<String, Map<ModLoader, Future<?>>> SERVICES = new ConcurrentHashMap<>();
 
     static {
         try {
@@ -68,12 +74,20 @@ public class Main {
 
     public static void schedule(String version, ModLoader loader, DiscordBot bot, long initialDelaySeconds) {
         var indexDb = createDatabase(version, loader);
-        EXECUTOR.scheduleWithFixedDelay(
+        var future = EXECUTOR.scheduleWithFixedDelay(
                 new GameVersionIndexService(version, loader, PLATFORMS, indexDb, SANITIZER, bot),
                 initialDelaySeconds,
                 DELAY_SEC,
                 TimeUnit.SECONDS
         );
+
+        SERVICES.computeIfAbsent(version, k -> new ConcurrentHashMap<>())
+                .put(loader, future);
+    }
+
+    @Nullable
+    public static Future<?> getService(String version, ModLoader loader) {
+        return SERVICES.getOrDefault(version, Map.of()).get(loader);
     }
 
     public static IndexDatabase<?> createDatabase(String version, ModLoader loader) {

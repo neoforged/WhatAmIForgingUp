@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Locale;
 
 public class MainDatabase {
     private final SQLiteDataSource dataSource;
@@ -64,9 +65,16 @@ public class MainDatabase {
         return transactional.getIndexedGameVersions();
     }
 
+    public boolean deleteVersion(String gameVersion, ModLoader loader) {
+        return transactional.deleteVersion(gameVersion, loader) == 1;
+    }
+
     private interface DBTrans extends Transactional<DBTrans> {
         @SqlUpdate("insert into indexed_game_versions(version, loader) values (?, ?)")
         void addGameVersion(String version, @EnumByName ModLoader loader);
+
+        @SqlUpdate("delete from indexed_game_versions where version = ? and loader = ?")
+        int deleteVersion(String version, @EnumByName ModLoader loader);
 
         @UseRowMapper(IndexVersion.Mapper.class)
         @SqlQuery("select version, loader from indexed_game_versions")
@@ -83,7 +91,7 @@ public class MainDatabase {
 
         @Override
         public String toString() {
-            return "`" + gameVersion + "` (" + loader + ")";
+            return "`" + gameVersion + "` (" + loader.name().toLowerCase(Locale.ROOT) + ")";
         }
     }
 }
