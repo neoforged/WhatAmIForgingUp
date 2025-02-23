@@ -6,6 +6,7 @@ $function$
 declare
     nestedlevel int;
     nestedtext text;
+    inStr bool;
 
     anntype text;
 
@@ -24,6 +25,8 @@ begin
 
     ch := substring(val for 1);
 
+    inStr := false;
+
     if ch = '"' then
         return to_jsonb(substring(val from 2 for char_length(val) - 2));
     elsif ch = '[' then
@@ -32,15 +35,19 @@ begin
         nestedlevel := 0;
         foreach ch in array regexp_split_to_array(substring(val from 2 for char_length(val) - 2), '')
             loop
-                if ch = '(' or ch = '[' then
+                if ch = '"' then
+                    inStr = not inStr;
+                    nestedtext := nestedtext || ch;
+                elsif ch = '(' or ch = '[' and not inStr then
                     nestedtext := nestedtext || ch;
                     nestedlevel := nestedlevel + 1;
-                elsif ch = ')' or ch = ']' then
+                elsif ch = ')' or ch = ']' and not inStr then
                     nestedtext := nestedtext || ch;
                     nestedlevel := nestedlevel - 1;
-                elsif ch = ',' and nestedlevel <= 0 then
+                elsif ch = ',' and nestedlevel <= 0 and not inStr then
                     js := jsonb_set(js, array[jsonb_array_length(js)::text], migrate_annotation_value_to_json(nestedtext), true);
                     nestedtext := '';
+                    inStr := false;
                 else
                     nestedtext := nestedtext || ch;
                 end if;
@@ -81,6 +88,7 @@ declare
     nestedlevel int;
 
     inValue bool;
+    inStr bool;
 begin
     js := '{}'::jsonb;
     if ann is null or ann = '' then
@@ -90,22 +98,27 @@ begin
     curname := '';
     nestedlevel := 0;
     curvalue := '';
+    inStr := false;
 
     foreach ch in array regexp_split_to_array(ann, '')
         loop
-            if ch = '=' and nestedlevel <= 0 then
+            if ch = '"' then
+                inStr := not inStr;
+                curvalue := curvalue || ch;
+            elsif ch = '=' and nestedlevel <= 0 and not inStr then
                 inValue := true;
-            elsif ch = '(' or ch = '[' then
+            elsif ch = '(' or ch = '[' and not inStr then
                 nestedlevel := nestedlevel + 1;
                 curvalue := curvalue || ch;
-            elsif ch = ')' or ch = ']' then
+            elsif ch = ')' or ch = ']' and not inStr then
                 nestedlevel := nestedlevel - 1;
                 curvalue := curvalue || ch;
-            elsif ch = ',' and nestedlevel <= 0 then
+            elsif ch = ',' and nestedlevel <= 0 and not inStr then
                 js := jsonb_set(js, array[btrim(curname)], migrate_annotation_value_to_json(curvalue), true);
                 curname := '';
                 curvalue := '';
                 inValue := false;
+                inStr := false;
             elsif inValue then
                 curvalue = curvalue || ch;
             else
