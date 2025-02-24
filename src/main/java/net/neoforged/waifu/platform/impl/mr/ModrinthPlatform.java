@@ -22,6 +22,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -36,7 +37,9 @@ public class ModrinthPlatform implements ModPlatform {
     private final HttpClient client;
 
     private ModrinthPlatform() {
-        this.client = HttpClient.newHttpClient();
+        this.client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     @Override
@@ -276,13 +279,26 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     private <T> T send(HttpRequest.Builder builder, TypeToken<T> type) {
+        var req = builder
+                .header("User-Agent", "neoforged/WhatAmIForgingUp (neoforged.net)")
+                .timeout(Duration.ofSeconds(30))
+                .build();
         HttpResponse<String> res;
         try {
-            res = client.send(builder
-                    .header("User-Agent", "neoforged/WhatAmIForgingUp (neoforged.net)")
-                    .build(), HttpResponse.BodyHandlers.ofString());
+            res = client.send(req, HttpResponse.BodyHandlers.ofString());
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
+        }
+
+        // Retry the request up to 3 times if encountering 524s
+        for (int i = 0; i < 3 && res.statusCode() == 524; i++) {
+            try {
+                Thread.sleep(3 * 1000L);
+
+                res = client.send(req, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         var remaining = res.headers().firstValue("x-ratelimit-remaining").orElse(null);
