@@ -6,11 +6,11 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.MappingIterator;
-import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,7 +22,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -38,7 +37,6 @@ public class ModrinthPlatform implements ModPlatform {
 
     private ModrinthPlatform() {
         this.client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
                 .build();
     }
 
@@ -281,7 +279,6 @@ public class ModrinthPlatform implements ModPlatform {
     private <T> T send(HttpRequest.Builder builder, TypeToken<T> type) {
         var req = builder
                 .header("User-Agent", "neoforged/WhatAmIForgingUp (neoforged.net)")
-                .timeout(Duration.ofSeconds(30))
                 .build();
         HttpResponse<String> res;
         try {

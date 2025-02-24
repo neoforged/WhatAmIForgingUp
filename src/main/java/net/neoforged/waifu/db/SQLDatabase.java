@@ -505,6 +505,11 @@ order by mods.name;""")
             case String str -> new JsonPrimitive(str.replace("\u0000", "")); // Catch weird escapes for weird annotations like kotlin's (but in case we can't catch it)
             case Character c -> new JsonPrimitive(c == '\u0000' ? "" : String.valueOf(c));
             case Boolean b -> new JsonPrimitive(b);
+
+            // Special case float and double to account for infinity
+            case Float f -> accountForInf(f);
+            case Double d -> accountForInf(d);
+
             case Number n -> new JsonPrimitive(n);
             case Type tp -> new JsonPrimitive(tp.getInternalName());
             case ClassData.EnumValue ev -> {
@@ -559,14 +564,14 @@ order by mods.name;""")
             case float[] in -> {
                 var ar = new JsonArray(in.length);
                 for (var i : in) {
-                    ar.add(i);
+                    ar.add(accountForInf(i));
                 }
                 yield ar;
             }
             case double[] in -> {
                 var ar = new JsonArray(in.length);
                 for (var i : in) {
-                    ar.add(i);
+                    ar.add(accountForInf(i));
                 }
                 yield ar;
             }
@@ -575,34 +580,16 @@ order by mods.name;""")
         };
     }
 
-    @SuppressWarnings("DuplicatedCode")
-    private static void appendMember(StringBuilder builder, Object member) {
-        switch (member) {
-            case ClassData.AnnotationInfo ai -> {
-                builder.append("@").append(ai.type().getInternalName())
-                        .append("(");
-                var itr = ai.members().entrySet().stream().sorted(Map.Entry.comparingByKey()).iterator();
-                while (itr.hasNext()) {
-                    var next = itr.next();
-                    builder.append(next.getKey()).append("=");
-                    appendMember(builder, next.getValue());
-                    if (itr.hasNext()) builder.append(',');
-                }
-                builder.append(")");
-            }
-            case List<?> list -> {
-                builder.append("[");
-                var itr = list.iterator();
-                while (itr.hasNext()) {
-                    appendMember(builder, itr.next());
-                    if (itr.hasNext()) builder.append(',');
-                }
-                builder.append(']');
-            }
-            case String str -> builder.append('"').append(str).append('"');
-            case Type tp -> builder.append(tp.getInternalName()).append(".class");
-            default -> builder.append(member);
-        }
+    private static JsonElement accountForInf(double val) {
+        if (val == Double.POSITIVE_INFINITY) return new JsonPrimitive("+inf");
+        else if (val == Double.NEGATIVE_INFINITY) return new JsonPrimitive("-inf");
+        return new JsonPrimitive(val);
+    }
+
+    private static JsonElement accountForInf(float val) {
+        if (val == Float.POSITIVE_INFINITY) return new JsonPrimitive("+inf");
+        else if (val == Float.NEGATIVE_INFINITY) return new JsonPrimitive("-inf");
+        return new JsonPrimitive(val);
     }
 
     public class SqlMod implements DatabaseMod<SqlMod> {
