@@ -287,8 +287,8 @@ public class ModrinthPlatform implements ModPlatform {
             throw new RuntimeException(e);
         }
 
-        // Retry the request up to 3 times if encountering 524s
-        for (int i = 0; i < 3 && res.statusCode() == 524; i++) {
+        // Retry the request up to 3 times if encountering 5xxs
+        for (int i = 0; i < 3 && res.statusCode() <= 599 && res.statusCode() >= 500; i++) {
             try {
                 Thread.sleep(3 * 1000L);
 

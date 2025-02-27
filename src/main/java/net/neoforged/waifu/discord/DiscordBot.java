@@ -436,6 +436,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 task.cancel(true);
 
                 editMessage(embed -> embed.setDescription("Fatal failure, check console for more details: **" + exception.getMessage() + "**"));
+                message.pin().queue(); // Pin failures for visibility
             }
 
             private void editMessage(Consumer<EmbedBuilder> consumer) {
