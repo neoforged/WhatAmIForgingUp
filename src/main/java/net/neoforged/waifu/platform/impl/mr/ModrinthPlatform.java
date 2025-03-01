@@ -280,23 +280,35 @@ public class ModrinthPlatform implements ModPlatform {
         var req = builder
                 .header("User-Agent", "neoforged/WhatAmIForgingUp (neoforged.net)")
                 .build();
-        HttpResponse<String> res;
-        try {
-            res = client.send(req, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
 
-        // Retry the request up to 3 times if encountering 5xxs
-        for (int i = 0; i < 3 && res.statusCode() <= 599 && res.statusCode() >= 500; i++) {
+        HttpResponse<String> res = null;
+        int i = 0;
+        boolean goaway;
+        do {
+            goaway = false;
+
             try {
-                Thread.sleep(3 * 1000L);
+                // Sleep 3 seconds before retries
+                if (i > 0) {
+                    Thread.sleep(3 * 1000L);
+                }
 
                 res = client.send(req, HttpResponse.BodyHandlers.ofString());
             } catch (IOException | InterruptedException e) {
-                throw new RuntimeException(e);
+                if (i <= 2 && e.getMessage() != null && e.getMessage().endsWith("GOAWAY received")) {
+                    // When encountering goaways we wait 10 seconds and retry (in the end the way is 13 seconds)
+                    Utils.sleep(10 * 1000L);
+                    goaway = true;
+                } else {
+                    throw new RuntimeException(e);
+                }
             }
+
+            i++;
         }
+
+        // Retry the request up to 3 times if encountering 5xxs or goaways
+        while (i <= 3 && (goaway || (res.statusCode() >= 500 && res.statusCode() <= 599)));
 
         var remaining = res.headers().firstValue("x-ratelimit-remaining").orElse(null);
         if (remaining != null && Integer.parseInt(remaining) <= 0) {

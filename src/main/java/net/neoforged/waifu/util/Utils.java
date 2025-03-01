@@ -146,4 +146,12 @@ public class Utils {
     public static String tomlToJson(String toml) {
         return JSON_NC.writeToString(TOML.parse(toml));
     }
+
+    public static void sleep(long time) {
+        try {
+            Thread.sleep(time);
+        } catch (InterruptedException e) {
+            sneakyThrow(e);
+        }
+    }
 }
