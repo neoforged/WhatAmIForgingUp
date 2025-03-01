@@ -24,6 +24,7 @@ import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
+import net.neoforged.waifu.util.DateUtils;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
@@ -102,18 +103,25 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 options = List.of(
                         new OptionData(OptionType.STRING, "version", "The version to index", true),
                         new OptionData(OptionType.STRING, "loader", "The loader to index", true)
-                                .addChoices(LOADERS)
+                                .addChoices(LOADERS),
+                        new OptionData(OptionType.STRING, "interval", "The index interval in time notation (like 1h30m). Defaults to the bot's global configuration time", false)
                 );
             }
 
             @Override
             protected void execute(SlashCommandEvent event) {
+                long interval = 0;
+                if (event.hasOption("interval")) {
+                    interval = DateUtils.getDurationFromInput(event.optString("interval", ""))
+                            .getSeconds();
+                }
+
                 var version = event.optString("version", "");
                 var loader = ModLoader.valueOf(event.optString("loader"));
-                database.addGameVersion(version, loader);
+                database.addGameVersion(version, loader, interval == 0 ? null : interval);
                 event.reply("Started indexing version `" + version + "`").queue();
 
-                Main.schedule(version, loader, DiscordBot.this, 30);
+                Main.schedule(version, loader, interval, DiscordBot.this, 30);
             }
         };
 

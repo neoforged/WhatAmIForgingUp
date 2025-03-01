@@ -11,6 +11,7 @@ import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import org.jdbi.v3.sqlobject.statement.UseRowMapper;
 import org.jdbi.v3.sqlobject.transaction.Transactional;
+import org.jetbrains.annotations.Nullable;
 import org.sqlite.SQLiteDataSource;
 
 import java.nio.file.Files;
@@ -57,8 +58,8 @@ public class MainDatabase {
                 .migrate();
     }
 
-    public void addGameVersion(String gameVersion, ModLoader loader) {
-        transactional.addGameVersion(gameVersion, loader);
+    public void addGameVersion(String gameVersion, ModLoader loader, @Nullable Long intervalSeconds) {
+        transactional.addGameVersion(gameVersion, loader, intervalSeconds);
     }
 
     public List<IndexVersion> getIndexedGameVersions() {
@@ -70,22 +71,22 @@ public class MainDatabase {
     }
 
     private interface DBTrans extends Transactional<DBTrans> {
-        @SqlUpdate("insert into indexed_game_versions(version, loader) values (?, ?)")
-        void addGameVersion(String version, @EnumByName ModLoader loader);
+        @SqlUpdate("insert into indexed_game_versions(version, loader, index_interval) values (?, ?, ?)")
+        void addGameVersion(String version, @EnumByName ModLoader loader, @Nullable Long intervalSeconds);
 
         @SqlUpdate("delete from indexed_game_versions where version = ? and loader = ?")
         int deleteVersion(String version, @EnumByName ModLoader loader);
 
         @UseRowMapper(IndexVersion.Mapper.class)
-        @SqlQuery("select version, loader from indexed_game_versions")
+        @SqlQuery("select * from indexed_game_versions")
         List<IndexVersion> getIndexedGameVersions();
     }
 
-    public record IndexVersion(String gameVersion, ModLoader loader) {
+    public record IndexVersion(String gameVersion, ModLoader loader, long indexInterval) {
         public static class Mapper implements RowMapper<IndexVersion> {
             @Override
             public IndexVersion map(ResultSet rs, StatementContext ctx) throws SQLException {
-                return new IndexVersion(rs.getString("version"), ModLoader.valueOf(rs.getString("loader")));
+                return new IndexVersion(rs.getString("version"), ModLoader.valueOf(rs.getString("loader")), rs.getLong("index_interval"));
             }
         }
 

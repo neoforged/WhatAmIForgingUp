@@ -10,6 +10,7 @@ import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.impl.cf.CurseForgePlatform;
 import net.neoforged.waifu.platform.impl.mr.ModrinthPlatform;
+import net.neoforged.waifu.util.DateUtils;
 import net.neoforged.waifu.util.Utils;
 import net.neoforged.waifu.web.WebService;
 import org.jetbrains.annotations.Nullable;
@@ -17,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,7 +38,7 @@ public class Main {
     public static final DataSanitizer SANITIZER = DataSanitizer.of(
             DataSanitizer.REMOVE_OWN_DIRECT_REFERENCES, DataSanitizer.REMOVE_PRIVATE_MEMBERS
     );
-    public static final long DELAY_SEC = 60 * 60;
+    public static final long DEFAULT_INTERVAL_SEC = DateUtils.getDurationFromInput(System.getenv().getOrDefault("DEFAULT_INDEX_INTERVAL", "1h")).getSeconds();
 
     public static final CurseForgeAPI CF_API;
     public static final CurseForgePlatform CURSE_FORGE_PLATFORM;
@@ -63,7 +65,7 @@ public class Main {
 
         long initialDelay = 15;
         for (var version : db.getIndexedGameVersions()) {
-            schedule(version.gameVersion(), version.loader(), bot, initialDelay);
+            schedule(version.gameVersion(), version.loader(), version.indexInterval(), bot, initialDelay);
 
             initialDelay += 60 * 10;
         }
@@ -72,12 +74,12 @@ public class Main {
         web.start();
     }
 
-    public static void schedule(String version, ModLoader loader, DiscordBot bot, long initialDelaySeconds) {
+    public static void schedule(String version, ModLoader loader, long intervalSeconds, DiscordBot bot, long initialDelaySeconds) {
         var indexDb = createDatabase(version, loader);
         var future = EXECUTOR.scheduleWithFixedDelay(
                 new GameVersionIndexService(version, loader, PLATFORMS, indexDb, SANITIZER, bot),
                 initialDelaySeconds,
-                DELAY_SEC,
+                intervalSeconds == 0 ? DEFAULT_INTERVAL_SEC : intervalSeconds,
                 TimeUnit.SECONDS
         );
 
