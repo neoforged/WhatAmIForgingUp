@@ -32,12 +32,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 public class ModrinthPlatform implements ModPlatform {
-    public static final ModrinthPlatform INSTANCE = new ModrinthPlatform();
     private final HttpClient client;
 
-    private ModrinthPlatform() {
+    @Nullable
+    private final String token;
+
+    public ModrinthPlatform(@Nullable final String token) {
         this.client = HttpClient.newBuilder()
                 .build();
+        this.token = token;
     }
 
     @Override
@@ -277,6 +280,10 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     private <T> T send(HttpRequest.Builder builder, TypeToken<T> type) {
+        if (this.token != null) {
+            builder.header("Authorization", token);
+        }
+
         var req = builder
                 .header("User-Agent", "neoforged/WhatAmIForgingUp (neoforged.net)")
                 .build();
@@ -296,8 +303,8 @@ public class ModrinthPlatform implements ModPlatform {
                 res = client.send(req, HttpResponse.BodyHandlers.ofString());
             } catch (IOException | InterruptedException e) {
                 if (i <= 2 && e.getMessage() != null && e.getMessage().endsWith("GOAWAY received")) {
-                    // When encountering goaways we wait 10 seconds and retry (in the end the way is 13 seconds)
-                    Utils.sleep(10 * 1000L);
+                    // When encountering goaways we wait 60 seconds and retry (in the end the wait is 63 seconds)
+                    Utils.sleep(60 * 1000L);
                     goaway = true;
                 } else {
                     throw new RuntimeException(e);

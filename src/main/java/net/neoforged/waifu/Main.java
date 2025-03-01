@@ -42,7 +42,7 @@ public class Main {
 
     public static final CurseForgeAPI CF_API;
     public static final CurseForgePlatform CURSE_FORGE_PLATFORM;
-    public static final ModrinthPlatform MODRINTH_PLATFORM = ModrinthPlatform.INSTANCE;
+    public static final ModrinthPlatform MODRINTH_PLATFORM;
     public static final List<ModPlatform> PLATFORMS;
 
     private static final Map<String, Map<ModLoader, Future<?>>> SERVICES = new ConcurrentHashMap<>();
@@ -51,6 +51,9 @@ public class Main {
         try {
             CF_API = CurseForgeAPI.builder().apiKey(System.getenv("CF_API_KEY")).build();
             CURSE_FORGE_PLATFORM = new CurseForgePlatform(CF_API);
+
+            MODRINTH_PLATFORM = new ModrinthPlatform(System.getenv("MODRINTH_API_TOKEN"));
+
             PLATFORMS = List.of(CURSE_FORGE_PLATFORM, MODRINTH_PLATFORM);
         } catch (Exception ex) {
             throw new RuntimeException(ex);

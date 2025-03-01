@@ -16,6 +16,7 @@ and a CurseForge API key.
 This tool is on GHCR as a Docker image at `ghcr.io/neoforged/whatamiforgingup`.
 WhatAmIForgingUp is configured using environment variables:
 - `CF_API_KEY`: a CurseForge API key used for searching and indexing mods available on CurseForge
+- `MODRINTH_API_TOKEN`: an **optional** Modrinth API token used for searching and indexing mods available on Modrinth
 - `DISCORD_TOKEN`: the token of the Discord bot
 - `DISCORD_CHANNEL_ID`: the ID of a channel that the bot will send index status updates in
 - `POSTGRES_DB_URL`: the URL of the Postgres database. The format is `<ip>:<port>/<database_name>` (example: `localhost:1234/waifu`)
