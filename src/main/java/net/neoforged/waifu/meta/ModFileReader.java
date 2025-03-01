@@ -70,11 +70,11 @@ public interface ModFileReader {
 
     List<ModFileInfo.NestedJar> readNestedJars(ModFileInfo rootFile) throws IOException;
 
-    private static Manifest readManifest(Path manPath) throws IOException {
+    private static Manifest readManifest(Path manPath) {
         var man = new Manifest();
         try (var is = Files.newInputStream(manPath)) {
             man.read(is);
-        } catch (NoSuchFileException ignored) {
+        } catch (IOException ignored) {
         }
         return man;
     }
