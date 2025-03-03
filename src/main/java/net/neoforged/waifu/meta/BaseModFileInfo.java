@@ -22,12 +22,18 @@ abstract class BaseModFileInfo implements ModFileInfo {
     private final Manifest manifest;
     private final List<NestedJar> nestedJars;
 
-    BaseModFileInfo(ModFilePath path, Manifest manifest, ModFileReader reader) throws IOException {
+    BaseModFileInfo(ModFilePath path, Manifest manifest, ModFileReader reader) {
         this.reader = reader;
         this.path = path;
         this.manifest = manifest;
 
-        this.nestedJars = reader.readNestedJars(this);
+        List<NestedJar> nested;
+        try {
+            nested = reader.readNestedJars(this);
+        } catch (Exception ex) {
+            nested = List.of();
+        }
+        this.nestedJars = nested;
     }
 
     @Override
