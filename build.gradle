@@ -8,6 +8,10 @@ plugins {
 
 group = 'net.neoforged.waifu'
 
+gradleutils.version {
+    tags.includeFilters.add('2.0')
+}
+
 println("Version: ${project.version = gradleutils.version}")
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -97,7 +101,7 @@ shadowJar {
 
 tasks.register('packagePlugin', Zip) {
     from(project.file('neoforged-waifuvis-app/dist'))
-    archiveFile = project.layout.buildDirectory.file('waifu-plugin.zip')
+    archiveFileName = 'waifu-plugin.zip'
 }
 
 var lastCommitMessage = new ByteArrayOutputStream()
