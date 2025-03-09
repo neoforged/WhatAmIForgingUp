@@ -100,7 +100,9 @@ shadowJar {
 }
 
 tasks.register('packagePlugin', Zip) {
-    from(project.file('neoforged-waifuvis-app/dist'))
+    from(project.file('neoforged-waifuvis-app/dist')) {
+        into 'neoforged-waifuvis-app'
+    }
     archiveFileName = 'waifu-plugin.zip'
 }
 
