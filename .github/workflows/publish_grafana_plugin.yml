@@ -30,6 +30,7 @@ jobs:
           node-version: '22.x'
       - run: |
           cd neoforged-waifuvis-app
+          npm i
           npm run build
 
       - name: Publish with Gradle
