@@ -6,14 +6,15 @@ on:
       - main
     paths:
       - neoforged-waifuvis-app/**
+      - .github/**
   workflow_dispatch:
 
 permissions:
-  packages: write
   contents: write
+  statuses: write
 
 jobs:
-  push-image:
+  push-plugin:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,6 +29,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: neoforged-waifuvis-app/package-lock.json
       - run: |
           cd neoforged-waifuvis-app
           npm i
