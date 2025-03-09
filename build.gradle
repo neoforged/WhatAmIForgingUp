@@ -3,6 +3,7 @@ plugins {
     id 'application'
     id("com.gradleup.shadow") version "9.0.0-beta6"
     id 'net.neoforged.gradleutils' version '3.0.0'
+    id 'me.modmuss50.mod-publish-plugin' version '0.5.1'
 }
 
 group = 'net.neoforged.waifu'
@@ -92,4 +93,26 @@ shadowJar {
     archiveClassifier = 'all'
     archiveFile.set(project.layout.buildDirectory.file("libs/waifu-all.jar"))
     from(tasks.gitLog.output)
+}
+
+tasks.register('packagePlugin', Zip) {
+    from(project.file('neoforged-waifuvis-app/dist'))
+    archiveFile = project.layout.buildDirectory.file('waifu-plugin.zip')
+}
+
+var lastCommitMessage = new ByteArrayOutputStream()
+project.exec {
+    commandLine('git log -1 --pretty=%B'.split(' '))
+    standardOutput = lastCommitMessage
+}
+publishMods {
+    file = tasks.jar.archiveFile
+    modLoaders.addAll('neoforge')
+    getChangelog().set(lastCommitMessage.toString().trim())
+    type = STABLE
+    github {
+        accessToken = providers.environmentVariable('GITHUB_TOKEN')
+        repository = 'neoforged/ServerStarterJar'
+        commitish = 'main'
+    }
 }

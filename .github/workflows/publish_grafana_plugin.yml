@@ -1,0 +1,36 @@
+name: Publish Grafana Plugin
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - neoforged-waifuvis-app/**
+  workflow_dispatch:
+
+permissions:
+  packages: write
+  contents: write
+
+jobs:
+  push-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: neoforged/actions/checkout@main
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+      - run: npm run build
+
+      - name: Publish with Gradle
+        run: ./gradlew publishMods
+        env:
+            GITHUB_TOKEN: ${{ github.token }}

@@ -6,9 +6,21 @@ import java.time.Instant;
 import java.util.Iterator;
 
 public interface PlatformMod {
+    ModPlatform getPlatform();
+
     Object getId();
 
     String getSlug();
+
+    String getTitle();
+
+    String getDescription();
+
+    String getIconUrl();
+
+    long getDownloads();
+
+    Instant getReleasedDate();
 
     @Nullable
     PlatformModFile getLatestFile(String gameVersion, ModLoader loader);

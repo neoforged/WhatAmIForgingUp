@@ -55,8 +55,8 @@ public class ModrinthPlatform implements ModPlatform {
 
     @Override
     public PlatformMod getModById(Object id) {
-        var projectId = sendRequest("/project/" + id, new TypeToken<ProjectResponse>() {}).id();
-        return createMod(projectId, projectId); // we don't have a slug in the response
+        var res = sendRequest("/project/" + id, new TypeToken<ProjectResponse>() {});
+        return createMod(res.id(), res.slug(), res);
     }
 
     @Override
@@ -77,7 +77,7 @@ public class ModrinthPlatform implements ModPlatform {
             {
                 var baseResponse = collector.apply(0);
                 currentResponse = baseResponse.hits.stream()
-                        .map(p -> createMod(p.project_id(), p.slug()))
+                        .map(p -> createMod(p.project_id(), p.slug(), null))
                         .toList();
                 size.set(baseResponse.total_hits());
             }
@@ -104,7 +104,7 @@ public class ModrinthPlatform implements ModPlatform {
                 var res = collector.apply(currentIndex.get() + 1);
                 size.set(res.total_hits());
                 currentResponse = res.hits.stream()
-                        .map(p -> createMod(p.project_id(), p.slug()))
+                        .map(p -> createMod(p.project_id(), p.slug(), null))
                         .toList();
                 currentListIndex.set(-1);
             }
@@ -156,8 +156,15 @@ public class ModrinthPlatform implements ModPlatform {
         return 100;
     }
 
-    private PlatformMod createMod(String id, String slug) {
+    private PlatformMod createMod(String id, String slug, @Nullable ProjectResponse projectResponse) {
         return new PlatformMod() {
+            ProjectResponse proj = projectResponse;
+
+            @Override
+            public ModPlatform getPlatform() {
+                return ModrinthPlatform.this;
+            }
+
             @Override
             public Object getId() {
                 return id;
@@ -166,6 +173,31 @@ public class ModrinthPlatform implements ModPlatform {
             @Override
             public String getSlug() {
                 return slug;
+            }
+
+            @Override
+            public String getTitle() {
+                return fill().title;
+            }
+
+            @Override
+            public String getDescription() {
+                return fill().description();
+            }
+
+            @Override
+            public String getIconUrl() {
+                return fill().icon_url;
+            }
+
+            @Override
+            public long getDownloads() {
+                return fill().downloads;
+            }
+
+            @Override
+            public Instant getReleasedDate() {
+                return fill().published;
             }
 
             private volatile List<Version> versions;
@@ -208,6 +240,13 @@ public class ModrinthPlatform implements ModPlatform {
                 }
                 return versions;
             }
+
+            private synchronized ProjectResponse fill() {
+                if (proj == null) {
+                    proj = sendRequest("/project/" + id, new TypeToken<>() {});
+                }
+                return proj;
+            }
         };
     }
 
@@ -230,7 +269,7 @@ public class ModrinthPlatform implements ModPlatform {
             @Override
             public synchronized PlatformMod getMod() {
                 if (mod == null) {
-                    mod = createMod(version.project_id, version.project_id);
+                    mod = createMod(version.project_id, version.project_id, null);
                 }
                 return mod;
             }
@@ -342,7 +381,7 @@ public class ModrinthPlatform implements ModPlatform {
         };
     }
 
-    private record ProjectResponse(String id) {}
+    private record ProjectResponse(String id, String slug, long downloads, Instant published, String title, String description, String icon_url) {}
     private record Version(String id, String project_id, List<String> game_versions, List<String> loaders, Instant date_published, List<File> files) {
 
         private record File(Hashes hashes, String url, boolean primary, long size) {

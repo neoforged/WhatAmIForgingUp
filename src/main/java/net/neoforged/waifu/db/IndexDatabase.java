@@ -4,6 +4,7 @@ import com.google.common.collect.Multimap;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModPlatform;
+import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.ThrowingConsumer;
 import org.jetbrains.annotations.Nullable;
@@ -15,6 +16,9 @@ import java.util.Map;
 public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends AutoCloseable {
     @Nullable
     T getMod(PlatformModFile platformModFile);
+
+    @Nullable
+    T getMod(PlatformMod platformMod);
 
     List<T> getMods(ModPlatform platform, List<Object> projectIds);
 

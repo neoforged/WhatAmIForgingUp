@@ -249,6 +249,11 @@ public class CurseForgePlatform implements ModPlatform {
     private PlatformMod createMod(Mod mod) {
         return new PlatformMod() {
             @Override
+            public ModPlatform getPlatform() {
+                return CurseForgePlatform.this;
+            }
+
+            @Override
             public Object getId() {
                 return mod.id();
             }
@@ -256,6 +261,31 @@ public class CurseForgePlatform implements ModPlatform {
             @Override
             public String getSlug() {
                 return mod.slug();
+            }
+
+            @Override
+            public String getTitle() {
+                return mod.name();
+            }
+
+            @Override
+            public String getDescription() {
+                return mod.summary();
+            }
+
+            @Override
+            public String getIconUrl() {
+                return mod.logo().url();
+            }
+
+            @Override
+            public long getDownloads() {
+                return mod.downloadCount();
+            }
+
+            @Override
+            public Instant getReleasedDate() {
+                return mod.getDateReleasedAsInstant();
             }
 
             @Override

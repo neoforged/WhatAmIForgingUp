@@ -10,6 +10,7 @@ import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModInfo;
 import net.neoforged.waifu.platform.ModPlatform;
+import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.ThrowingConsumer;
 import net.neoforged.waifu.util.Utils;
@@ -133,6 +134,14 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         return jdbi.withHandle(handle ->
                 handle.createQuery("select * from mods where " + file.getPlatform().getName() + "_project_id = ?")
                         .bind(0, file.getModId())
+                        .execute(returning(SqlMod::new)));
+    }
+
+    @Override
+    public @Nullable SQLDatabase.SqlMod getMod(PlatformMod mod) {
+        return jdbi.withHandle(handle ->
+                handle.createQuery("select * from mods where " + mod.getPlatform().getName() + "_project_id = ?")
+                        .bind(0, mod.getId())
                         .execute(returning(SqlMod::new)));
     }
 

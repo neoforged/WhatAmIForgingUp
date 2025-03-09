@@ -1,0 +1,10 @@
+apiVersion: 1
+
+apps:
+  - type: 'neoforged-waifuvis-app'
+    org_id: 1
+    org_name: 'neoforged'
+    disabled: false
+    jsonData:
+      datasourceId: defbxesgw8ikgb
+      apiUrl: http://localhost:6532/

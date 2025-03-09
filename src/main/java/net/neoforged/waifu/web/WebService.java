@@ -7,6 +7,9 @@ import net.neoforged.waifu.Main;
 public class WebService {
     private final Javalin javalin;
 
+    @SuppressWarnings({"FieldCanBeLocal", "unused"})
+    private final VersionWebService versionService;
+
     public WebService(Javalin javalin) {
         this.javalin = javalin;
 
@@ -20,6 +23,10 @@ public class WebService {
                 ctx.redirect("https://modrinth.com/mod/" + proj, HttpStatus.TEMPORARY_REDIRECT);
             }
         });
+
+        this.javalin.after(ctx -> ctx.header("Access-Control-Allow-Origin", "*"));
+
+        this.versionService = new VersionWebService(javalin);
     }
 
     public void start() {
