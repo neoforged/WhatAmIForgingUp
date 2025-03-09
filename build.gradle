@@ -106,7 +106,7 @@ project.exec {
     standardOutput = lastCommitMessage
 }
 publishMods {
-    file = tasks.jar.archiveFile
+    file = tasks.packagePlugin.archiveFile
     modLoaders.addAll('neoforge')
     getChangelog().set(lastCommitMessage.toString().trim())
     type = STABLE
