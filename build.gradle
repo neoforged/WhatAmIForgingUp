@@ -112,7 +112,7 @@ publishMods {
     type = STABLE
     github {
         accessToken = providers.environmentVariable('GITHUB_TOKEN')
-        repository = 'neoforged/ServerStarterJar'
+        repository = 'neoforged/WhatAmIForgingUp'
         commitish = 'main'
     }
 }
