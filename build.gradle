@@ -99,6 +99,13 @@ shadowJar {
     from(tasks.gitLog.output)
 }
 
+tasks.register('replacePluginVersion') {
+    doLast {
+        var file = file('neoforged-waifuvis-app/package.json')
+        file.text = file.text.replace("\"version\": \"1.0.0\"", "\"version\": \"${project.version}\"")
+    }
+}
+
 tasks.register('packagePlugin', Zip) {
     from(project.file('neoforged-waifuvis-app/dist')) {
         into 'neoforged-waifuvis-app'

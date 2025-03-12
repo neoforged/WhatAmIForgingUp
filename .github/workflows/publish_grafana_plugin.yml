@@ -32,6 +32,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: neoforged-waifuvis-app/package-lock.json
       - run: |
+          ./gradlew replacePluginVersion
           cd neoforged-waifuvis-app
           npm i
           npm run build
