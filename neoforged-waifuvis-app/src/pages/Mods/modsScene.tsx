@@ -1,4 +1,5 @@
 import {
+  AdHocFiltersVariable,
   EmbeddedScene,
   PanelBuilders,
   QueryVariable,
@@ -18,9 +19,12 @@ import {
 import {createApiUrl, getFromApi, getWaifuDatasource, ROUTES} from '../../constants';
 import {prefixRoute} from "../../utils/utils.routing";
 import React from "react";
+import {AdHocVariableFilter} from "@grafana/data";
+import {ajax} from "rxjs/internal/ajax/ajax";
+import {firstValueFrom} from "rxjs";
+import {formatFilters, formatJsonFilters} from "../../utils/filters.ts";
 
 export function modsScene() {
-  // Variable definition, using Grafana built-in TestData datasource
   const versionVariable = new QueryVariable({
     name: 'version',
     label: 'Version',
@@ -30,13 +34,58 @@ export function modsScene() {
     query: 'select nspname as __value from pg_namespace where nspname like \'1.%\'',
   });
 
-  const queryRunner = new SceneQueryRunner({
-    datasource: getWaifuDatasource(),
-    queries: [
-      {
-        refId: 'A',
-        format: 'table',
-        rawSql: createSql(`
+  const filterVariable = new AdHocFiltersVariable({
+    name: 'filters',
+    label: 'Filters',
+    allowCustomValue: true,
+    getTagKeysProvider: (variable, currentKey) => {
+      return Promise.resolve({ replace: true, values: ['Any class name', 'Mod ID', 'Maven Coordinates', 'Authors', 'License', 'Any contained artifact']
+            .map(v => {
+                return {
+                  text: v
+                }
+            }) });
+    },
+    getTagValuesProvider: (variable, filter) => {
+      let query: string | undefined;
+      if (filter.key === 'Mod ID' && filter.operator.endsWith('=')) {
+        query = 'select distinct unnest(mods.mod_ids) from mods'
+      } else if (filter.key === 'Any contained artifact' && filter.operator.endsWith('=')) {
+        query = 'select distinct jsonb_path_query(mods.nested_tree, \'$.**.id\') from mods'
+      }
+
+      if (query) {
+        return firstValueFrom(ajax.post('/api/ds/query', {
+          queries: [{
+            refId: 'qr',
+            format: 'table',
+            datasource: getWaifuDatasource(),
+            rawSql: `set session search_path to "${versionVariable.getValueText()}"; ${query}`
+          }]
+        }).pipe()).then((value) => {
+          return {
+            replace: true,
+            values: (value.response as any)
+                .results.qr.frames[0].data.values[0]
+                .map((v: any) => {
+                  return { text: v.replaceAll('"', '') }
+                })
+          }
+        })
+      }
+      return Promise.resolve({ replace: true, values: [] });
+    },
+    expressionBuilder: filters => {
+      const byName: Map<string, AdHocVariableFilter[]> = new Map<string, AdHocVariableFilter[]>()
+      filters.forEach(fil => {
+        if (byName.has(fil.key)) {
+          byName.get(fil.key)?.push(fil)
+        } else {
+          byName.set(fil.key, [fil])
+        }
+      })
+
+      let baseQuery = `
 select
   (
     case
@@ -57,18 +106,54 @@ select
     mods.modrinth_project_id
   ) as pid
 from
-  mods
-where
-  loader is false
-order by
-  "Mod Name"
-`)
+  mods`
+
+      let group = ''
+
+      if (byName.get('Any class name')) {
+        const filtered = formatFilters('cls.name', byName.get('Any class name')!)
+        baseQuery += `
+join class_defs cd on cd.mod = mods.id
+join classes cls on cd.type = cls.id and ${filtered}`
+        // TODO - the fact that we have to manually group by each used column is a bit cursed
+        group = 'group by mods.name, mods.version, mods.mod_ids, mods.license, mods.authors, mods.mod_metadata_json, mods.maven_coordinates, mods.curseforge_project_id, mods.modrinth_project_id'
+      }
+
+      baseQuery += ` where loader is false`;
+      if (byName.get('Mod ID')) {
+        baseQuery += ` and ${formatFilters('mods.mod_ids[1]', byName.get('Mod ID')!)}`
+      }
+      if (byName.get('Maven Coordinates')) {
+        baseQuery += ` and ${formatFilters('mods.maven_coordinates', byName.get('Maven Coordinates')!)}`
+      }
+      if (byName.get('Authors')) {
+        baseQuery += ` and ${formatFilters('mods.authors', byName.get('Authors')!)}`
+      }
+      if (byName.get('License')) {
+        baseQuery += ` and ${formatFilters('mods.license', byName.get('License')!)}`
+      }
+      if (byName.get('Any contained artifact')) {
+        baseQuery += ` and jsonb_path_exists(nested_tree, '$.**.id ? (${formatJsonFilters(byName.get('Any contained artifact')!)})')`
+      }
+
+      return baseQuery + ` ${group} order by "Mod Name"`
+    }
+  })
+
+  const queryRunner = new SceneQueryRunner({
+    datasource: getWaifuDatasource(),
+    queries: [
+      {
+        refId: 'A',
+        format: 'table',
+        rawQuery: true,
+        rawSql: createSql('${filters:text}')
       },
     ],
   });
 
   const modListPanel = PanelBuilders.table()
-      .setTitle(`Mod list`)
+      .setTitle("Mod list")
       .applyMixin(linkProjectMixin)
       .setFilterable(true)
       .setOption('footer', {
@@ -79,7 +164,7 @@ order by
       .build()
 
   return new EmbeddedScene({
-    $variables: new SceneVariableSet({ variables: [versionVariable] }),
+    $variables: new SceneVariableSet({ variables: [versionVariable, filterVariable] }),
     $data: queryRunner,
     body: new SceneFlexLayout({
       children: [
@@ -203,7 +288,7 @@ export function createDrilldown(routeMatch: SceneRouteMatch<any>): SceneAppPage 
 set
   session search_path to "${version}";
 select classes.name as "Class Name" from class_defs
-join mods on class_defs.mod = mods.id and ${(id as string).match(/\d+/) ? `curseforge_project_id = ${id}` : `modrinth_project_id = '${id}'`}
+join mods on class_defs.mod = mods.id and ${(id as string).match(/^\d+$/) ? `curseforge_project_id = ${id}` : `modrinth_project_id = '${id}'`}
 join classes on class_defs.type = classes.id
 `
                       },
