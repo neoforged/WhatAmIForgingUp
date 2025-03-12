@@ -189,7 +189,32 @@ export function createDrilldown(routeMatch: SceneRouteMatch<any>): SceneAppPage 
                       <br/>
                       Last indexed version: <code>{modInfo.latestIndexVersion}</code>
                     </>
-                )
+                ),
+              PanelBuilders.table()
+                  .setTitle(`Mod classes`)
+                  .setFilterable(true)
+                  .setData(new SceneQueryRunner({
+                    datasource: getWaifuDatasource(),
+                    queries: [
+                      {
+                        refId: 'A',
+                        format: 'table',
+                        rawSql: `
+set
+  session search_path to "${version}";
+select classes.name as "Class Name" from class_defs
+join mods on class_defs.mod = mods.id and ${(id as string).match(/\d+/) ? `curseforge_project_id = ${id}` : `modrinth_project_id = '${id}'`}
+join classes on class_defs.type = classes.id
+`
+                      },
+                    ],
+                  }))
+                  .setOption('footer', {
+                    countRows: true,
+                    show: true,
+                    reducer: ['count']
+                  })
+                  .build()
             ]
           })
 
