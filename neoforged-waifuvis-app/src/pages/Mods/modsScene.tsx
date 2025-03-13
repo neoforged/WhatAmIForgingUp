@@ -52,6 +52,12 @@ export function modsScene() {
         query = 'select distinct unnest(mods.mod_ids) from mods'
       } else if (filter.key === 'Any contained artifact' && filter.operator.endsWith('=')) {
         query = 'select distinct jsonb_path_query(mods.nested_tree, \'$.**.id\') from mods'
+      } else if (filter.key === 'Authors' && filter.operator.endsWith('=')) {
+        query = 'select distinct mods.authors from mods'
+      } else if (filter.key === 'License' && filter.operator.endsWith('=')) {
+        query = 'select distinct mods.license from mods'
+      } else if (filter.key === 'Maven Coordinates' && filter.operator.endsWith('=')) {
+        query = 'select distinct mods.maven_coordinates from mods'
       }
 
       if (query) {
