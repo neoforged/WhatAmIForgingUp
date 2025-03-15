@@ -39,7 +39,7 @@ export function modsScene() {
     label: 'Filters',
     allowCustomValue: true,
     getTagKeysProvider: (variable, currentKey) => {
-      return Promise.resolve({ replace: true, values: ['Any class name', 'Mod ID', 'Maven Coordinates', 'Authors', 'License', 'Any contained artifact']
+      return Promise.resolve({ replace: true, values: ['Any class name', 'Mod ID', 'Maven Coordinates', 'Authors', 'License', 'Any contained artifact', 'In pack']
             .map(v => {
                 return {
                   text: v
@@ -138,6 +138,20 @@ join classes cls on cd.type = cls.id and ${filtered}`
       if (byName.get('License')) {
         baseQuery += ` and ${formatFilters('mods.license', byName.get('License')!)}`
       }
+
+      if (byName.get('In pack')) {
+        const packId = byName.get('In pack')![0].value;
+        interface Pack {
+          mods: {
+            projectId: number
+            fileId: number
+          }[]
+        }
+        const pack = getFromApi(`/platform/curseforge/pack/${packId}`) as Pack
+
+        baseQuery += ` and (${pack.mods.map(m => `mods.curseforge_project_id = ${m.projectId}`).join(' or ')})`;
+      }
+
       if (byName.get('Any contained artifact')) {
         baseQuery += ` and jsonb_path_exists(nested_tree, '$.**.id ? (${formatJsonFilters(byName.get('Any contained artifact')!)})')`
       }

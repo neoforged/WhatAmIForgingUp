@@ -377,8 +377,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             private volatile boolean startedIndex, success;
 
             private final AtomicInteger expected = new AtomicInteger(), indexed = new AtomicInteger();
-            private final Counter<ModIndexer.IndexCandidate> failed = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[15]);
-            private final Counter<ModIndexer.IndexCandidate> stored = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[15]);
+            private final Counter<ModIndexer.IndexCandidate> failed = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[25]);
+            private final Counter<ModIndexer.IndexCandidate> stored = new Counter<>(new AtomicInteger(), new ModIndexer.IndexCandidate[25]);
 
             private final Set<ModIndexer.IndexCandidate> newMods = new LinkedHashSet<>();
 

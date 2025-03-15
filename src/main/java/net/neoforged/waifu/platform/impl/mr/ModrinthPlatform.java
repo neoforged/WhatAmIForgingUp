@@ -60,6 +60,12 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     @Override
+    public PlatformMod getModBySlug(String slug) {
+        var res = sendRequest("/project/" + slug, new TypeToken<ProjectResponse>() {});
+        return createMod(res.id(), res.slug(), res);
+    }
+
+    @Override
     public Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField field) {
         record Project(String project_id, String slug) {}
         record SearchProjects(int total_hits, List<Project> hits) {}
@@ -203,10 +209,10 @@ public class ModrinthPlatform implements ModPlatform {
             private volatile List<Version> versions;
 
             @Override
-            public PlatformModFile getLatestFile(String gameVersion, ModLoader loader) {
-                var ld = loader(loader);
+            public PlatformModFile getLatestFile(String gameVersion, @Nullable ModLoader loader) {
+                var ld = loader == null ? null : loader(loader);
                 var file = getVersions().stream()
-                        .filter(v -> v.loaders.contains(ld) && v.game_versions.contains(gameVersion))
+                        .filter(v -> (ld == null || v.loaders.contains(ld)) && v.game_versions.contains(gameVersion))
                         .findFirst()
                         .orElse(null);
                 return file == null ? null : createModFile(this, file);

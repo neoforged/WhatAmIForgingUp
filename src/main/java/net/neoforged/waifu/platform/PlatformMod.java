@@ -23,7 +23,7 @@ public interface PlatformMod {
     Instant getReleasedDate();
 
     @Nullable
-    PlatformModFile getLatestFile(String gameVersion, ModLoader loader);
+    PlatformModFile getLatestFile(String gameVersion, @Nullable ModLoader loader);
 
     Iterator<PlatformModFile> getAllFiles();
 

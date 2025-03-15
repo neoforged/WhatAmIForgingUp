@@ -70,6 +70,18 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
+    public PlatformMod getModBySlug(String slug) {
+        try {
+            return createMod(api.getHelper().searchMods(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
+                            .slug(slug))
+                    .orElseThrow()
+                    .get(0));
+        } catch (CurseForgeException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField sortField) {
         try {
             Supplier<ModSearchQuery> baseQuery = () -> ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
@@ -289,10 +301,10 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             @Override
-            public PlatformModFile getLatestFile(String gameVersion, ModLoader loader) {
-                var ld = loader(loader);
+            public PlatformModFile getLatestFile(String gameVersion, @Nullable ModLoader loader) {
+                var ld = loader == null ? null : loader(loader);
                 var idx = mod.latestFilesIndexes().stream()
-                        .filter(f -> f.gameVersion().equals(gameVersion) && f.modLoader() != null && f.modLoaderType() == ld)
+                        .filter(f -> f.gameVersion().equals(gameVersion) && (ld == null || (f.modLoader() != null && f.modLoaderType() == ld)))
                         .limit(1)
                         .findFirst()
                         .orElse(null);

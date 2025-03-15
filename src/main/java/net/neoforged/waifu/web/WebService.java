@@ -4,11 +4,12 @@ import io.javalin.Javalin;
 import io.javalin.http.HttpStatus;
 import net.neoforged.waifu.Main;
 
+@SuppressWarnings({"FieldCanBeLocal", "unused"})
 public class WebService {
     private final Javalin javalin;
 
-    @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final VersionWebService versionService;
+    private final PlatformWebService platformService;
 
     public WebService(Javalin javalin) {
         this.javalin = javalin;
@@ -27,6 +28,7 @@ public class WebService {
         this.javalin.after(ctx -> ctx.header("Access-Control-Allow-Origin", "*"));
 
         this.versionService = new VersionWebService(javalin);
+        this.platformService = new PlatformWebService(javalin);
     }
 
     public void start() {

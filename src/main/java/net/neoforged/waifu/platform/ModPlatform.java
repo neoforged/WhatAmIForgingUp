@@ -16,6 +16,8 @@ public interface ModPlatform {
 
     PlatformMod getModById(Object id);
 
+    PlatformMod getModBySlug(String slug);
+
     Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField field);
 
     List<PlatformModFile> getFiles(List<Object> fileIds);
