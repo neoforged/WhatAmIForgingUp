@@ -14,7 +14,7 @@ import {
   SceneRefreshPicker,
   SceneRouteMatch,
   SceneVariableSet,
-  VariableValueSelectors,
+  VariableValueSelectors, VizPanelExploreButton,
 } from '@grafana/scenes';
 import {createApiUrl, getFromApi, getWaifuDatasource, ROUTES} from '../../constants';
 import {prefixRoute} from "../../utils/utils.routing";
@@ -174,6 +174,7 @@ join classes cls on cd.type = cls.id and ${filtered}`
 
   const modListPanel = PanelBuilders.table()
       .setTitle("Mod list")
+      .setHeaderActions([new VizPanelExploreButton()])
       .applyMixin(linkProjectMixin)
       .setFilterable(true)
       .setOption('footer', {
@@ -297,6 +298,7 @@ export function createDrilldown(routeMatch: SceneRouteMatch<any>): SceneAppPage 
                 ),
               PanelBuilders.table()
                   .setTitle(`Mod classes`)
+                  .setHeaderActions([new VizPanelExploreButton()])
                   .setFilterable(true)
                   .setData(new SceneQueryRunner({
                     datasource: getWaifuDatasource(),
