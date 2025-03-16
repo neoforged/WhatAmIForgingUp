@@ -7,7 +7,7 @@ import {
   SceneComponentProps,
   SceneControlsSpacer,
   SceneFlexItem,
-  SceneFlexLayout,
+  SceneFlexLayout, SceneGridItem, SceneGridLayout,
   SceneObjectBase,
   SceneObjectState,
   SceneQueryRunner,
@@ -53,11 +53,11 @@ export function modsScene() {
       } else if (filter.key === 'Any contained artifact' && filter.operator.endsWith('=')) {
         query = 'select distinct jsonb_path_query(mods.nested_tree, \'$.**.id\') from mods'
       } else if (filter.key === 'Authors' && filter.operator.endsWith('=')) {
-        query = 'select distinct mods.authors from mods'
+        query = 'select distinct mods.authors from mods where mods.authors is not null'
       } else if (filter.key === 'License' && filter.operator.endsWith('=')) {
-        query = 'select distinct mods.license from mods'
+        query = 'select distinct mods.license from mods where mods.license is not null'
       } else if (filter.key === 'Maven Coordinates' && filter.operator.endsWith('=')) {
-        query = 'select distinct mods.maven_coordinates from mods'
+        query = 'select distinct mods.maven_coordinates from mods where mods.maven_coordinates is not null'
       }
 
       if (query) {
@@ -275,6 +275,11 @@ export function createDrilldown(routeMatch: SceneRouteMatch<any>): SceneAppPage 
   }
   interface Platform {
     icon: string;
+    downloads: number;
+    title: string;
+    description: string;
+    url: string;
+    date: number;
   }
 
   const modInfo = getFromApi(`/${version}/mod/${id}`) as GetModResponse
@@ -287,41 +292,90 @@ export function createDrilldown(routeMatch: SceneRouteMatch<any>): SceneAppPage 
     getScene: () => {
       return new EmbeddedScene({
         body:
-          new SceneFlexLayout({
+          new SceneGridLayout({
             children: [
-                el(
+              new SceneGridItem({
+                isDraggable: false,
+                isResizable: false,
+                x: 0,
+                y: 0,
+                width: 8,
+                height: 4,
+                body: new DirectElement(
                     <>
-                      <img src={firstPlatform.icon} style={{height: "100px"}} />
+                      <img src={firstPlatform.icon} style={{height: "100px"}}/>
+                      <br/>
                       <br/>
                       Last indexed version: <code>{modInfo.latestIndexVersion}</code>
                     </>
-                ),
-              PanelBuilders.table()
-                  .setTitle(`Mod classes`)
-                  .setHeaderActions([new VizPanelExploreButton()])
-                  .setFilterable(true)
-                  .setData(new SceneQueryRunner({
-                    datasource: getWaifuDatasource(),
-                    queries: [
-                      {
-                        refId: 'A',
-                        format: 'table',
-                        rawSql: `
+                )
+              }),
+              new SceneGridItem({
+                x: 8,
+                y: 0,
+                width: modInfo.platforms.curseforge ? 8 : 0,
+                height: modInfo.platforms.curseforge ? 4 : 0,
+                body: modInfo.platforms.curseforge ? new DirectElement(
+                    <>
+                      <a href={modInfo.platforms.curseforge?.url}><h3>CurseForge</h3></a>
+                      <h4>{modInfo.platforms.curseforge?.title}</h4>
+                      <i>{modInfo.platforms.curseforge?.description}</i>
+                      <br/>
+                      Downloads: <b>{modInfo.platforms.curseforge?.downloads}</b>
+                      <br/>
+                      Released on <b>{new Date(modInfo.platforms.curseforge?.date * 1000).toDateString()}</b>
+                    </>
+                ) : new DirectElement(<></>)
+              }),
+              new SceneGridItem({
+                x: modInfo.platforms.curseforge ? 16 : 8,
+                y: 0,
+                width: modInfo.platforms.modrinth ? 8 : 0,
+                height: modInfo.platforms.modrinth ? 4 : 0,
+                body: modInfo.platforms.modrinth ? new DirectElement(
+                    <>
+                      <a href={modInfo.platforms.modrinth?.url}><h3>Modrinth</h3></a>
+                      <h4>{modInfo.platforms.modrinth?.title}</h4>
+                      <i>{modInfo.platforms.modrinth?.description}</i>
+                      <br/>
+                      Downloads: <b>{modInfo.platforms.modrinth?.downloads}</b>
+                      <br/>
+                      Released on <b>{new Date(modInfo.platforms.modrinth?.date * 1000).toDateString()}</b>
+                    </>
+                ) : new DirectElement(<></>)
+              }),
+              new SceneGridItem({
+                x: 0,
+                y: 14,
+                width: 24,
+                height: 12,
+                body: PanelBuilders.table()
+                    .setTitle(`Mod classes`)
+                    .setHeaderActions([new VizPanelExploreButton()])
+                    .setFilterable(true)
+                    .setData(new SceneQueryRunner({
+                      datasource: getWaifuDatasource(),
+                      queries: [
+                        {
+                          refId: 'A',
+                          format: 'table',
+                          rawSql: `
 set
   session search_path to "${version}";
 select classes.name as "Class Name" from class_defs
 join mods on class_defs.mod = mods.id and ${(id as string).match(/^\d+$/) ? `curseforge_project_id = ${id}` : `modrinth_project_id = '${id}'`}
 join classes on class_defs.type = classes.id
 `
-                      },
-                    ],
-                  }))
-                  .setOption('footer', {
-                    countRows: true,
-                    show: true,
-                    reducer: ['count']
-                  })
-                  .build()
+                        },
+                      ],
+                    }))
+                    .setOption('footer', {
+                      countRows: true,
+                      show: true,
+                      reducer: ['count']
+                    })
+                    .build()
+              })
             ]
           })
 

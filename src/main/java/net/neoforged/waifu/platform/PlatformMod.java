@@ -22,6 +22,8 @@ public interface PlatformMod {
 
     Instant getReleasedDate();
 
+    String getUrl();
+
     @Nullable
     PlatformModFile getLatestFile(String gameVersion, @Nullable ModLoader loader);
 

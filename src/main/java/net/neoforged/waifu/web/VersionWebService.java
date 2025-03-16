@@ -67,10 +67,10 @@ public class VersionWebService {
 
     public record PlatformModResponse(
             String title, String description, String icon,
-            long downloads, Instant date
+            long downloads, Instant date, String url
     ) {
         public PlatformModResponse(PlatformMod mod) {
-            this(mod.getTitle(), mod.getDescription(), mod.getIconUrl(), mod.getDownloads(), mod.getReleasedDate());
+            this(mod.getTitle(), mod.getDescription(), mod.getIconUrl(), mod.getDownloads(), mod.getReleasedDate(), mod.getUrl());
         }
     }
 

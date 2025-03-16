@@ -206,6 +206,11 @@ public class ModrinthPlatform implements ModPlatform {
                 return fill().published;
             }
 
+            @Override
+            public String getUrl() {
+                return "https://modrinth.com/mod/" + id;
+            }
+
             private volatile List<Version> versions;
 
             @Override
