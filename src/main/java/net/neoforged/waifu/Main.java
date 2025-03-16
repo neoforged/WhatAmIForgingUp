@@ -33,7 +33,7 @@ public class Main {
     public static final Path PLATFORM_CACHE = Main.CACHE.resolve("platform");
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
     public static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(
-            3, Thread.ofPlatform().name("indexer-").uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory()
+            3, Thread.ofPlatform().name("indexer-", 0).uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory()
     );
     public static final DataSanitizer SANITIZER = DataSanitizer.of(
             DataSanitizer.REMOVE_OWN_DIRECT_REFERENCES, DataSanitizer.REMOVE_PRIVATE_MEMBERS

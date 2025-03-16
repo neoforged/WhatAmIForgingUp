@@ -142,10 +142,10 @@ join classes cls on cd.type = cls.id and ${filtered}`
       if (byName.get('In pack')) {
         const packId = byName.get('In pack')![0].value;
         interface Pack {
-          mods: {
+          mods: Array<{
             projectId: number
             fileId: number
-          }[]
+          }>
         }
         const pack = getFromApi(`/platform/curseforge/pack/${packId}`) as Pack
 

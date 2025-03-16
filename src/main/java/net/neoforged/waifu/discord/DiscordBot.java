@@ -281,6 +281,20 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 event.getHook().sendMessage("Successfully linked mods!").complete();
             }
         });
+
+        builder.addSlashCommand(new SlashCommand() {
+            {
+                name = "shutdown";
+                help = "Shut down the bot";
+            }
+
+            @Override
+            protected void execute(SlashCommandEvent event) {
+                event.reply("Shutting down...")
+                        .queue($ -> System.exit(0));
+            }
+        });
+
         return builder.build();
     }
 
