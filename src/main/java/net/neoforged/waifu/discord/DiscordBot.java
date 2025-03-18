@@ -320,8 +320,14 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 editMessage(embed -> {
                     if (success) {
                         embed.addField("Step", "Success", false);
-                        embed.setDescription("**" + indexed.get() + "** mods indexed (JiJ included).\nLast indexed mods:\n");
+                        embed.setDescription("**" + indexed.get() + "** mods indexed (JiJ included).\n");
 
+                        for (ModIndexer.IndexCandidate element : stored.getElements()) {
+                            if (element != null) {
+                                embed.appendDescription("Last indexed mods:\n");
+                            }
+                            break;
+                        }
                         printToEmbed(stored, embed);
 
                         if (failed.getAmount() != 0) {
