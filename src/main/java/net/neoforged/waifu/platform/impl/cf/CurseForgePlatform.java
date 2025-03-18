@@ -344,7 +344,7 @@ public class CurseForgePlatform implements ModPlatform {
                 return mod.latestFiles()
                         .stream().map(f -> Instant.parse(f.fileDate()))
                         .max(Comparator.comparing(Function.identity()))
-                        .orElseThrow();
+                        .orElse(null);
             }
 
             @Override

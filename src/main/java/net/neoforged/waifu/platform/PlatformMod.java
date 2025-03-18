@@ -31,6 +31,7 @@ public interface PlatformMod {
 
     Iterator<PlatformModFile> getFilesForVersion(String version, ModLoader loader);
 
+    @Nullable
     Instant getLatestReleaseDate();
 
     default boolean isAvailable() {

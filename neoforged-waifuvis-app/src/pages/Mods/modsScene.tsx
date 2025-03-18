@@ -365,6 +365,7 @@ set
 select classes.name as "Class Name" from class_defs
 join mods on class_defs.mod = mods.id and ${(id as string).match(/^\d+$/) ? `curseforge_project_id = ${id}` : `modrinth_project_id = '${id}'`}
 join classes on class_defs.type = classes.id
+order by classes.name
 `
                         },
                       ],

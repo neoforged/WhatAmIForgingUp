@@ -160,7 +160,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
             // This file was indexed already so we'll skip up, but we'll just make sure that it's linked
             if (file.platformFile != null) {
                 merge(db, knownByHash, file.platformFile);
-                db.markKnownById(file.platformFile, file.platformFile.getMod().getLatestReleaseDate());
+                db.markKnownById(file.platformFile, Objects.requireNonNullElse(file.platformFile.getMod().getLatestReleaseDate(), Instant.EPOCH));
             } else if (file.file().getMavenCoordinates() != null && knownByHash.getMavenCoordinate() == null) {
                 knownByHash.link(file.file().getMavenCoordinates());
             }
@@ -274,7 +274,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
             mod.updateMetadata(file);
 
             if (platform != null) {
-                db.markKnownById(platform, platform.getMod().getLatestReleaseDate());
+                db.markKnownById(platform, Objects.requireNonNullElse(platform.getMod().getLatestReleaseDate(), Instant.EPOCH));
             }
         };
     }

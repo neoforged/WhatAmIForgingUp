@@ -107,7 +107,7 @@ public class GameVersionIndexService implements Runnable {
                     var latestKnown = db.getKnownLatestProjectFileDate(file);
                     if (latestKnown != null) {
                         // We only stop if we found a known file that is also latest for that project since the project could be latest updated but for a different version
-                        if (next.getLatestReleaseDate().getEpochSecond() == latestKnown.getEpochSecond()) { // Modrinth returns the date with big precision
+                        if (next.getLatestReleaseDate() != null && next.getLatestReleaseDate().getEpochSecond() == latestKnown.getEpochSecond()) { // Modrinth returns the date with big precision
                             break;
                         } else {
                             continue;
