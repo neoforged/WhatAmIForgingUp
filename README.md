@@ -13,7 +13,7 @@ A prerequisite to self-hosting is a PostgreSQL database. This database will need
 You will also need the token of a Discord bot invited in a server with Send Messages permissions,
 and a CurseForge API key.
 
-This tool is on GHCR as a Docker image at `ghcr.io/neoforged/whatamiforgingup`.
+This tool [is on GHCR](https://github.com/neoforged/WhatAmIForgingUp/pkgs/container/whatamiforgingup) as a Docker image at `ghcr.io/neoforged/whatamiforgingup`.
 WhatAmIForgingUp is configured using environment variables:
 - `CF_API_KEY`: a CurseForge API key used for searching and indexing mods available on CurseForge
 - `MODRINTH_API_TOKEN`: an **optional** Modrinth API token used for searching and indexing mods available on Modrinth
