@@ -19,7 +19,7 @@ WhatAmIForgingUp is configured using environment variables:
 - `MODRINTH_API_TOKEN`: an **optional** Modrinth API token used for searching and indexing mods available on Modrinth
 - `DISCORD_TOKEN`: the token of the Discord bot
 - `DISCORD_CHANNEL_ID`: the ID of a channel that the bot will send index status updates in
-- `POSTGRES_DB_URL`: the URL of the Postgres database. The format is `<ip>:<port>/<database_name>` (example: `localhost:1234/waifu`)
+- `POSTGRES_DB_URL`: the URL of the Postgres database. The format is `<ip>:<port>/<database_name>` (example: `localhost:5432/waifu`)
 - `POSTGRES_DB_USERNAME`: the username of a user with write (and importantly create schema) permissions to the database
 - `POSTGRES_DB_PASSWORD`: the password of the database user
 - `KEEP_PLATFORM_CACHES`: boolean defaulting to `true`. If set to `false`, the bot will not keep indexed mod jars in its cache, deleting them after they've been indexed. Note that while this is used for space saving purposes, for the initial index you will still need to be able to store all mod jars (which could amount to several gigabytes) as they will be deleted only after all mods are indexed
