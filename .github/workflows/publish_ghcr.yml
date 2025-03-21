@@ -3,7 +3,7 @@ name: Deploy Images to GHCR
 on:
   push:
     branches:
-      - main
+      - v2
     paths:
       - src/**
       - gradle/**

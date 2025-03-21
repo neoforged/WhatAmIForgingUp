@@ -3,7 +3,7 @@ name: Publish Grafana Plugin
 on:
   push:
     branches:
-      - main
+      - v2
     paths:
       - neoforged-waifuvis-app/**
       - .github/**
