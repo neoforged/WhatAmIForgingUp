@@ -231,7 +231,8 @@ public class CurseForgePlatform implements ModPlatform {
 
         final Runnable request = () -> {
             try {
-                var res = api.getHelper().getFiles(partition.stream().mapToInt(f -> (int) f.getId()).toArray()).orElseThrow();
+                var res = api.getHelper().getFiles(partition.stream().mapToInt(f -> (int) f.getId()).toArray())
+                        .orElse(List.of());
                 for (File file : res) {
                     byId.get(file.id()).setCachedFile(file);
                 }
