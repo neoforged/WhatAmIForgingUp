@@ -9,6 +9,9 @@ on:
       - .github/**
   workflow_dispatch:
 
+env:
+  NODE_VERSION: 22
+
 permissions:
   contents: write
   statuses: write
@@ -17,25 +20,31 @@ jobs:
   push-plugin:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: neoforged/actions/checkout@main
+      - uses: neoforged/actions/checkout@main
 
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: neoforged-waifuvis-app/package-lock.json
-      - run: |
-          ./gradlew replacePluginVersion
-          cd neoforged-waifuvis-app
-          npm i
-          npm run build
+
+      - name: Update Plugin Version
+        run: ./gradlew replacePluginVersion
+
+      - name: Install NPM Dependencies
+        working-directory: neoforged-waifuvis-app
+        run: npm ci
+
+      - name: Build Plugin
+        working-directory: neoforged-waifuvis-app
+        run: npm run build
 
       - name: Publish with Gradle
         run: ./gradlew publishMods
