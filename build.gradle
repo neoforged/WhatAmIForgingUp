@@ -126,6 +126,6 @@ publishMods {
     github {
         accessToken = providers.environmentVariable('GITHUB_TOKEN')
         repository = 'neoforged/WhatAmIForgingUp'
-        commitish = 'main'
+        commitish = 'v2'
     }
 }
