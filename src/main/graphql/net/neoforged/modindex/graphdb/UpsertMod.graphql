@@ -1,7 +1,0 @@
-mutation UpsertMod($mod: [AddModInput!]!) {
-    addMod(input: $mod, upsert: true) {
-        mod {
-            id
-        }
-    }
-}
