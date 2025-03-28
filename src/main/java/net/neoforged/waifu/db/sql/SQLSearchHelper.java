@@ -111,7 +111,6 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 var name = order.get("name");
                 if (name != null) {
                     aggIn = aggIn + " order by " + new Order(name).createStatement(aggIn);
-                    builder.requestColumn("array_agg(classes.name) as classes");
                 }
             }
 
