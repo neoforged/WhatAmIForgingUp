@@ -3,8 +3,10 @@ package net.neoforged.waifu.db.sql;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import graphql.schema.DataFetchingEnvironment;
+import net.neoforged.waifu.Main;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
 import net.neoforged.waifu.platform.ModLoader;
+import net.neoforged.waifu.platform.PlatformModFile;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.statement.HashPrefixSqlParser;
@@ -37,7 +39,9 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
             "description", new Criterion.JsonCriterion("mods.mod_metadata_json", "$.mods[*].description", "$.description"),
             "modId", new Criterion.JsonCriterion("mods.mod_metadata_json", "$.mods[*].modId", "$.id"),
-            "anyClassName", new Criterion.ColumnCriterion("classes.name")
+            "anyClassName", new Criterion.ColumnCriterion("classes.name"),
+
+            "inPack", new Criterion.InPackCriterion("curseforge_project_id", "modrinth_project_id")
     );
 
     private static final Map<String, Criterion> CLASS_CRITERIA = Map.of(
@@ -175,8 +179,9 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                         lst.removeLast();
                     }
 
-                    var pag = HashMap.newHashMap(2);
+                    var pag = HashMap.newHashMap(3);
                     pag.put("hasNextPage", hasNext);
+                    pag.put("size", lst.size());
                     if (!lst.isEmpty()) {
                         pag.put("endCursor", lst.getLast().get("id"));
                     }
@@ -210,17 +215,12 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
 
         var criterion = filter.entrySet().stream().findFirst().orElseThrow();
-        var fil = parseStringFilter((Map<String, Object>) criterion.getValue());
         appliedCriteria.add(criterion.getKey());
-        return switch (crit.get(criterion.getKey())) {
-            case Criterion.ColumnCriterion(var fld) -> WhereClause.columnFilter(fil, fld);
-            case Criterion.JsonCriterion(var col, var neo, var fabric) ->
-                    WhereClause.jsonFilter(fil, col, loader == ModLoader.FABRIC ? fabric : neo);
-        };
+        return crit.get(criterion.getKey()).apply((Map<String, Object>) criterion.getValue(), loader);
     }
 
     @SuppressWarnings("unchecked")
-    private FilterOp parseStringFilter(Map<String, Object> filter) {
+    private static FilterOp parseStringFilter(Map<String, Object> filter) {
         var equals = filter.get("equals");
         if (equals != null) return FilterOp.equals((String) equals);
 
@@ -229,12 +229,12 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
         var allOf = (List<Map<String, Object>>) filter.get("allOf");
         if (allOf != null) {
-            return FilterOp.allOf(allOf.stream().map(this::parseStringFilter).toList());
+            return FilterOp.allOf(allOf.stream().map(SQLSearchHelper::parseStringFilter).toList());
         }
 
         var anyOf = (List<Map<String, Object>>) filter.get("anyOf");
         if (anyOf != null) {
-            return FilterOp.anyOf(anyOf.stream().map(this::parseStringFilter).toList());
+            return FilterOp.anyOf(anyOf.stream().map(SQLSearchHelper::parseStringFilter).toList());
         }
 
         var not = (Map<String, Object>) filter.get("not");
@@ -331,7 +331,12 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
             var q = handle.createQuery(builder.toString());
             for (int i = 0; i < ctx.args.size(); i++) {
-                q.bind("i" + i, ctx.args.get(i));
+                var arg = ctx.args.get(i);
+                if (arg instanceof Object[] ar) {
+                    q.bindArray("i" + i, ar[0].getClass(), ar);
+                } else {
+                    q.bind("i" + i, arg);
+                }
             }
             return q;
         }
@@ -426,9 +431,41 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
     }
 
-    private sealed interface Criterion {
-        record ColumnCriterion(String column) implements Criterion {}
-        record JsonCriterion(String column, String neoforge, String fabric) implements Criterion {}
+    private interface Criterion {
+        record ColumnCriterion(String column) implements Criterion {
+            @Override
+            public WhereClause apply(Map<String, Object> value, ModLoader loader) {
+                return WhereClause.columnFilter(parseStringFilter(value), column);
+            }
+        }
+        record JsonCriterion(String column, String neoforge, String fabric) implements Criterion {
+            @Override
+            public WhereClause apply(Map<String, Object> value, ModLoader loader) {
+                return WhereClause.jsonFilter(parseStringFilter(value), column, loader == ModLoader.FABRIC ? fabric : neoforge);
+            }
+        }
+
+        record InPackCriterion(String curseforgeColumn, String modrinthColumn) implements Criterion {
+            @Override
+            public WhereClause apply(Map<String, Object> value, ModLoader loader) {
+                var cf = value.get("curseforge");
+                if (cf != null) {
+                    var file = Main.CURSE_FORGE_PLATFORM.getModById(cf).getAllFiles().next();
+                    return ctx -> curseforgeColumn + " = any(" + ctx.insert(ids(file)) + "::int[])";
+                }
+                var mr = value.get("modrinth");
+                var file = Main.MODRINTH_PLATFORM.getModById(mr).getAllFiles().next();
+                return ctx -> modrinthColumn + " = any(" + ctx.insert(ids(file)) + "::text[])";
+            }
+
+            private Object[] ids(PlatformModFile file) {
+                return file.getPlatform().getModsInPack(file)
+                        .stream().map(PlatformModFile::getModId)
+                        .toArray();
+            }
+        }
+
+        WhereClause apply(Map<String, Object> value, ModLoader loader);
     }
 
     private record Order(OrderRule rule, boolean desc) {

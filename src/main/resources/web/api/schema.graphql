@@ -90,6 +90,17 @@ input ModPredicate @predicateType @oneOf {
 
     "A mod will match if any of the classes it defines has a name that matches the given filter"
     anyClassName: StringFilter
+
+    "A mod will match if it is contained in the pack with the given ID"
+    inPack: ProjectId
+}
+
+"Represents the ID of a project on CurseForge or Modrinth"
+input ProjectId @oneOf {
+    "The ID of the project on CurseForge"
+    curseforge: Int
+    "The ID of the project on Modrinth"
+    modrinth: String
 }
 
 "Used to filter classes based on different criteria"
@@ -104,6 +115,9 @@ type PageInformation {
 
     "The cursor ID that points to the last element returned, if there is one"
     endCursor: Int
+
+    "The size of the current page"
+    size: Int!
 }
 
 """
