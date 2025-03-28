@@ -51,7 +51,7 @@ public class PostgresDatabaseManager implements DatabaseManager {
         source.setUrl(url);
         baseProperties.forEach((k, v) -> {
             try {
-                source.setProperty((String) k, (String) v);
+                source.setProperty(k.toString(), v.toString());
             } catch (SQLException e) {
                 Utils.sneakyThrow(e);
             }
