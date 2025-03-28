@@ -2,9 +2,11 @@ package net.neoforged.waifu;
 
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.javalin.Javalin;
+import io.javalin.http.staticfiles.Location;
 import net.neoforged.waifu.db.DataSanitizer;
+import net.neoforged.waifu.db.DatabaseManager;
 import net.neoforged.waifu.db.IndexDatabase;
-import net.neoforged.waifu.db.SQLDatabase;
+import net.neoforged.waifu.db.sql.PostgresDatabaseManager;
 import net.neoforged.waifu.discord.DiscordBot;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
@@ -13,14 +15,13 @@ import net.neoforged.waifu.platform.impl.mr.ModrinthPlatform;
 import net.neoforged.waifu.util.DateUtils;
 import net.neoforged.waifu.util.Utils;
 import net.neoforged.waifu.web.WebService;
+import net.neoforged.waifu.web.api.TokenManager;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -45,6 +46,11 @@ public class Main {
     public static final ModrinthPlatform MODRINTH_PLATFORM;
     public static final List<ModPlatform> PLATFORMS;
 
+    public static final DatabaseManager DB_MANAGER = new PostgresDatabaseManager(
+            "jdbc:postgresql://" + System.getenv("POSTGRES_DB_URL"),
+            System.getenv("POSTGRES_DB_USERNAME"), System.getenv("POSTGRES_DB_PASSWORD")
+    );
+
     private static final Map<String, Map<ModLoader, Future<?>>> SERVICES = new ConcurrentHashMap<>();
 
     static {
@@ -64,7 +70,9 @@ public class Main {
         var db = new MainDatabase(Path.of("data.db"));
         db.runFlyway();
 
-        var bot = new DiscordBot(System.getenv("DISCORD_TOKEN"), db);
+        var tokens = new TokenManager(Path.of("tokens.db"));
+
+        var bot = new DiscordBot(System.getenv("DISCORD_TOKEN"), db, tokens);
 
         long initialDelay = 15;
         for (var version : db.getIndexedGameVersions()) {
@@ -73,7 +81,10 @@ public class Main {
             initialDelay += 60 * 10;
         }
 
-        WebService web = new WebService(Javalin.create(cfg -> cfg.useVirtualThreads = true));
+        WebService web = new WebService(Javalin.create(cfg -> {
+            cfg.useVirtualThreads = true;
+            cfg.staticFiles.add("/web/static", Location.CLASSPATH);
+        }), db, tokens);
         web.start();
     }
 
@@ -96,9 +107,6 @@ public class Main {
     }
 
     public static IndexDatabase<?> createDatabase(String version, ModLoader loader) {
-        var indexDb = new SQLDatabase("jdbc:postgresql://" + System.getenv("POSTGRES_DB_URL") + "?currentSchema=" + version + "-" + loader.name().toLowerCase(Locale.ROOT),
-                System.getenv("POSTGRES_DB_USERNAME"), System.getenv("POSTGRES_DB_PASSWORD"));
-        indexDb.runFlyway();
-        return indexDb;
+        return DB_MANAGER.getDatabase(version, loader);
     }
 }

@@ -1,4 +1,4 @@
-package net.neoforged.waifu.db;
+package net.neoforged.waifu.db.sql;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
@@ -7,8 +7,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.neoforged.waifu.Main;
+import net.neoforged.waifu.db.ClassData;
+import net.neoforged.waifu.db.EnumExtension;
+import net.neoforged.waifu.db.IndexDatabase;
+import net.neoforged.waifu.db.TagFile;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModInfo;
+import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
@@ -21,13 +26,11 @@ import org.flywaydb.core.api.callback.Event;
 import org.jdbi.v3.core.ConnectionFactory;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.result.ResultProducer;
-import org.jdbi.v3.postgres.PostgresPlugin;
-import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
 
+import javax.sql.DataSource;
 import java.sql.Array;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -46,24 +49,17 @@ import java.util.stream.Collectors;
 
 public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
     private final Jdbi jdbi;
-    private final String url, username, password;
     private final ConnectionFactory connectionFactory;
 
-    public SQLDatabase(String url, String username, String password) {
-        this.url = url;
-        this.username = username;
-        this.password = password;
-        this.connectionFactory = () -> DriverManager.getConnection(url, username, password);
-        this.jdbi = Jdbi.create(connectionFactory);
-
-        jdbi.installPlugin(new SqlObjectPlugin());
-        jdbi.installPlugin(new PostgresPlugin());
+    public SQLDatabase(PostgresDatabaseManager man, ConnectionFactory connectionFactory, ModLoader loader) {
+        this.connectionFactory = connectionFactory;
+        this.jdbi = man.getJdbi(connectionFactory);
     }
 
-    public void runFlyway() {
+    void runFlyway(DataSource source) {
         Flyway.configure()
                 .locations("classpath:indexdb/migration")
-                .dataSource(url, username, password)
+                .dataSource(source)
                 .createSchemas(true)
                 .callbacks(new Callback() {
 

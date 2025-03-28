@@ -27,6 +27,7 @@ import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.DateUtils;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
+import net.neoforged.waifu.web.api.TokenManager;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.codehaus.plexus.util.StringUtils;
 
@@ -56,9 +57,11 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
     private final long channelId;
     private final ScheduledExecutorService messageUpdateService;
     private final MainDatabase database;
+    private final TokenManager tokens;
 
-    public DiscordBot(String token, MainDatabase database) throws InterruptedException {
+    public DiscordBot(String token, MainDatabase database, TokenManager tokens) throws InterruptedException {
         this.database = database;
+        this.tokens = tokens;
 
         this.jda = JDABuilder.createLight(token)
                 .addEventListeners(new FilteredCommandClient((EventListener) createCommandClient()))
@@ -95,6 +98,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
         var builder = new CommandClientBuilder();
         builder.setOwnerId("0");
         builder.setActivity(Activity.of(Activity.ActivityType.WATCHING, "naughty modders"));
+
+        builder.addSlashCommand(new TokensCommand(tokens));
 
         var trackVersionCommand = new SlashCommand() {
             {

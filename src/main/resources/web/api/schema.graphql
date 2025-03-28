@@ -1,0 +1,155 @@
+# noinspection GraphQLUnresolvedReference,GraphQLMissingType
+
+directive @predicateType on INPUT_OBJECT
+
+schema {
+    query: Query
+}
+
+enum Loader {
+    "The NeoForge loader (https://github.com/NeoForged)"
+    NeoForge,
+    "The NeoForge loader (https://github.com/FabricMC)"
+    Fabric,
+    "The Forge loader (https://github.com/MinecraftForge)"
+    Forge
+}
+
+type Query {
+    "Get all indexed game versions"
+    gameVersions: [GameVersion!]!
+
+    "Query a game version based on the Minecraft version and the loader"
+    gameVersion(
+        "The Minecraft version"
+        version: String!,
+        "The loader"
+        loader: Loader!
+    ): GameVersion
+}
+
+type GameVersion {
+    "The Minecraft version this game version indexes"
+    version: String!
+    "The loader this game version indexes"
+    loader: Loader!
+
+    "Query mods from the database"
+    getMods(
+        pagination: PaginationInput,
+        "Optional filter applied to the query"
+        filter: ModPredicate
+    ): ModsResponse!
+}
+
+type Mod {
+    id: Int!
+    "The name of this mod (derived from mod metadata, jar contents or maven coordinates)"
+    name: String!
+    "The last indexed version of this mod"
+    version: String!
+
+    "The authors of this mod (derived from mod metadata)"
+    authors: String
+    "The license of this mod (derived from mod metadata)"
+    license: String
+
+    "The ID of the CurseForge project associated with this mod"
+    curseforgeProjectId: Int
+    "The ID of the Modrinth project associated with this mod"
+    modrinthProjectId: String
+    "The maven coordinates of this mod (only set if this mod was JiJ'd by another mod)"
+    mavenCoordinates: String
+
+    classes(filter: ClassPredicate, order: ClassOrdering, limit: Int): [String!]!
+}
+
+type ModsResponse {
+    "The returned mods"
+    mods: [Mod!]!
+
+    "Information to be used for pagination"
+    pageInfo: PageInformation!
+}
+
+"Used to filter mods based on different criteria"
+input ModPredicate @predicateType @oneOf {
+    "Filter based on the mod's name (derived from mod metadata, jar contents or maven coordinates)"
+    name: StringFilter
+    "Filter based on the mod's authors (derived from mod metadata)"
+    authors: StringFilter
+    "Filter based on the mod's license (derived from mod metadata)"
+    license: StringFilter
+    "Filter based on the mod's description (derived from mod metadata)"
+    description: StringFilter
+    """
+    Filter based on the mod's mod IDs (derived from mod metadata).
+    On Neo/Forge only one of the IDs of a multi mod jar needs to match the filter.
+    """
+    modId: StringFilter
+
+    "A mod will match if any of the classes it defines has a name that matches the given filter"
+    anyClassName: StringFilter
+}
+
+"Used to filter classes based on different criteria"
+input ClassPredicate @predicateType @oneOf {
+    "Filter based on the class' JVM name"
+    name: StringFilter
+}
+
+type PageInformation {
+    "Whether there are more elements past the last element of the response"
+    hasNextPage: Boolean!
+
+    "The cursor ID that points to the last element returned, if there is one"
+    endCursor: Int
+}
+
+"""
+Represents a way of filtering string inputs based on different rules that are either logical operators
+on other filters (NOT, AND, OR) or exact / regex matches.
+"""
+input StringFilter @oneOf {
+    "The string being filtered must be equal to the given string."
+    equals: String
+
+    "The string being filtered must match the given regex pattern."
+    matches: String
+
+    "The string being filtered must not match the given filter."
+    not: StringFilter
+
+    "The string being filtered must match all of the given filters."
+    allOf: [StringFilter!]
+
+    "The string being filtered must match any of the given filters."
+    anyOf: [StringFilter!]
+}
+
+input PaginationInput {
+    "The cursor ID of the element to search after"
+    after: Int
+
+    "Maximum amount of elements to query"
+    limit: Int
+}
+
+enum OrderRule {
+    value,
+    length
+}
+
+enum OrderDirection {
+    asc,
+    desc
+}
+
+input OrderMethod {
+    by: OrderRule = value
+    direction: OrderDirection = asc
+}
+
+input ClassOrdering @oneOf {
+    name: OrderMethod
+}
