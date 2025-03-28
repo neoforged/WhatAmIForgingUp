@@ -133,7 +133,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
         var untrackVersionCommand = new SlashCommand() {
             {
                 name = "untrack";
-                help = "Untrack a version to stop it from being idexed";
+                help = "Untrack a version to stop it from being indexed";
                 options = List.of(
                         new OptionData(OptionType.STRING, "version", "The version to untrack", true),
                         new OptionData(OptionType.STRING, "loader", "The loader to untrack", true)
@@ -159,12 +159,42 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             }
         };
 
+        var listVersionsCommand = new SlashCommand() {
+            {
+                name = "list";
+                help = "List tracked versions";
+            }
+
+            @Override
+            protected void execute(SlashCommandEvent event) {
+                var versions = database.getIndexedGameVersions();
+                var embed = new EmbedBuilder().setTitle("Versions currently indexed")
+                        .setTimestamp(Instant.now());
+
+                var desc = versions.stream()
+                        .map(t -> {
+                            var str = new StringBuilder("- `" + t.gameVersion() + "` / " + t.loader());
+                            if (t.indexInterval() == 0) {
+                                str.append(" - *interval not set* (default is ").append(Main.DEFAULT_INTERVAL_SEC).append(" seconds)");
+                            } else {
+                                str.append(" - ").append(t.indexInterval()).append(" seconds");
+                            }
+                            return str.toString();
+                        })
+                        .collect(Collectors.joining("\n"));
+
+                embed.setDescription(desc);
+
+                event.replyEmbeds(embed.build()).queue();
+            }
+        };
+
         builder.addSlashCommand(new SlashCommand() {
             {
                 name = "game-version";
                 help = "Track and untrack game versions";
                 children = new SlashCommand[] {
-                        trackVersionCommand, untrackVersionCommand
+                        trackVersionCommand, untrackVersionCommand, listVersionsCommand
                 };
             }
 
