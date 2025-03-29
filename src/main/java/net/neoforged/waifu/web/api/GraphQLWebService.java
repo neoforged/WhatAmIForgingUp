@@ -21,6 +21,7 @@ import net.neoforged.waifu.Main;
 import net.neoforged.waifu.MainDatabase;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
 import net.neoforged.waifu.platform.ModLoader;
+import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
@@ -203,7 +204,7 @@ public class GraphQLWebService {
                 ctx.json(Map.of("error", executionResult.getErrors().get(0).getMessage())).status(HttpStatus.BAD_REQUEST);
                 return;
             }
-            ctx.json(Map.of("data", executionResult.getData()));
+            ctx.json(Utils.GSON.toJson(Map.of("data", executionResult.getData())));
         });
     }
 

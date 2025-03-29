@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @CanIgnoreReturnValue
@@ -20,7 +21,7 @@ public final class SqlSearchBuilder {
     final Set<String> columns = new LinkedHashSet<>();
     private final Set<String> groups = new LinkedHashSet<>();
     private final List<SqlCondition> conditions = new ArrayList<>();
-    private final SqlArgumentContext ctx = new SqlArgumentContext();
+    private final SqlArgumentContext ctx;
     private final Multimap<String, SqlCondition> joins = Multimaps.newListMultimap(new LinkedHashMap<>(), ArrayList::new);
 
     private String orderColumn;
@@ -28,11 +29,21 @@ public final class SqlSearchBuilder {
     private int limit;
 
     public SqlSearchBuilder(String table) {
+        this(table, new SqlArgumentContext());
+    }
+
+    public SqlSearchBuilder(String table, SqlArgumentContext ctx) {
         this.table = table;
+        this.ctx = ctx;
     }
 
     public SqlSearchBuilder requestColumn(String col) {
         columns.add(col);
+        return this;
+    }
+
+    public SqlSearchBuilder requestColumn(String col, String alias) {
+        columns.add(col + " as " + alias);
         return this;
     }
 
@@ -71,7 +82,11 @@ public final class SqlSearchBuilder {
         return this;
     }
 
-    public Query build(Handle handle) {
+    public String insert(Object value) {
+        return ctx.insert(value);
+    }
+
+    public String format() {
         StringBuilder builder = new StringBuilder("select ");
         builder.append(String.join(", ", columns))
                 .append(" from ")
@@ -102,8 +117,11 @@ public final class SqlSearchBuilder {
         if (limit > 0) {
             builder.append(" limit ").append(limit);
         }
+        return builder.toString();
+    }
 
-        var q = handle.createQuery(builder.toString());
+    public Query build(Handle handle) {
+        var q = handle.createQuery(format());
         for (int i = 0; i < ctx.args.size(); i++) {
             var arg = ctx.args.get(i);
             if (arg instanceof Object[] ar) {
@@ -115,6 +133,17 @@ public final class SqlSearchBuilder {
             }
         }
         return q;
+    }
+
+    public SqlSearchBuilder subBuilder(String col) {
+        return new SqlSearchBuilder(col, ctx);
+    }
+
+    public SqlSearchBuilder columnSubQuery(String column, String alias, Consumer<SqlSearchBuilder> sub) {
+        var s = new SqlSearchBuilder(column, ctx);
+        sub.accept(s);
+        columns.add("(" + s.format() + ") as " + alias);
+        return this;
     }
 
     private String filters(Collection<SqlCondition> filters) {

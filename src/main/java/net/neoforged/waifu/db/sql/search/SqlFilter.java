@@ -21,7 +21,7 @@ public interface SqlFilter {
                 lhs -> ops.stream().map(o -> "(" + o.buildJson(lhs) + ")").collect(Collectors.joining("|| ")));
     }
 
-    static SqlFilter equals(String value) {
+    static SqlFilter eq(Object value) {
         return make((field, ctx) -> field + " = " + ctx.insert(value), lhs -> lhs + " == \"" + value + "\"");
     }
 
@@ -39,25 +39,28 @@ public interface SqlFilter {
     }
 
     @SuppressWarnings("unchecked")
-    static SqlFilter parse(Map<String, Object> filter) {
-        var equals = filter.get("equals");
-        if (equals != null) return SqlFilter.equals((String) equals);
+    static SqlFilter parse(Object in) {
+        if (in instanceof Map<?,?> filter) {
+            var equals = filter.get("equals");
+            if (equals != null) return SqlFilter.eq(equals);
 
-        var matches = filter.get("matches");
-        if (matches != null) return SqlFilter.matches((String) matches);
+            var matches = filter.get("matches");
+            if (matches != null) return SqlFilter.matches((String) matches);
 
-        var allOf = (List<Map<String, Object>>) filter.get("allOf");
-        if (allOf != null) {
-            return SqlFilter.allOf(allOf.stream().map(SqlFilter::parse).toList());
+            var allOf = (List<Map<String, Object>>) filter.get("allOf");
+            if (allOf != null) {
+                return SqlFilter.allOf(allOf.stream().map(SqlFilter::parse).toList());
+            }
+
+            var anyOf = (List<Map<String, Object>>) filter.get("anyOf");
+            if (anyOf != null) {
+                return SqlFilter.anyOf(anyOf.stream().map(SqlFilter::parse).toList());
+            }
+
+            var not = (Map<String, Object>) filter.get("not");
+            return SqlFilter.not(parse(not));
         }
-
-        var anyOf = (List<Map<String, Object>>) filter.get("anyOf");
-        if (anyOf != null) {
-            return SqlFilter.anyOf(anyOf.stream().map(SqlFilter::parse).toList());
-        }
-
-        var not = (Map<String, Object>) filter.get("not");
-        return SqlFilter.not(parse(not));
+        return SqlFilter.eq(in);
     }
 
     static SqlFilter make(BiFunction<String, SqlArgumentContext, String> sql, Function<String, String> json) {

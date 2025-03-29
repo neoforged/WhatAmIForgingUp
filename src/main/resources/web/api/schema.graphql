@@ -67,7 +67,11 @@ type Mod {
     "The maven coordinates of this mod (only set if this mod was JiJ'd by another mod)"
     mavenCoordinates: String
 
+    "Get the classes this mod defines. Optionally takes in a filter on the class name"
     classes(filter: ClassPredicate, order: ClassOrdering, limit: Int): [String!]!
+
+    "Get the tags this mod defines for the given registry"
+    tags(registry: String!, filter: TagPredicate): [Tag!]!
 }
 
 type ModsResponse {
@@ -81,6 +85,31 @@ type ModsResponse {
 type ModsByIdResponse {
     "The returned mods"
     mods: [Mod!]!
+}
+
+"A Minecraft tag"
+type Tag {
+    "The name of this tag (e.g. minecraft:mineable/pickaxe)"
+    name: String!
+    "The entries added to this tag. These can be either normal objects (e.g. minecraft:stone) or other tags, denoted by a # at the start (e.g. #minecraft:head_armor)"
+    entries: [String]!
+    """
+    Whether this tag overrides all previously added entries.
+    Corresponds to the "replace" field in the tag JSON.
+    """
+    replace: Boolean!
+}
+
+"Used to filter tags based on different criteria"
+input TagPredicate @predicateType @oneOf {
+    "Filter based on the tag name"
+    name: StringFilter
+
+    """
+    If set to true, only tags that override existing values will be returned.
+    If set to false, only tags that do not override existing values will be returned.
+    """
+    replace: Boolean
 }
 
 "Used to filter mods based on different criteria"

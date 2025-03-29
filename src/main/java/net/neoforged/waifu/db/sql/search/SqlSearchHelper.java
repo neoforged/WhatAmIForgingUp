@@ -6,6 +6,7 @@ import net.neoforged.waifu.Main;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.util.Utils;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.statement.HashPrefixSqlParser;
 import org.jdbi.v3.core.statement.SqlStatements;
@@ -47,6 +48,11 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
     private static final Map<String, FilterCriterion> CLASS_CRITERIA = Map.of(
             "name", FilterCriterion.column("classes.name")
+    );
+
+    private static final Map<String, FilterCriterion> TAG_CRITERIA = Map.of(
+            "name", FilterCriterion.column("tagname"),
+            "replace", FilterCriterion.column("tags.replace")
     );
 
     private static final Map<String, String> MOD_FIELD_MAPPING = Map.of(
@@ -125,6 +131,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Object baseModQuery(DataFetchingEnvironment env, Consumer<ModQuery> cons) {
         var builder = new SqlSearchBuilder("mods");
 
@@ -170,6 +177,30 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             builder.requestColumn("(array_agg(" + aggIn + ")::text[])" + limitText + " as classes");
         }
 
+        if (env.getSelectionSet().contains("mods/tags")) {
+            var selection = env.getSelectionSet().getFields("mods/tags").getFirst();
+            var reg = (String) selection.getArguments().get("registry");
+
+            String baseTag = "/" + reg.replace(':', '/').replace("minecraft/", "") + "/";
+
+            var tagReplace = builder.insert(baseTag);
+
+            var sub = builder.subBuilder("tags")
+                    .requestColumn("jsonb_build_object('name', tagname, 'entries', json_agg(entryname.constant), 'replace', tags.replace)", "e")
+                    .joinOn("constants entryname", SqlCondition.condition("entryname.id = tags.entry"))
+                    .joinOn("constants tagnm", ctx -> "tagnm.id = tags.tag and tagnm.constant ~ " + ctx.insert("^\\w+" + baseTag + ".+"))
+                    .joinOn("replace(tagnm.constant, " + tagReplace + ", ':') tagname", SqlCondition.condition("true"))
+                    .where(SqlCondition.condition("tags.mod = mods.id"))
+                    .groupBy("tagname", "tags.replace");
+
+            var filArgs = selection.getArguments().get("filter");
+            if (filArgs != null) {
+                sub.where(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, TAG_CRITERIA, new HashSet<>()));
+            }
+
+            builder.columnSubQuery("(" + sub.format() + ")", "tags", b -> b.requestColumn("coalesce(jsonb_agg(e), '[]')"));
+        }
+
         if (query.requireClassJoin) {
             builder.joinOn("class_defs", SqlCondition.condition("class_defs.mod = mods.id"));
             builder.joinOn("classes", SqlCondition.condition("classes.id = class_defs.type"));
@@ -183,11 +214,16 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         return jdbi.withHandle(handle -> builder.build(handle)
                 .execute((statementSupplier, ctx) -> {
                     var rs = statementSupplier.get().getResultSet();
-                    String[] columnIds = new String[builder.columns.size() + 1];
+                    record ColInfo(String resultName, String type) {}
+                    ColInfo[] columnIds = new ColInfo[builder.columns.size() + 1];
                     for (String field : builder.columns) {
                         var realCol = List.of(field.split(" as ")).getLast();
                         realCol = List.of(realCol.split("\\.")).getLast();
-                        columnIds[rs.findColumn(realCol)] = columnRequests.getOrDefault(realCol, realCol);
+                        int id = rs.findColumn(realCol);
+                        columnIds[id] = new ColInfo(
+                                columnRequests.getOrDefault(realCol, realCol),
+                                rs.getMetaData().getColumnTypeName(id)
+                        );
                     }
 
                     var lst = new ArrayList<Map<String, Object>>(query.expectedItems);
@@ -195,11 +231,17 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                     while (rs.next()) {
                         var entry = HashMap.<String, Object>newHashMap(builder.columns.size());
                         for (int i = 1; i <= builder.columns.size(); i++) {
-                            var o = rs.getObject(i);
-                            if (o instanceof Array ar) {
-                                entry.put(columnIds[i], Arrays.asList((Object[])ar.getArray()));
+                            var col = columnIds[i];
+                            if (col.type.startsWith("json")) {
+                                var json = rs.getString(i);
+                                entry.put(col.resultName, Utils.GSON.fromJson(json, Object.class));
                             } else {
-                                entry.put(columnIds[i], o);
+                                var o = rs.getObject(i);
+                                if (o instanceof Array ar) {
+                                    entry.put(col.resultName, Arrays.asList((Object[])ar.getArray()));
+                                } else {
+                                    entry.put(col.resultName, o);
+                                }
                             }
                         }
                         lst.add(entry);
@@ -257,7 +299,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         public abstract String apply(String in);
     }
 
-    private record InPackCriterion(String curseforgeColumn, String modrinthColumn) implements FilterCriterion {
+    private record InPackCriterion(String curseforgeColumn, String modrinthColumn) implements FilterCriterion.MapOnly {
         @Override
         public SqlCondition apply(Map<String, Object> value) {
             var cf = value.get("curseforge");

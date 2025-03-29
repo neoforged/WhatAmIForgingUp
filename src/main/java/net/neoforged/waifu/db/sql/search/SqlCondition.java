@@ -52,6 +52,6 @@ public interface SqlCondition {
 
         var criterion = filter.entrySet().stream().findFirst().orElseThrow();
         appliedCriteria.add(criterion.getKey());
-        return criteria.get(criterion.getKey()).apply((Map<String, Object>) criterion.getValue());
+        return criteria.get(criterion.getKey()).apply(criterion.getValue());
     }
 }
