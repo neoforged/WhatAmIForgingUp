@@ -164,21 +164,15 @@ type PageInformation {
 Represents a way of filtering string inputs based on different rules that are either logical operators
 on other filters (NOT, AND, OR) or exact / regex matches.
 """
-input StringFilter @oneOf {
+input StringFilter @oneOf @predicateType {
     "The string being filtered must be equal to the given string."
     equals: String
 
     "The string being filtered must match the given regex pattern."
     matches: String
 
-    "The string being filtered must not match the given filter."
-    not: StringFilter
-
-    "The string being filtered must match all of the given filters."
-    allOf: [StringFilter!]
-
-    "The string being filtered must match any of the given filters."
-    anyOf: [StringFilter!]
+    "The string being filtered must start with the given string."
+    startsWith: String
 }
 
 input PaginationInput {

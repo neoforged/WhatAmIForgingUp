@@ -29,6 +29,10 @@ public interface SqlFilter {
         return make((field, ctx) -> field + " ~ " + ctx.insert(regex), lhs -> lhs + " like_regex \"" + regex + "\"");
     }
 
+    static SqlFilter startsWith(String str) {
+        return make((field, ctx) -> "starts_with(" + field + ", " + ctx.insert(str) + ")", lhs -> lhs + " starts with \"" + str + "\"");
+    }
+
     static SqlFilter greaterThan(int val) {
         return make((field, ctx) -> field + " > " + ctx.insert(val), lhs -> lhs + " > " + val);
     }
@@ -46,6 +50,9 @@ public interface SqlFilter {
 
             var matches = filter.get("matches");
             if (matches != null) return SqlFilter.matches((String) matches);
+
+            var startsWith = filter.get("startsWith");
+            if (startsWith != null) return SqlFilter.startsWith((String) startsWith);
 
             var allOf = (List<Map<String, Object>>) filter.get("allOf");
             if (allOf != null) {
