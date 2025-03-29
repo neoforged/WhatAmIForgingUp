@@ -2,6 +2,7 @@ package net.neoforged.waifu.db.sql.search;
 
 import com.google.common.collect.ImmutableBiMap;
 import graphql.schema.DataFetchingEnvironment;
+import graphql.schema.DataFetchingFieldSelectionSet;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
 import net.neoforged.waifu.platform.ModLoader;
@@ -21,7 +22,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 public class SqlSearchHelper implements DatabaseSearchHelper {
     private static final Map<String, FilterCriterion> GENERAL_MOD_CRITERIA = Map.of(
@@ -80,76 +80,75 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
     @Override
     @SuppressWarnings("unchecked")
     public Object getModsById(DataFetchingEnvironment env) {
-        return baseModQuery(env, builder -> {
-            var ids = new ArrayList<>((List<Integer>) env.getArgument("ids"));
-            if (ids.size() > MAX_ITEMS_PER_REQUEST) {
-                throw new IllegalArgumentException("Found " + ids.size() + " ids to query, more than the maximum of " + MAX_ITEMS_PER_REQUEST);
-            }
+        var builder = new SqlSearchBuilder("mods");
 
-            builder.expectedItems = ids.size();
-            builder.builder.where(ctx -> "mods.id = any(" + ctx.insert(ids) + ")");
-        });
+        var ids = new ArrayList<>((List<Integer>) env.getArgument("ids"));
+        if (ids.size() > MAX_ITEMS_PER_REQUEST) {
+            throw new IllegalArgumentException("Found " + ids.size() + " ids to query, more than the maximum of " + MAX_ITEMS_PER_REQUEST);
+        }
+
+        builder.where(ctx -> "mods.id = any(" + ctx.insert(ids) + ")");
+
+        var mods = env.getSelectionSet().getFields("mods");
+        if (!mods.isEmpty()) {
+            configureModSearch(mods.get(0).getSelectionSet(), builder, false);
+        }
+
+        return returnList(builder, "mods", ids.size());
     }
 
     @Override
     public Object getMods(DataFetchingEnvironment env) {
-        return baseModQuery(env, builder -> {
-            var pagination = Optional.ofNullable(env.<Map<String, Integer>>getArgument("pagination"))
-                    .map(m -> new Pagination(
-                            Math.min(m.getOrDefault("limit", MAX_ITEMS_PER_REQUEST), MAX_ITEMS_PER_REQUEST),
-                            m.getOrDefault("after", -1)
-                    ))
-                    .orElse(Pagination.DEFAULT);
+        var builder = new SqlSearchBuilder("mods");
 
-            if (pagination.after > 0) {
-                builder.builder.where("id", SqlFilter.greaterThan(pagination.after));
-            }
+        var pagination = Optional.ofNullable(env.<Map<String, Integer>>getArgument("pagination"))
+                .map(m -> new Pagination(
+                        Math.min(m.getOrDefault("limit", MAX_ITEMS_PER_REQUEST), MAX_ITEMS_PER_REQUEST),
+                        m.getOrDefault("after", -1)
+                ))
+                .orElse(Pagination.DEFAULT);
 
-            builder.builder.limit(pagination.limit() + 1);
-            builder.expectedItems = pagination.limit();
-
-            Map<String, Object> filter = env.getArgument("filter");
-            if (filter != null) {
-                var applied = new HashSet<String>();
-                builder.builder.where(SqlCondition.parseAsCriterion(filter, loader == ModLoader.FABRIC ? FABRIC_MOD_CRITERIA : FORGE_MOD_CRITERIA, applied));
-
-                if (applied.contains("anyClassName")) {
-                    builder.requireClassJoin = true;
-                }
-            }
-        });
-    }
-
-    private static class ModQuery {
-        private final SqlSearchBuilder builder;
-        private boolean requireClassJoin;
-
-        private int expectedItems;
-
-        private ModQuery(SqlSearchBuilder builder) {
-            this.builder = builder;
+        if (pagination.after > 0) {
+            builder.where("id", SqlFilter.greaterThan(pagination.after));
         }
+
+        builder.limit(pagination.limit() + 1);
+        int expectedItems = pagination.limit();
+
+        boolean requireClassJoin = false;
+
+        Map<String, Object> filter = env.getArgument("filter");
+        if (filter != null) {
+            var applied = new HashSet<String>();
+            builder.where(SqlCondition.parseAsCriterion(filter, loader == ModLoader.FABRIC ? FABRIC_MOD_CRITERIA : FORGE_MOD_CRITERIA, applied));
+
+            if (applied.contains("anyClassName")) {
+                requireClassJoin = true;
+            }
+        }
+
+        var mods = env.getSelectionSet().getFields("mods");
+        if (!mods.isEmpty()) {
+            configureModSearch(mods.get(0).getSelectionSet(), builder, requireClassJoin);
+        }
+
+        return returnList(builder, "mods", expectedItems);
     }
 
     @SuppressWarnings("unchecked")
-    private Object baseModQuery(DataFetchingEnvironment env, Consumer<ModQuery> cons) {
-        var builder = new SqlSearchBuilder("mods");
-
+    private void configureModSearch(DataFetchingFieldSelectionSet set, SqlSearchBuilder builder, boolean requireClassJoin) {
         builder.requestColumn("mods.id as id");
 
         MOD_FIELD_MAPPING.forEach((fld, dbMapping) -> {
-            if (env.getSelectionSet().contains("mods/" + fld)) {
+            if (set.contains(fld)) {
                 builder.requestColumn("mods." + dbMapping + " as " + fld);
             }
         });
 
-        var query = new ModQuery(builder);
-        cons.accept(query);
-
         List<SqlCondition> classJoinFilter = new ArrayList<>();
-        if (env.getSelectionSet().contains("mods/classes")) {
-            query.requireClassJoin = true;
-            var selection = env.getSelectionSet().getFields("mods/classes").getFirst();
+        if (set.contains("classes")) {
+            requireClassJoin = true;
+            var selection = set.getFields("classes").getFirst();
             var filArgs = selection.getArguments().get("filter");
             if (filArgs != null) {
                 classJoinFilter.add(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, CLASS_CRITERIA, new HashSet<>()));
@@ -174,8 +173,8 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             builder.requestColumn("(array_agg(" + aggIn + ")::text[])" + limitText + " as classes");
         }
 
-        if (env.getSelectionSet().contains("mods/tags")) {
-            var selection = env.getSelectionSet().getFields("mods/tags").getFirst();
+        if (set.contains("tags")) {
+            var selection = set.getFields("tags").getFirst();
             var reg = (String) selection.getArguments().get("registry");
 
             String baseTag = "/" + reg.replace(':', '/').replace("minecraft/", "") + "/";
@@ -198,7 +197,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             builder.columnSubQuery("(" + sub.format() + ")", "tags", b -> b.requestColumn("coalesce(jsonb_agg(e), '[]')"));
         }
 
-        if (query.requireClassJoin) {
+        if (requireClassJoin) {
             builder.joinOn("class_defs", SqlCondition.condition("class_defs.mod = mods.id"));
             builder.joinOn("classes", SqlCondition.condition("classes.id = class_defs.type"));
             builder.joinOn("classes", classJoinFilter);
@@ -207,7 +206,9 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         }
 
         builder.orderBy("mods.id");
+    }
 
+    private Object returnList(SqlSearchBuilder builder, String resultField, int expectedItems) {
         return jdbi.withHandle(handle -> builder.build(handle)
                 .execute((statementSupplier, ctx) -> {
                     var rs = statementSupplier.get().getResultSet();
@@ -217,7 +218,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                         columns[i] = new ColInfo(rs.getMetaData().getColumnName(i), rs.getMetaData().getColumnTypeName(i));
                     }
 
-                    var lst = new ArrayList<Map<String, Object>>(query.expectedItems);
+                    var lst = new ArrayList<Map<String, Object>>(Math.max(expectedItems, 0));
 
                     while (rs.next()) {
                         var entry = HashMap.<String, Object>newHashMap(builder.columns.size());
@@ -240,7 +241,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
                     boolean hasNext = false;
 
-                    if (lst.size() > query.expectedItems) {
+                    if (expectedItems >= 0 && lst.size() > expectedItems) {
                         hasNext = true;
                         lst.removeLast();
                     }
@@ -253,7 +254,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                     }
 
                     return Map.of(
-                            "mods", lst,
+                            resultField, lst,
                             "pageInfo", pag
                     );
                 }));
