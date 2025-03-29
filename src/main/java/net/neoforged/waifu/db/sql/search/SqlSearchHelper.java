@@ -135,14 +135,11 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
     private Object baseModQuery(DataFetchingEnvironment env, Consumer<ModQuery> cons) {
         var builder = new SqlSearchBuilder("mods");
 
-        builder.requestColumn("mods.id");
-
-        Map<String, String> columnRequests = new HashMap<>();
+        builder.requestColumn("mods.id as id");
 
         MOD_FIELD_MAPPING.forEach((fld, dbMapping) -> {
             if (env.getSelectionSet().contains("mods/" + fld)) {
-                builder.requestColumn("mods." + dbMapping);
-                columnRequests.put(dbMapping, fld);
+                builder.requestColumn("mods." + dbMapping + " as " + fld);
             }
         });
 
@@ -215,15 +212,9 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .execute((statementSupplier, ctx) -> {
                     var rs = statementSupplier.get().getResultSet();
                     record ColInfo(String resultName, String type) {}
-                    ColInfo[] columnIds = new ColInfo[builder.columns.size() + 1];
-                    for (String field : builder.columns) {
-                        var realCol = List.of(field.split(" as ")).getLast();
-                        realCol = List.of(realCol.split("\\.")).getLast();
-                        int id = rs.findColumn(realCol);
-                        columnIds[id] = new ColInfo(
-                                columnRequests.getOrDefault(realCol, realCol),
-                                rs.getMetaData().getColumnTypeName(id)
-                        );
+                    ColInfo[] columns = new ColInfo[rs.getMetaData().getColumnCount() + 1];
+                    for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+                        columns[i] = new ColInfo(rs.getMetaData().getColumnName(i), rs.getMetaData().getColumnTypeName(i));
                     }
 
                     var lst = new ArrayList<Map<String, Object>>(query.expectedItems);
@@ -231,7 +222,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                     while (rs.next()) {
                         var entry = HashMap.<String, Object>newHashMap(builder.columns.size());
                         for (int i = 1; i <= builder.columns.size(); i++) {
-                            var col = columnIds[i];
+                            var col = columns[i];
                             if (col.type.startsWith("json")) {
                                 var json = rs.getString(i);
                                 entry.put(col.resultName, Utils.GSON.fromJson(json, Object.class));
