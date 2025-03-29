@@ -3,6 +3,7 @@ package net.neoforged.waifu.db.sql;
 import net.neoforged.waifu.db.DatabaseManager;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
 import net.neoforged.waifu.db.IndexDatabase;
+import net.neoforged.waifu.db.sql.search.SqlSearchHelper;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.util.Utils;
 import org.jdbi.v3.core.ConnectionFactory;
@@ -68,7 +69,7 @@ public class PostgresDatabaseManager implements DatabaseManager {
         var props = copy();
         props.put("readOnly", "true");
         props.put("currentSchema", schema(gameVersion, loader));
-        return new SQLSearchHelper(jdbi(props), loader);
+        return new SqlSearchHelper(jdbi(props), loader);
     }
 
     @Override

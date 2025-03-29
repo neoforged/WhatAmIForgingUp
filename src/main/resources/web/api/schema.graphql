@@ -40,6 +40,12 @@ type GameVersion {
         "Optional filter applied to the query"
         filter: ModPredicate
     ): ModsResponse!
+
+    """
+    Get the mods from the database that have the given IDs.
+    Note that the mods are not returned in a specific order relative to the input IDs.
+    """
+    getModsById("The mod IDs to query. Cannot exceed 500 elements" ids: [Int!]!): ModsByIdResponse!
 }
 
 type Mod {
@@ -70,6 +76,11 @@ type ModsResponse {
 
     "Information to be used for pagination"
     pageInfo: PageInformation!
+}
+
+type ModsByIdResponse {
+    "The returned mods"
+    mods: [Mod!]!
 }
 
 "Used to filter mods based on different criteria"
