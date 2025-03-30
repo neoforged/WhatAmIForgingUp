@@ -58,7 +58,7 @@ public class TokenManager {
     private void runFlyway() {
         Flyway.configure()
                 .dataSource(dataSource)
-                .locations("classpath:tokendb/migration")
+                .locations("classpath:db/token/migration")
                 .load()
                 .migrate();
     }

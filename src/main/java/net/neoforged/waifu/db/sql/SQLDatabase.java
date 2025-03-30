@@ -58,7 +58,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
 
     void runFlyway(DataSource source) {
         Flyway.configure()
-                .locations("classpath:indexdb/migration")
+                .locations("classpath:db/index/migration")
                 .dataSource(source)
                 .createSchemas(true)
                 .callbacks(new Callback() {

@@ -53,7 +53,7 @@ public class MainDatabase {
     public void runFlyway() {
         Flyway.configure()
                 .dataSource(dataSource)
-                .locations("classpath:maindb/migration")
+                .locations("classpath:db/main/migration")
                 .load()
                 .migrate();
     }
