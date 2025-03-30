@@ -99,9 +99,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         builder.where(ctx -> "mods.id = any(" + ctx.insert(ids) + ")");
 
         var mods = env.getSelectionSet().getFields("mods");
-        if (!mods.isEmpty()) {
-            configureModSearch(mods.get(0).getSelectionSet(), builder, false);
-        }
+        configureModSearch(mods.isEmpty() ? EmptySelectionSet.INSTANCE : mods.getFirst().getSelectionSet(), builder, false);
 
         return returnList(builder, "mods", ids.size());
     }
@@ -137,20 +135,18 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         }
 
         var mods = env.getSelectionSet().getFields("mods");
-        if (!mods.isEmpty()) {
-            configureModSearch(mods.get(0).getSelectionSet(), builder, requireClassJoin);
-        }
+        configureModSearch(mods.isEmpty() ? EmptySelectionSet.INSTANCE : mods.getFirst().getSelectionSet(), builder, requireClassJoin);
 
         return returnList(builder, "mods", expectedItems);
     }
 
     @SuppressWarnings("unchecked")
     private void configureModSearch(DataFetchingFieldSelectionSet set, SqlSearchBuilder builder, boolean requireClassJoin) {
-        builder.requestColumn("mods.id as id");
+        builder.requestColumn("mods.id", "id"); // We always request the ID for pagination purposes
 
         MOD_FIELD_MAPPING.forEach((fld, dbMapping) -> {
             if (set.contains(fld)) {
-                builder.requestColumn("mods." + dbMapping + " as " + fld);
+                builder.requestColumn("mods." + dbMapping, fld);
             }
         });
 
@@ -222,16 +218,19 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .execute((statementSupplier, ctx) -> {
                     var rs = statementSupplier.get().getResultSet();
                     record ColInfo(String resultName, String type) {}
-                    ColInfo[] columns = new ColInfo[rs.getMetaData().getColumnCount() + 1];
-                    for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+
+                    int colCount = rs.getMetaData().getColumnCount();
+
+                    ColInfo[] columns = new ColInfo[colCount + 1];
+                    for (int i = 1; i <= colCount; i++) {
                         columns[i] = new ColInfo(rs.getMetaData().getColumnName(i), rs.getMetaData().getColumnTypeName(i));
                     }
 
                     var lst = new ArrayList<Map<String, Object>>(Math.max(expectedItems, 0));
 
                     while (rs.next()) {
-                        var entry = HashMap.<String, Object>newHashMap(builder.columns.size());
-                        for (int i = 1; i <= builder.columns.size(); i++) {
+                        var entry = HashMap.<String, Object>newHashMap(colCount);
+                        for (int i = 1; i <= colCount; i++) {
                             var col = columns[i];
                             if (col.type.startsWith("json")) {
                                 var json = rs.getString(i);
