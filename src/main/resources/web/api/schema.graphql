@@ -1,6 +1,7 @@
 # noinspection GraphQLUnresolvedReference,GraphQLMissingType
 
 directive @predicateType on INPUT_OBJECT
+directive @implement(interfaces: [String!]!) on OBJECT
 
 schema {
     query: Query
@@ -48,8 +49,13 @@ type GameVersion {
     getModsById("The mod IDs to query. Cannot exceed 500 elements" ids: [Int!]!): ModsByIdResponse!
 }
 
-type Mod {
+"Represents an object that is identifiable by an unique ID (within its category)"
+interface Identifiable {
+    "The unique ID of this object"
     id: Int!
+}
+
+type Mod @implement(interfaces: ["Identifiable"]) {
     "The name of this mod (derived from mod metadata, jar contents or maven coordinates)"
     name: String!
     "The last indexed version of this mod"
@@ -154,6 +160,11 @@ input ModPredicate @predicateType @oneOf {
 
     "A mod will match if it is contained in the pack with the given ID"
     inPack: ProjectId
+
+    "A mod will match if it is associated with the CurseForge project with the given ID"
+    curseforgeProjectId: Int
+    "A mod will match if it is associated with the Modrinth project with the given ID"
+    modrinthProjectId: String
 }
 
 "Represents the ID of a project on CurseForge or Modrinth"

@@ -38,6 +38,8 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             "anyClassName", FilterCriterion.column("classes.name"),
 
             "inPack", new InPackCriterion("curseforge_project_id", "modrinth_project_id"),
+            "curseforgeProjectId", FilterCriterion.column("curseforge_project_id"),
+            "modrinthProjectId", FilterCriterion.column("modrinth_project_id"),
 
             "anyManifestAttribute", val -> SqlCondition.parseAsCriterion((Map<String, Object>) val, MANIFEST_CRITERIA)
     );

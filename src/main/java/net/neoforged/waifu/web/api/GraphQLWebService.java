@@ -2,11 +2,20 @@ package net.neoforged.waifu.web.api;
 
 import graphql.ExecutionResult;
 import graphql.GraphQL;
+import graphql.language.Description;
+import graphql.language.InterfaceTypeDefinition;
+import graphql.language.ListType;
+import graphql.language.NonNullType;
+import graphql.language.Type;
+import graphql.language.TypeName;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
+import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLInputObjectType;
 import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLNonNull;
+import graphql.schema.GraphQLObjectType;
+import graphql.schema.GraphQLOutputType;
 import graphql.schema.GraphQLSchema;
 import graphql.schema.GraphQLTypeReference;
 import graphql.schema.idl.RuntimeWiring;
@@ -25,6 +34,7 @@ import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -85,6 +95,35 @@ public class GraphQLWebService {
                         });
                     }
                 })
+                .directive("implement", new SchemaDirectiveWiring() {
+                    @Override
+                    public GraphQLObjectType onObject(SchemaDirectiveWiringEnvironment<GraphQLObjectType> environment) {
+                        List<String> ifaces = environment.getAppliedDirective().getArgument("interfaces").getValue();
+                        return environment.getElement().transform(b -> {
+                            ifaces.stream()
+                                    .map(i -> environment.getRegistry().getType(i, InterfaceTypeDefinition.class))
+                                    .flatMap(Optional::stream)
+                                    .forEach(def -> {
+                                        def.getFieldDefinitions().forEach(f -> b.field(GraphQLFieldDefinition.newFieldDefinition()
+                                                .name(f.getName()).description(Optional.ofNullable(f.getDescription())
+                                                        .map(Description::getContent).orElse(null))
+                                                .type(type(f.getType())).build()));
+                                        b.withInterface(GraphQLTypeReference.typeRef(def.getName()));
+                                    });
+                        });
+                    }
+
+                    private GraphQLOutputType type(Type<?> tp) {
+                        return switch (tp) {
+                            case NonNullType n -> GraphQLNonNull.nonNull(type(n.getType()));
+                            case ListType l -> GraphQLList.list(type(l.getType()));
+                            case TypeName nm -> GraphQLTypeReference.typeRef(nm.getName());
+                            default -> null;
+                        };
+                    }
+                })
+
+                .type("Identifiable", builder -> builder.typeResolver(env -> (GraphQLObjectType) env.getFieldType()))
 
                 .type("Query", builder ->
                         builder.dataFetcher("gameVersion", this::getVersion)
