@@ -134,8 +134,8 @@ public class GraphQLWebService {
                                 .dataFetcher("gameVersions", this::getVersions)
                 )
                 .type("GameVersion", builder ->
-                        builder.dataFetcher("getMods", invoke(Version::getMods))
-                                .dataFetcher("getModsById", invoke(Version::getModsById))
+                        builder.dataFetcher("mods", invoke(Version::getMods))
+                                .dataFetcher("modsById", invoke(Version::getModsById))
 
                                 .dataFetcher("loader", get(Version::loaderAsGraphQLEnum))
                                 .dataFetcher("version", get(v -> v.version))

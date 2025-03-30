@@ -64,9 +64,9 @@ public class TokensCommand extends SlashCommand {
         protected void execute(SlashCommandEvent event) {
             var name = event.optString("name");
             if (manager.removeToken(name)) {
-                event.reply("Token revoked successfully!").queue();
+                event.reply("Token revoked successfully!").setEphemeral(true).queue();
             } else {
-                event.reply("Unknown token with name `" + name + "`!").queue();
+                event.reply("Unknown token with name `" + name + "`!").setEphemeral(true).queue();
             }
         }
 
@@ -98,7 +98,7 @@ public class TokensCommand extends SlashCommand {
             var name = event.optString("name");
             var regen = manager.regenerate(name);
             if (regen == null) {
-                event.reply("Unknown token with name `" + name + "`!").queue();
+                event.reply("Unknown token with name `" + name + "`!").setEphemeral(true).queue();
             } else {
                 event.reply("Token regenerated successfully: `" + regen + "`!").setEphemeral(true).queue();
             }
@@ -143,7 +143,7 @@ public class TokensCommand extends SlashCommand {
 
             embed.setDescription(desc);
 
-            event.replyEmbeds(embed.build()).queue();
+            event.replyEmbeds(embed.build()).setEphemeral(true).queue();
         }
     }
 }
