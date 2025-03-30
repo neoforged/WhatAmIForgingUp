@@ -754,26 +754,33 @@ order by mods.name;""")
         return arr;
     }
 
-    private static JsonObject manifestToJson(Manifest manifest) {
-        var json = new JsonObject();
+    private static JsonElement manifestToJson(Manifest manifest) {
+        var json = new JsonArray();
         var main = new JsonObject();
-        manifest.getMainAttributes().forEach((key, val) -> {
-            if (key instanceof Attributes.Name) {
-                main.addProperty(key.toString(), val.toString());
-            }
-        });
-        json.add("", main);
+        main.addProperty("name", "");
+        main.add("attributes", attributes(manifest.getMainAttributes()));
+        json.add(main);
 
         manifest.getEntries().forEach((entryKey, entry) -> {
             var entryJson = new JsonObject();
-            entry.forEach((key, val) -> {
-                if (key instanceof Attributes.Name) {
-                    entryJson.addProperty(key.toString(), val.toString());
-                }
-            });
-            json.add(entryKey, entryJson);
+            entryJson.addProperty("name", entryKey);
+            entryJson.add("attributes", attributes(entry));
+            json.add(entryJson);
         });
 
+        return json;
+    }
+
+    private static JsonArray attributes(Attributes attributes) {
+        var json = new JsonArray();
+        attributes.forEach((key, val) -> {
+            if (key instanceof Attributes.Name) {
+                var entry = new JsonObject();
+                entry.addProperty("key", key.toString());
+                entry.addProperty("value", val.toString());
+                json.add(entry);
+            }
+        });
         return json;
     }
 

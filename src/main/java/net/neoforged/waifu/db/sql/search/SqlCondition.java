@@ -1,5 +1,7 @@
 package net.neoforged.waifu.db.sql.search;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,8 +35,12 @@ public interface SqlCondition {
         return ctx -> "jsonb_path_exists(" + col + ", (" + ctx.insert(expression + " ? (" + op.buildJson("@") + ")") + ")::jsonpath)";
     }
 
+    static SqlCondition parseAsCriterion(Map<String, Object> filter, Map<String, FilterCriterion> criteria) {
+        return parseAsCriterion(filter, criteria, null);
+    }
+
     @SuppressWarnings("unchecked")
-    static SqlCondition parseAsCriterion(Map<String, Object> filter, Map<String, FilterCriterion> criteria, Set<String> appliedCriteria) {
+    static SqlCondition parseAsCriterion(Map<String, Object> filter, Map<String, FilterCriterion> criteria, @Nullable Set<String> appliedCriteria) {
         var allOf = (List<Map<String, Object>>) filter.get("allOf");
         if (allOf != null) {
             return SqlCondition.allOf(allOf.stream().map(f -> parseAsCriterion(f, criteria, appliedCriteria)).toList());
@@ -51,7 +57,7 @@ public interface SqlCondition {
         }
 
         var criterion = filter.entrySet().stream().findFirst().orElseThrow();
-        appliedCriteria.add(criterion.getKey());
+        if (appliedCriteria != null) appliedCriteria.add(criterion.getKey());
         return criteria.get(criterion.getKey()).apply(criterion.getValue());
     }
 }

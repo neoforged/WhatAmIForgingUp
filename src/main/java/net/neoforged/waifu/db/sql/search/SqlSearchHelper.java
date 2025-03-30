@@ -24,6 +24,12 @@ import java.util.Objects;
 import java.util.Optional;
 
 public class SqlSearchHelper implements DatabaseSearchHelper {
+    public static final Map<String, FilterCriterion> MANIFEST_CRITERIA = Map.of(
+            "name", FilterCriterion.jsonExpression("mods.manifest", "$.*[*].key"),
+            "value", FilterCriterion.jsonExpression("mods.manifest", "$.*[*].value")
+    );
+
+    @SuppressWarnings("unchecked")
     private static final Map<String, FilterCriterion> GENERAL_MOD_CRITERIA = Map.of(
             "name", FilterCriterion.column("mods.name"),
             "authors", FilterCriterion.column("mods.authors"),
@@ -31,7 +37,9 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
             "anyClassName", FilterCriterion.column("classes.name"),
 
-            "inPack", new InPackCriterion("curseforge_project_id", "modrinth_project_id")
+            "inPack", new InPackCriterion("curseforge_project_id", "modrinth_project_id"),
+
+            "anyManifestAttribute", val -> SqlCondition.parseAsCriterion((Map<String, Object>) val, MANIFEST_CRITERIA)
     );
 
     private static final Map<String, FilterCriterion> FORGE_MOD_CRITERIA = ImmutableBiMap.<String, FilterCriterion>builder()
@@ -63,7 +71,8 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             "version", "version",
             "curseforgeProjectId", "curseforge_project_id",
             "modrinthProjectId", "modrinth_project_id",
-            "mavenCoordinates", "maven_coordinates"
+            "mavenCoordinates", "maven_coordinates",
+            "manifest", "manifest"
     );
 
     private static final int MAX_ITEMS_PER_REQUEST = 500;

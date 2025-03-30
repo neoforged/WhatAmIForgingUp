@@ -67,11 +67,30 @@ type Mod {
     "The maven coordinates of this mod (only set if this mod was JiJ'd by another mod)"
     mavenCoordinates: String
 
+    "The sections of the manifest of the last jar indexed for this mod"
+    manifest: [ManifestEntry!]!
+
     "Get the classes this mod defines. Optionally takes in a filter on the class name"
     classes(filter: ClassPredicate, order: ClassOrdering, limit: Int): [String!]!
 
     "Get the tags this mod defines for the given registry"
     tags(registry: String!, filter: TagPredicate): [Tag!]!
+}
+
+"Represents a manifest entry (section)"
+type ManifestEntry {
+    "The name of this manifest section (the main section has this field blank)"
+    name: String!
+    "The attributes in this section"
+    attributes: [ManifestAttribute!]!
+}
+
+"Represents a manifest attribute (e.g. 'Implementation-Version: 1.0')"
+type ManifestAttribute {
+    "The key of this attribute"
+    key: String!
+    "The value of this attribute"
+    value: String!
 }
 
 type ModsResponse {
@@ -130,6 +149,8 @@ input ModPredicate @predicateType @oneOf {
 
     "A mod will match if any of the classes it defines has a name that matches the given filter"
     anyClassName: StringFilter
+    "A mod will match if any of the manifest attributes its jar has matches the given filter"
+    anyManifestAttribute: ManifestAttributePredicate
 
     "A mod will match if it is contained in the pack with the given ID"
     inPack: ProjectId
@@ -147,6 +168,14 @@ input ProjectId @oneOf {
 input ClassPredicate @predicateType @oneOf {
     "Filter based on the class' JVM name"
     name: StringFilter
+}
+
+"Used to filter manifest attributes based on their name and/or value"
+input ManifestAttributePredicate @predicateType @oneOf {
+    "Filter based on the attribute name (key)"
+    name: StringFilter
+    "Filter based on the attribute value"
+    value: StringFilter
 }
 
 type PageInformation {
