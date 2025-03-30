@@ -13,6 +13,8 @@ import org.jdbi.v3.core.statement.HashPrefixSqlParser;
 import org.jdbi.v3.core.statement.SqlStatements;
 
 import java.sql.Array;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -41,7 +43,9 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             "curseforgeProjectId", FilterCriterion.column("curseforge_project_id"),
             "modrinthProjectId", FilterCriterion.column("modrinth_project_id"),
 
-            "anyManifestAttribute", val -> SqlCondition.parseAsCriterion((Map<String, Object>) val, MANIFEST_CRITERIA)
+            "anyManifestAttribute", val -> SqlCondition.parseAsCriterion((Map<String, Object>) val, MANIFEST_CRITERIA),
+
+            "indexed", val -> SqlCondition.columnFilter(SqlFilter.parseDateTime((Map<String, Object>) val), "index_date")
     );
 
     private static final Map<String, FilterCriterion> FORGE_MOD_CRITERIA = ImmutableBiMap.<String, FilterCriterion>builder()
@@ -74,7 +78,8 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             "curseforgeProjectId", "curseforge_project_id",
             "modrinthProjectId", "modrinth_project_id",
             "mavenCoordinates", "maven_coordinates",
-            "manifest", "manifest"
+            "manifest", "manifest",
+            "indexedOn", "index_date"
     );
 
     private static final int MAX_ITEMS_PER_REQUEST = 500;
@@ -225,7 +230,8 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
                     ColInfo[] columns = new ColInfo[colCount + 1];
                     for (int i = 1; i <= colCount; i++) {
-                        columns[i] = new ColInfo(rs.getMetaData().getColumnName(i), rs.getMetaData().getColumnTypeName(i));
+                        var colName = rs.getMetaData().getColumnName(i);
+                        columns[i] = new ColInfo(builder.lowercasedAliases.getOrDefault(colName, colName), rs.getMetaData().getColumnTypeName(i));
                     }
 
                     var lst = new ArrayList<Map<String, Object>>(Math.max(expectedItems, 0));
@@ -237,6 +243,9 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                             if (col.type.startsWith("json")) {
                                 var json = rs.getString(i);
                                 entry.put(col.resultName, Utils.GSON.fromJson(json, Object.class));
+                            } else if (col.type.equals("timestamptz")) {
+                                var stamp = rs.getTimestamp(i);
+                                entry.put(col.resultName, OffsetDateTime.ofInstant(stamp.toInstant(), ZoneId.systemDefault()));
                             } else {
                                 var o = rs.getObject(i);
                                 if (o instanceof Array ar) {

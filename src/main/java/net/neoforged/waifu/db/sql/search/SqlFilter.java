@@ -1,5 +1,6 @@
 package net.neoforged.waifu.db.sql.search;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -33,13 +34,25 @@ public interface SqlFilter {
         return make((field, ctx) -> "starts_with(" + field + ", " + ctx.insert(str) + ")", lhs -> lhs + " starts with \"" + str + "\"");
     }
 
-    static SqlFilter greaterThan(int val) {
+    static SqlFilter greaterThan(Object val) {
         return make((field, ctx) -> field + " > " + ctx.insert(val), lhs -> lhs + " > " + val);
+    }
+
+    static SqlFilter smallerThan(Object val) {
+        return make((field, ctx) -> field + " < " + ctx.insert(val), lhs -> lhs + " < " + val);
     }
 
     static SqlFilter not(SqlFilter op) {
         return make((field, ctx) -> "not (" + op.buildSql(field, ctx) + ")",
                 lhs -> "!(" + op.buildJson(lhs) + ")");
+    }
+
+    static SqlFilter parseDateTime(Map<String, Object> in) {
+        var after = (OffsetDateTime) in.get("after");
+        if (after != null) {
+            return SqlFilter.greaterThan(after);
+        }
+        return SqlFilter.smallerThan(in.get("before"));
     }
 
     @SuppressWarnings("unchecked")

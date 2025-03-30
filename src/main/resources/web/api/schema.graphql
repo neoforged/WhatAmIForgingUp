@@ -2,6 +2,9 @@
 
 directive @predicateType on INPUT_OBJECT
 directive @implement(interfaces: [String!]!) on OBJECT
+directive @specifiedBy(url: String!) on SCALAR
+
+scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/andimarek/date-time.html")
 
 schema {
     query: Query
@@ -81,6 +84,9 @@ type Mod @implement(interfaces: ["Identifiable"]) {
 
     "Get the tags this mod defines for the given registry"
     tags(registry: String!, filter: TagPredicate): [Tag!]!
+
+    "The time this mod was last indexed"
+    indexedOn: DateTime
 }
 
 "Represents a manifest entry (section)"
@@ -128,7 +134,7 @@ type Tag {
 "Used to filter tags based on different criteria"
 input TagPredicate @predicateType @oneOf {
     "Filter based on the tag name"
-    name: StringFilter
+    name: StringPredicate
 
     """
     If set to true, only tags that override existing values will be returned.
@@ -140,21 +146,21 @@ input TagPredicate @predicateType @oneOf {
 "Used to filter mods based on different criteria"
 input ModPredicate @predicateType @oneOf {
     "Filter based on the mod's name (derived from mod metadata, jar contents or maven coordinates)"
-    name: StringFilter
+    name: StringPredicate
     "Filter based on the mod's authors (derived from mod metadata)"
-    authors: StringFilter
+    authors: StringPredicate
     "Filter based on the mod's license (derived from mod metadata)"
-    license: StringFilter
+    license: StringPredicate
     "Filter based on the mod's description (derived from mod metadata)"
-    description: StringFilter
+    description: StringPredicate
     """
     Filter based on the mod's mod IDs (derived from mod metadata).
     On Neo/Forge only one of the IDs of a multi mod jar needs to match the filter.
     """
-    modId: StringFilter
+    modId: StringPredicate
 
     "A mod will match if any of the classes it defines has a name that matches the given filter"
-    anyClassName: StringFilter
+    anyClassName: StringPredicate
     "A mod will match if any of the manifest attributes its jar has matches the given filter"
     anyManifestAttribute: ManifestAttributePredicate
 
@@ -165,6 +171,9 @@ input ModPredicate @predicateType @oneOf {
     curseforgeProjectId: Int
     "A mod will match if it is associated with the Modrinth project with the given ID"
     modrinthProjectId: String
+
+    "A mod will match if the date it has last been indexed on matches the given predicate"
+    indexed: DatePredicate
 }
 
 "Represents the ID of a project on CurseForge or Modrinth"
@@ -178,15 +187,15 @@ input ProjectId @oneOf {
 "Used to filter classes based on different criteria"
 input ClassPredicate @predicateType @oneOf {
     "Filter based on the class' JVM name"
-    name: StringFilter
+    name: StringPredicate
 }
 
 "Used to filter manifest attributes based on their name and/or value"
 input ManifestAttributePredicate @predicateType @oneOf {
     "Filter based on the attribute name (key)"
-    name: StringFilter
+    name: StringPredicate
     "Filter based on the attribute value"
-    value: StringFilter
+    value: StringPredicate
 }
 
 type PageInformation {
@@ -204,7 +213,7 @@ type PageInformation {
 Represents a way of filtering string inputs based on different rules that are either logical operators
 on other filters (NOT, AND, OR) or exact / regex matches.
 """
-input StringFilter @oneOf @predicateType {
+input StringPredicate @oneOf @predicateType {
     "The string being filtered must be equal to the given string."
     equals: String
 
@@ -213,6 +222,14 @@ input StringFilter @oneOf @predicateType {
 
     "The string being filtered must start with the given string."
     startsWith: String
+}
+
+"A predicate applied to date types"
+input DatePredicate @oneOf {
+    "Matches if the date is before (smaller than) the given date"
+    before: DateTime
+    "Matches if the date is after (greater than) the given date"
+    after: DateTime
 }
 
 input PaginationInput {

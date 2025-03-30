@@ -8,9 +8,12 @@ import org.jdbi.v3.core.statement.Query;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -25,6 +28,8 @@ public final class SqlSearchBuilder {
     private final Multimap<String, SqlCondition> joins = Multimaps.newListMultimap(new LinkedHashMap<>(), ArrayList::new);
 
     private String orderColumn;
+
+    final Map<String, String> lowercasedAliases = new HashMap<>();
 
     private int limit;
 
@@ -44,6 +49,7 @@ public final class SqlSearchBuilder {
 
     public SqlSearchBuilder requestColumn(String col, String alias) {
         columns.add(col + " as " + alias);
+        lowercasedAliases.put(alias.toLowerCase(Locale.ROOT), alias);
         return this;
     }
 

@@ -8,6 +8,7 @@ import graphql.language.ListType;
 import graphql.language.NonNullType;
 import graphql.language.Type;
 import graphql.language.TypeName;
+import graphql.scalars.ExtendedScalars;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLFieldDefinition;
@@ -16,6 +17,7 @@ import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLNonNull;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLOutputType;
+import graphql.schema.GraphQLScalarType;
 import graphql.schema.GraphQLSchema;
 import graphql.schema.GraphQLTypeReference;
 import graphql.schema.idl.RuntimeWiring;
@@ -122,6 +124,8 @@ public class GraphQLWebService {
                         };
                     }
                 })
+
+                .scalar(ExtendedScalars.DateTime)
 
                 .type("Identifiable", builder -> builder.typeResolver(env -> (GraphQLObjectType) env.getFieldType()))
 
