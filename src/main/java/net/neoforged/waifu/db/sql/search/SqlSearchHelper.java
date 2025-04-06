@@ -119,8 +119,8 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
         var pagination = Optional.ofNullable(env.<Map<String, Integer>>getArgument("pagination"))
                 .map(m -> new Pagination(
-                        Math.min(m.getOrDefault("limit", MAX_ITEMS_PER_REQUEST), MAX_ITEMS_PER_REQUEST),
-                        m.getOrDefault("after", -1)
+                        Math.min(Objects.requireNonNullElse(m.get("limit"), MAX_ITEMS_PER_REQUEST), MAX_ITEMS_PER_REQUEST),
+                        Objects.requireNonNullElse(m.get("after"), -1)
                 ))
                 .orElse(Pagination.DEFAULT);
 
