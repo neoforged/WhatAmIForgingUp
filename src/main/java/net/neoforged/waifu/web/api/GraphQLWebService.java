@@ -42,9 +42,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -69,6 +72,8 @@ public class GraphQLWebService {
     private final ScheduledExecutorService rateLimitService;
 
     private record TokenRateLimit(int requests, Duration interval, AtomicInteger resetsIn, AtomicInteger remaining) {}
+
+    private final ExecutorService executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("graphql-executor-", 0).factory());
 
     public GraphQLWebService(Javalin javalin, MainDatabase db, TokenManager tokenManager, boolean anonymousAccess, @Nullable TokenManager.RateLimit anonymousRateLimit) {
         this.db = db;
@@ -246,13 +251,20 @@ public class GraphQLWebService {
             record Body(String query, String operationName, Map<String, Object> variables) {}
             var body = ctx.bodyAsClass(Body.class);
             Map<String, Object> variables = Objects.requireNonNullElse(body.variables(), Map.of());
-            ExecutionResult executionResult = engine.execute(in -> in.query(body.query).operationName(body.operationName).variables(variables));
-            if (!executionResult.getErrors().isEmpty()) {
-                Main.LOGGER.error("Failure during GraphQL query: {}: {}", body, executionResult.getErrors());
-                ctx.json(Map.of("error", executionResult.getErrors().get(0).getMessage())).status(HttpStatus.BAD_REQUEST);
-                return;
+
+            var future = executor.submit(() -> engine.execute(in -> in.query(body.query).operationName(body.operationName).variables(variables)));
+            try {
+                var executionResult = future.get(10, TimeUnit.SECONDS);
+                if (!executionResult.getErrors().isEmpty()) {
+                    Main.LOGGER.error("Failure during GraphQL query: {}: {}", body, executionResult.getErrors());
+                    ctx.json(Map.of("error", executionResult.getErrors().get(0).getMessage())).status(HttpStatus.BAD_REQUEST);
+                    return;
+                }
+                ctx.json(Utils.GSON.toJson(Map.of("data", executionResult.getData())));
+            } catch (TimeoutException timeout) {
+                ctx.json(Map.of("error", "Execution timed out"));
+                future.cancel(true);
             }
-            ctx.json(Utils.GSON.toJson(Map.of("data", executionResult.getData())));
         });
     }
 

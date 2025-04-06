@@ -67,7 +67,8 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
     private static final Map<String, FilterCriterion> TAG_CRITERIA = Map.of(
             "name", FilterCriterion.column("tagname"),
-            "replace", FilterCriterion.column("tags.replace")
+            "replace", FilterCriterion.column("tags.replace"),
+            "anyEntry", FilterCriterion.column("entryname.constant")
     );
 
     private static final Map<String, String> MOD_FIELD_MAPPING = Map.of(
@@ -195,26 +196,44 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
             var sub = builder.subBuilder("tags")
                     .requestAsJson()
-                    .joinOn("constants entryname", SqlCondition.condition("entryname.id = tags.entry"))
                     .joinOn("constants tagnm", ctx -> "tagnm.id = tags.tag and tagnm.constant ~ " + ctx.insert("^\\w+" + baseTag + ".+"))
                     .joinOn("replace(tagnm.constant, " + tagReplace + ", ':') tagname", SqlCondition.condition("true"))
                     .where(SqlCondition.condition("tags.mod = mods.id"))
-                    .groupBy("tagname", "tags.replace");
+                    .groupBy("tags.tag", "tags.replace", "tagname");
 
             var filArgs = field.getArguments().get("filter");
             if (filArgs != null) {
-                sub.where(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, TAG_CRITERIA, new HashSet<>()));
+                var applied = new HashSet<String>();
+                sub.where(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, TAG_CRITERIA, applied));
+
+                if (applied.contains("anyEntry")) {
+                    sub.joinOn("constants entryname", SqlCondition.condition("entryname.id = tags.entry"));
+                }
+            }
+
+            var limit = (Integer) field.getArguments().get("limit");
+            if (limit != null) {
+                sub.limit(limit);
             }
 
             for (SelectedField req : field.getSelectionSet().getImmediateFields()) {
                 switch (req.getName()) {
-                    case "name" -> sub.requestColumn("tagname", req.getResultKey());
-                    case "entries" -> sub.requestColumn("json_agg(entryname.constant)", req.getResultKey());
-                    case "replace" -> sub.requestColumn("tags.replace", req.getResultKey());
+                    case "name" -> sub.requestColumn("tagname", columnAlias(req));
+                    case "entries" -> sub.requestSubColumn("tags t1", b -> {
+                        b.requestColumn("coalesce(array_agg(entryname.constant), array[]::text[])", null)
+                                .joinOn("constants entryname", SqlCondition.condition("entryname.id = t1.entry"))
+                                .where(SqlCondition.condition("t1.tag = tags.tag and t1.mod = mods.id"));
+
+                        var filter = req.getArguments().get("filter");
+                        if (filter != null) {
+                            b.where("entryname.constant", SqlFilter.parse(filter));
+                        }
+                    }, columnAlias(req));
+                    case "replace" -> sub.requestColumn("tags.replace", columnAlias(req));
                 }
             }
 
-            builder.columnSubQuery("(" + sub.format() + ")", "$" + field.getResultKey(), b -> b.requestColumn("coalesce(jsonb_agg(json_out), '[]'::jsonb)", "r"));
+            builder.columnSubQuery("(" + sub.format() + ")", columnAlias(field), b -> b.requestColumn("coalesce(jsonb_agg(json_out), '[]'::jsonb)", "r"));
         });
 
         if (requireClassJoin) {
@@ -226,6 +245,13 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         }
 
         builder.orderBy("mods.id");
+    }
+
+    private String columnAlias(SelectedField field) {
+        if (field.getAlias() == null) {
+            return field.getName();
+        }
+        return "$" + field.getAlias();
     }
 
     private Object returnList(SqlSearchBuilder builder, String resultField, int expectedItems) {

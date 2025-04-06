@@ -83,7 +83,17 @@ type Mod @implement(interfaces: ["Identifiable"]) {
     classes(filter: ClassPredicate, order: ClassOrdering, limit: Int): [String!]!
 
     "Get the tags this mod defines for the given registry"
-    tags(registry: String!, filter: TagPredicate): [Tag!]!
+    tags(
+        """
+        The registry to get tags for.
+        The format is namespace:registry (e.g. "minecraft:item" or "minecraft:worldgen/biome")
+        """
+        registry: String!,
+        "An optional filter applied to the returned tags"
+        filter: TagFilePredicate,
+        "Limit the amount of tags returned"
+        limit: Int
+    ): [TagFile!]!
 
     "The time this mod was last indexed"
     indexedOn: DateTime
@@ -118,12 +128,12 @@ type ModsByIdResponse {
     mods: [Mod!]!
 }
 
-"A Minecraft tag"
-type Tag {
+"A Minecraft tag file"
+type TagFile {
     "The name of this tag (e.g. minecraft:mineable/pickaxe)"
     name: String!
     "The entries added to this tag. These can be either normal objects (e.g. minecraft:stone) or other tags, denoted by a # at the start (e.g. #minecraft:head_armor)"
-    entries: [String]!
+    entries("An optional filter applied to the entries returned" filter: StringPredicate): [String]!
     """
     Whether this tag overrides all previously added entries.
     Corresponds to the "replace" field in the tag JSON.
@@ -132,7 +142,7 @@ type Tag {
 }
 
 "Used to filter tags based on different criteria"
-input TagPredicate @predicateType @oneOf {
+input TagFilePredicate @predicateType @oneOf {
     "Filter based on the tag name"
     name: StringPredicate
 
@@ -141,6 +151,9 @@ input TagPredicate @predicateType @oneOf {
     If set to false, only tags that do not override existing values will be returned.
     """
     replace: Boolean
+
+    "A tag file will match this predicate if any of its direct entries matches the given predicate"
+    anyEntry: StringPredicate
 }
 
 "Used to filter mods based on different criteria"

@@ -5,6 +5,7 @@ import com.google.common.collect.Multimaps;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.statement.Query;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,7 +24,8 @@ public final class SqlSearchBuilder {
     private final String table;
     final Map<String, String> columns = new LinkedHashMap<>();
     private final Set<String> groups = new LinkedHashSet<>();
-    private final List<SqlCondition> conditions = new ArrayList<>();
+    private final List<SqlCondition> where = new ArrayList<>();
+    private final List<SqlCondition> having = new ArrayList<>();
     private final SqlArgumentContext ctx;
     private final Multimap<String, SqlCondition> joins = Multimaps.newListMultimap(new LinkedHashMap<>(), ArrayList::new);
 
@@ -44,19 +46,32 @@ public final class SqlSearchBuilder {
         this.ctx = ctx;
     }
 
-    public SqlSearchBuilder requestColumn(String col, String alias) {
+    public SqlSearchBuilder requestColumn(String col, @Nullable String alias) {
         columns.put(alias, col);
-        lowercasedAliases.put(alias.toLowerCase(Locale.ROOT), alias);
+        if (alias != null) {
+            lowercasedAliases.put(alias.toLowerCase(Locale.ROOT), alias);
+        }
         return this;
     }
 
+    public SqlSearchBuilder requestSubColumn(String from, Consumer<SqlSearchBuilder> cons, String alias) {
+        var sub = subBuilder(from);
+        cons.accept(sub);
+        return requestColumn("(" + sub.format() + ")", alias);
+    }
+
     public SqlSearchBuilder where(String column, SqlFilter filter) {
-        conditions.add(SqlCondition.columnFilter(filter, column));
+        where.add(SqlCondition.columnFilter(filter, column));
         return this;
     }
 
     public SqlSearchBuilder where(SqlCondition clause) {
-        conditions.add(clause);
+        where.add(clause);
+        return this;
+    }
+
+    public SqlSearchBuilder having(SqlCondition clause) {
+        having.add(clause);
         return this;
     }
 
@@ -105,7 +120,7 @@ public final class SqlSearchBuilder {
             builder.append(") as json_out");
         } else {
             builder.append(columns.entrySet().stream()
-                    .map(e -> e.getValue() + " as \"" + e.getKey() + "\"")
+                    .map(e -> e.getKey() == null ? e.getValue() : (e.getValue() + " as \"" + e.getKey() + "\""))
                     .collect(Collectors.joining(", ")));
         }
 
@@ -118,9 +133,9 @@ public final class SqlSearchBuilder {
                 .append(" on ")
                 .append(filters(fil)));
 
-        if (!conditions.isEmpty()) {
+        if (!where.isEmpty()) {
             builder.append(" where ")
-                    .append(conditions.stream()
+                    .append(where.stream()
                             .map(c -> c.build(ctx))
                             .collect(Collectors.joining(" and ")));
         }
@@ -128,6 +143,13 @@ public final class SqlSearchBuilder {
         if (!groups.isEmpty()) {
             builder.append(" group by ")
                     .append(String.join(", ", groups));
+        }
+
+        if (!having.isEmpty()) {
+            builder.append(" having ")
+                    .append(having.stream()
+                            .map(c -> c.build(ctx))
+                            .collect(Collectors.joining(" and ")));
         }
 
         if (orderColumn != null) {
