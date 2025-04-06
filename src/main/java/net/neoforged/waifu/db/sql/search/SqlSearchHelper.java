@@ -3,6 +3,7 @@ package net.neoforged.waifu.db.sql.search;
 import com.google.common.collect.ImmutableBiMap;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.DataFetchingFieldSelectionSet;
+import graphql.schema.SelectedField;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
 import net.neoforged.waifu.platform.ModLoader;
@@ -182,32 +183,39 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 limitText = "[1:" + limit + "]";
             }
 
-            builder.requestColumn("(array_agg(" + aggIn + ")::text[])" + limitText + " as classes");
+            builder.requestColumn("(array_agg(" + aggIn + ")::text[])" + limitText, "classes");
         }
 
-        if (set.contains("tags")) {
-            var selection = set.getFields("tags").getFirst();
-            var reg = (String) selection.getArguments().get("registry");
+        set.getFields("tags").forEach(field -> {
+            var reg = (String) field.getArguments().get("registry");
 
             String baseTag = "/" + reg.replace(':', '/').replace("minecraft/", "") + "/";
 
             var tagReplace = builder.insert(baseTag);
 
             var sub = builder.subBuilder("tags")
-                    .requestColumn("jsonb_build_object('name', tagname, 'entries', json_agg(entryname.constant), 'replace', tags.replace)", "e")
+                    .requestAsJson()
                     .joinOn("constants entryname", SqlCondition.condition("entryname.id = tags.entry"))
                     .joinOn("constants tagnm", ctx -> "tagnm.id = tags.tag and tagnm.constant ~ " + ctx.insert("^\\w+" + baseTag + ".+"))
                     .joinOn("replace(tagnm.constant, " + tagReplace + ", ':') tagname", SqlCondition.condition("true"))
                     .where(SqlCondition.condition("tags.mod = mods.id"))
                     .groupBy("tagname", "tags.replace");
 
-            var filArgs = selection.getArguments().get("filter");
+            var filArgs = field.getArguments().get("filter");
             if (filArgs != null) {
                 sub.where(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, TAG_CRITERIA, new HashSet<>()));
             }
 
-            builder.columnSubQuery("(" + sub.format() + ")", "tags", b -> b.requestColumn("coalesce(jsonb_agg(e), '[]')"));
-        }
+            for (SelectedField req : field.getSelectionSet().getImmediateFields()) {
+                switch (req.getName()) {
+                    case "name" -> sub.requestColumn("tagname", req.getResultKey());
+                    case "entries" -> sub.requestColumn("json_agg(entryname.constant)", req.getResultKey());
+                    case "replace" -> sub.requestColumn("tags.replace", req.getResultKey());
+                }
+            }
+
+            builder.columnSubQuery("(" + sub.format() + ")", "$" + field.getResultKey(), b -> b.requestColumn("coalesce(jsonb_agg(json_out), '[]'::jsonb)", "r"));
+        });
 
         if (requireClassJoin) {
             builder.joinOn("class_defs", SqlCondition.condition("class_defs.mod = mods.id"));

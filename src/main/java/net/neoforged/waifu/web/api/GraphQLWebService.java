@@ -11,15 +11,16 @@ import graphql.language.TypeName;
 import graphql.scalars.ExtendedScalars;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
+import graphql.schema.GraphQLCodeRegistry;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLInputObjectType;
 import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLNonNull;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLOutputType;
-import graphql.schema.GraphQLScalarType;
 import graphql.schema.GraphQLSchema;
 import graphql.schema.GraphQLTypeReference;
+import graphql.schema.PropertyDataFetcher;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaDirectiveWiring;
 import graphql.schema.idl.SchemaDirectiveWiringEnvironment;
@@ -47,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class GraphQLWebService {
     private record VersionKey(String ver, ModLoader loader) {}
@@ -124,6 +126,9 @@ public class GraphQLWebService {
                         };
                     }
                 })
+
+                .codeRegistry(GraphQLCodeRegistry.newCodeRegistry()
+                        .defaultDataFetcher(env -> new ConsiderAliasDataFetcher<>(env.getFieldDefinition().getName())))
 
                 .scalar(ExtendedScalars.DateTime)
 
@@ -311,6 +316,33 @@ public class GraphQLWebService {
 
         public Object getModsById(DataFetchingEnvironment env) {
             return getHelper(version, loader).getModsById(env);
+        }
+    }
+
+    private static final class ConsiderAliasDataFetcher<T> extends PropertyDataFetcher<T> {
+        public ConsiderAliasDataFetcher(String propertyName) {
+            super(propertyName);
+        }
+
+        @Override
+        public T get(GraphQLFieldDefinition fieldDefinition, Object source, Supplier<DataFetchingEnvironment> environmentSupplier) throws Exception {
+            if (source instanceof Map<?,?> mp) {
+                var val = mp.get(getPropertyName());
+                if (val != null) {
+                    return (T) val;
+                }
+
+                var fld = environmentSupplier.get().getField();
+                if (fld.getAlias() != null) {
+                    val = mp.get("$" + fld.getAlias());
+                    if (val != null) {
+                        return (T) val;
+                    }
+                }
+
+                return null;
+            }
+            return super.get(fieldDefinition, source, environmentSupplier);
         }
     }
 }

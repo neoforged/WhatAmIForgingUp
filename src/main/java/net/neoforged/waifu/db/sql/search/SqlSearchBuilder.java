@@ -21,11 +21,13 @@ import java.util.stream.Collectors;
 @CanIgnoreReturnValue
 public final class SqlSearchBuilder {
     private final String table;
-    final Set<String> columns = new LinkedHashSet<>();
+    final Map<String, String> columns = new LinkedHashMap<>();
     private final Set<String> groups = new LinkedHashSet<>();
     private final List<SqlCondition> conditions = new ArrayList<>();
     private final SqlArgumentContext ctx;
     private final Multimap<String, SqlCondition> joins = Multimaps.newListMultimap(new LinkedHashMap<>(), ArrayList::new);
+
+    private boolean requestAsJson;
 
     private String orderColumn;
 
@@ -42,13 +44,8 @@ public final class SqlSearchBuilder {
         this.ctx = ctx;
     }
 
-    public SqlSearchBuilder requestColumn(String col) {
-        columns.add(col);
-        return this;
-    }
-
     public SqlSearchBuilder requestColumn(String col, String alias) {
-        columns.add(col + " as " + alias);
+        columns.put(alias, col);
         lowercasedAliases.put(alias.toLowerCase(Locale.ROOT), alias);
         return this;
     }
@@ -88,14 +85,31 @@ public final class SqlSearchBuilder {
         return this;
     }
 
+    public SqlSearchBuilder requestAsJson() {
+        this.requestAsJson = true;
+        return this;
+    }
+
     public String insert(Object value) {
         return ctx.insert(value);
     }
 
     public String format() {
         StringBuilder builder = new StringBuilder("select ");
-        builder.append(String.join(", ", columns))
-                .append(" from ")
+
+        if (requestAsJson) {
+            builder.append("jsonb_build_object(");
+            builder.append(columns.entrySet().stream()
+                    .map(e -> insert(e.getKey()) + ", " + e.getValue())
+                    .collect(Collectors.joining(", ")));
+            builder.append(") as json_out");
+        } else {
+            builder.append(columns.entrySet().stream()
+                    .map(e -> e.getValue() + " as \"" + e.getKey() + "\"")
+                    .collect(Collectors.joining(", ")));
+        }
+
+        builder.append(" from ")
                 .append(table);
 
         var joins = this.joins.asMap();
@@ -148,7 +162,7 @@ public final class SqlSearchBuilder {
     public SqlSearchBuilder columnSubQuery(String column, String alias, Consumer<SqlSearchBuilder> sub) {
         var s = new SqlSearchBuilder(column, ctx);
         sub.accept(s);
-        columns.add("(" + s.format() + ") as " + alias);
+        requestColumn("(" + s.format() + ")", alias);
         return this;
     }
 
