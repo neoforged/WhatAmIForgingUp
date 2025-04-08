@@ -17,6 +17,8 @@ import graphql.schema.GraphQLArgument;
 import graphql.schema.GraphQLCodeRegistry;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLInputObjectType;
+import graphql.schema.GraphQLInputType;
+import graphql.schema.GraphQLInterfaceType;
 import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLNamedSchemaElement;
 import graphql.schema.GraphQLNonNull;
@@ -41,6 +43,7 @@ import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -161,26 +164,38 @@ public class GraphQLWebService {
                     public GraphQLObjectType onObject(SchemaDirectiveWiringEnvironment<GraphQLObjectType> environment) {
                         List<String> ifaces = environment.getAppliedDirective().getArgument("interfaces").getValue();
                         return environment.getElement().transform(b -> {
+                            var fields = new ArrayList<>(environment.getElement().getFields());
+                            fields.removeIf(f -> f.getName().equals("_"));
+
                             ifaces.stream()
                                     .map(i -> environment.getRegistry().getType(i, InterfaceTypeDefinition.class))
                                     .flatMap(Optional::stream)
                                     .forEach(def -> {
-                                        def.getFieldDefinitions().forEach(f -> b.field(GraphQLFieldDefinition.newFieldDefinition()
-                                                .name(f.getName()).description(Optional.ofNullable(f.getDescription())
-                                                        .map(Description::getContent).orElse(null))
-                                                .type(type(f.getType())).build()));
+                                        def.getFieldDefinitions().forEach(f -> fields.add(field(f)));
                                         b.withInterface(GraphQLTypeReference.typeRef(def.getName()));
                                     });
+
+                            b.replaceFields(fields);
                         });
                     }
 
-                    private GraphQLOutputType type(Type<?> tp) {
-                        return switch (tp) {
-                            case NonNullType n -> GraphQLNonNull.nonNull(type(n.getType()));
-                            case ListType l -> GraphQLList.list(type(l.getType()));
-                            case TypeName nm -> GraphQLTypeReference.typeRef(nm.getName());
-                            default -> null;
-                        };
+                    @Override
+                    public GraphQLInterfaceType onInterface(SchemaDirectiveWiringEnvironment<GraphQLInterfaceType> environment) {
+                        List<String> ifaces = environment.getAppliedDirective().getArgument("interfaces").getValue();
+                        return environment.getElement().transform(b -> {
+                            var fields = new ArrayList<>(environment.getElement().getFields());
+                            fields.removeIf(f -> f.getName().equals("_"));
+
+                            ifaces.stream()
+                                    .map(i -> environment.getRegistry().getType(i, InterfaceTypeDefinition.class))
+                                    .flatMap(Optional::stream)
+                                    .forEach(def -> {
+                                        def.getFieldDefinitions().forEach(f -> fields.add(field(f)));
+                                        b.withInterface(GraphQLTypeReference.typeRef(def.getName()));
+                                    });
+
+                            b.replaceFields(fields);
+                        });
                     }
                 })
                 .directive("paginated", new SchemaDirectiveWiring() {
@@ -217,8 +232,7 @@ public class GraphQLWebService {
                         .defaultDataFetcher(env -> new ConsiderAliasDataFetcher<>(env.getFieldDefinition().getName())))
 
                 .scalar(ExtendedScalars.DateTime)
-
-                .type("Identifiable", builder -> builder.typeResolver(env -> (GraphQLObjectType) env.getFieldType()))
+                .scalar(ExtendedScalars.Json)
 
                 .type("Query", builder ->
                         builder.dataFetcher("gameVersion", this::getVersion)
@@ -227,6 +241,7 @@ public class GraphQLWebService {
                 .type("GameVersion", builder ->
                         builder.dataFetcher("mods", invoke(Version::getMods))
                                 .dataFetcher("modsById", invoke(Version::getModsById))
+                                .dataFetcher("classes", invoke(Version::getClasses))
 
                                 .dataFetcher("loader", get(Version::loaderAsGraphQLEnum))
                                 .dataFetcher("version", get(v -> v.version))
@@ -244,6 +259,9 @@ public class GraphQLWebService {
             }
         });
 
+        for (InterfaceTypeDefinition type : typeDefinitionRegistry.getTypes(InterfaceTypeDefinition.class)) {
+            runtimeWiring.type(type.getName(), b -> b.typeResolver(env -> (GraphQLObjectType) env.getFieldType()));
+        }
 
         SchemaGenerator schemaGenerator = new SchemaGenerator();
         GraphQLSchema graphQLSchema = schemaGenerator.makeExecutableSchema(SchemaGenerator.Options.defaultOptions().useCommentsAsDescriptions(false)
@@ -421,6 +439,38 @@ public class GraphQLWebService {
         public Object getModsById(DataFetchingEnvironment env) {
             return getHelper(version, loader).getModsById(env);
         }
+
+        public Object getClasses(DataFetchingEnvironment env) {
+            return getHelper(version, loader).getClasses(env);
+        }
+    }
+
+    private static GraphQLFieldDefinition field(FieldDefinition f) {
+        return GraphQLFieldDefinition.newFieldDefinition()
+                .name(f.getName())
+                .description(description(f.getDescription()))
+                .type(GraphQLWebService.<GraphQLOutputType>type(f.getType()))
+                .arguments(f.getInputValueDefinitions().stream()
+                        .map(d -> GraphQLArgument.newArgument()
+                                .description(description(d.getDescription()))
+                                .name(d.getName())
+                                .type(type(d.getType()))
+                                .build())
+                        .toList())
+                .build();
+    }
+
+    private static String description(Description d) {
+        return d == null ? null : d.getContent();
+    }
+
+    private static <T> T type(Type<?> tp) {
+        return (T) switch (tp) {
+            case NonNullType n -> GraphQLNonNull.nonNull(type(n.getType()));
+            case ListType l -> GraphQLList.list(type(l.getType()));
+            case TypeName nm -> GraphQLTypeReference.typeRef(nm.getName());
+            default -> null;
+        };
     }
 
     private static final class ConsiderAliasDataFetcher<T> extends PropertyDataFetcher<T> {

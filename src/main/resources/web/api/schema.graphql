@@ -1,11 +1,13 @@
 # noinspection GraphQLUnresolvedReference,GraphQLMissingType
 
 directive @predicateType on INPUT_OBJECT
-directive @implement(interfaces: [String!]!) on OBJECT
+directive @implement(interfaces: [String!]!) on OBJECT | INTERFACE
 directive @specifiedBy(url: String!) on SCALAR
 directive @paginated on FIELD_DEFINITION
 
 scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/andimarek/date-time.html")
+
+scalar JSON
 
 schema {
     query: Query
@@ -56,6 +58,12 @@ type GameVersion {
         """
         ids: [Int!]!
     ): Mod @paginated
+
+    "Get the classes known by this game version that optionally match the given predicate"
+    classes(
+        "Optional filter applied to the query"
+        where: ClassPredicate
+    ): Class @paginated
 }
 
 "Represents an object that is identifiable by an unique ID (within its category)"
@@ -64,7 +72,8 @@ interface Identifiable {
     id: Int!
 }
 
-type Mod @implement(interfaces: ["Identifiable"]) {
+"A base interface used to describe the simple properties of an indexed Mod"
+interface BaseMod @implement(interfaces: "Identifiable") {
     "The name of this mod (derived from mod metadata, jar contents or maven coordinates)"
     name: String!
     "The last indexed version of this mod"
@@ -85,6 +94,21 @@ type Mod @implement(interfaces: ["Identifiable"]) {
     "The sections of the manifest of the last jar indexed for this mod"
     manifest: [ManifestEntry!]!
 
+    "The time this mod was last indexed"
+    indexedOn: DateTime
+}
+
+"""
+A mod instance which has only basic properties available (properties that do not require joining on tables other than `mods`).
+These are returned by objects associated with a mod like class definitions.
+To "upgrade" a lightweight mod to a _Mod_ you can use `modsById`.
+"""
+type LightweightMod @implement(interfaces: ["Identifiable", "BaseMod"]) {
+    _: String
+}
+
+"Represents a full mod from which data that requires more complex processing can be queries (classes, tags etc.)"
+type Mod @implement(interfaces: ["Identifiable", "BaseMod"]) {
     "Get the classes this mod defines. Optionally takes in a filter on the class name"
     classes(where: ClassPredicate, order: ClassOrdering, limit: Int): [String!]!
 
@@ -100,9 +124,6 @@ type Mod @implement(interfaces: ["Identifiable"]) {
         "Limit the amount of tags returned"
         limit: Int
     ): [TagFile!]!
-
-    "The time this mod was last indexed"
-    indexedOn: DateTime
 }
 
 "Represents a manifest entry (section)"
@@ -132,6 +153,73 @@ type TagFile {
     Corresponds to the "replace" field in the tag JSON.
     """
     replace: Boolean!
+}
+
+"An annotation instance (the type and its value as a JSON object)"
+type Annotation {
+    "The type of the annotation - e.g. `java/lang/Deprecated`"
+    type: String!
+
+    "The value of this annotation as a JSON object"
+    value: JSON
+}
+
+"Represents an object that can be annotated - method, field or class definition"
+interface Annotatable {
+    "Returns annotations on this object matching the given predicate"
+    annotations("An optional filter to apply to the query" where: AnnotationPredicate): [Annotation!]!
+}
+
+"Used to filter annotations based on different criteria"
+input AnnotationPredicate @predicateType @oneOf {
+    "Filter based on the annotation type"
+    type: StringPredicate
+}
+
+"A class described by its name (e.g. `java/lang/String`)"
+type Class @implement(interfaces: "Identifiable") {
+    "The name of this class"
+    name: String!
+
+    "Returns all known concrete definitions of the class"
+    definitions: [ClassDefinition]!
+}
+
+"A concrete definition of a class"
+type ClassDefinition @implement(interfaces: "Annotatable") {
+    "Classes this class directly inherits from (both super classes and interfaces)"
+    parents: [String!]
+
+    "The mod that defines this definition"
+    mod: LightweightMod
+
+    """
+    The methods this class defines directly.
+    Note that this list is not complete and only contains methods relevant for API usage. Therefore private methods that have no annotations are not tracked.
+    """
+    methods: [MethodDefinition!]! # Maybe add a filter argument here too?
+
+    """
+    The fields this class defines directly.
+    Note that this list is not complete and only contains fields relevant for API usage. Therefore private fields that have no annotations are not tracked.
+    """
+    fields: [FieldDefinition!]! # Maybe add a filter argument here too?
+}
+
+"A concrete definition of a method"
+type MethodDefinition @implement(interfaces: "Annotatable") {
+    "The name of this method"
+    name: String!
+    "The descriptor of this method"
+    descriptor: String!
+}
+
+"A concrete definition of a field"
+type FieldDefinition @implement(interfaces: "Annotatable") {
+    "The name of this method"
+    name: String!
+    "The type of this field. This is not a descriptor so classes are in internal JVM format (e.g. `java/lang/String` instead of `Ljava/lang/String;`)"
+    type: String!
 }
 
 "Used to filter tags based on different criteria"

@@ -54,7 +54,7 @@ public final class SqlSearchBuilder {
         return this;
     }
 
-    public SqlSearchBuilder requestSubColumn(String from, Consumer<SqlSearchBuilder> cons, String alias) {
+    public SqlSearchBuilder requestSubColumn(String from, String alias,  Consumer<SqlSearchBuilder> cons) {
         var sub = subBuilder(from);
         cons.accept(sub);
         return requestColumn("(" + sub.format() + ")", alias);
@@ -186,6 +186,12 @@ public final class SqlSearchBuilder {
         sub.accept(s);
         requestColumn("(" + s.format() + ")", alias);
         return this;
+    }
+
+    public SqlSearchBuilder arrayAggregateSubQuery(String column, String alias, Consumer<SqlSearchBuilder> sub) {
+        var sb = subBuilder(column);
+        sub.accept(sb);
+        return columnSubQuery("(" + sb.format() + ")", alias, b -> b.requestColumn("coalesce(jsonb_agg(json_out), '[]'::jsonb)", "r"));
     }
 
     private String filters(Collection<SqlCondition> filters) {
