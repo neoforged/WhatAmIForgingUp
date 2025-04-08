@@ -24,7 +24,7 @@ public final class SqlSearchBuilder {
     private final String table;
     final Map<String, String> columns = new LinkedHashMap<>();
     private final Set<String> groups = new LinkedHashSet<>();
-    private final List<SqlCondition> where = new ArrayList<>();
+    final List<SqlCondition> where = new ArrayList<>();
     private final List<SqlCondition> having = new ArrayList<>();
     private final SqlArgumentContext ctx;
     private final Multimap<String, SqlCondition> joins = Multimaps.newListMultimap(new LinkedHashMap<>(), ArrayList::new);

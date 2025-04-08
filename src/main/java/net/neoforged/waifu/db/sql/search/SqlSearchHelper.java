@@ -13,18 +13,20 @@ import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.statement.HashPrefixSqlParser;
 import org.jdbi.v3.core.statement.SqlStatements;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 public class SqlSearchHelper implements DatabaseSearchHelper {
     public static final Map<String, FilterCriterion> MANIFEST_CRITERIA = Map.of(
@@ -101,39 +103,22 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         var builder = new SqlSearchBuilder("mods");
 
         var ids = new ArrayList<>((List<Integer>) env.getArgument("ids"));
-        if (ids.size() > MAX_ITEMS_PER_REQUEST) {
-            throw new IllegalArgumentException("Found " + ids.size() + " ids to query, more than the maximum of " + MAX_ITEMS_PER_REQUEST);
-        }
 
         builder.where(ctx -> "mods.id = any(" + ctx.insert(ids) + ")");
 
         var mods = env.getSelectionSet().getFields("mods");
         configureModSearch(mods.isEmpty() ? EmptySelectionSet.INSTANCE : mods.getFirst().getSelectionSet(), builder, false);
 
-        return returnList(builder, "mods", ids.size());
+        return paginate(builder, Pagination.parse(env.getArguments()), "mods.id");
     }
 
     @Override
     public Object getMods(DataFetchingEnvironment env) {
         var builder = new SqlSearchBuilder("mods");
 
-        var pagination = Optional.ofNullable(env.<Map<String, Integer>>getArgument("pagination"))
-                .map(m -> new Pagination(
-                        Math.min(Objects.requireNonNullElse(m.get("limit"), MAX_ITEMS_PER_REQUEST), MAX_ITEMS_PER_REQUEST),
-                        Objects.requireNonNullElse(m.get("after"), -1)
-                ))
-                .orElse(Pagination.DEFAULT);
-
-        if (pagination.after > 0) {
-            builder.where("id", SqlFilter.greaterThan(pagination.after));
-        }
-
-        builder.limit(pagination.limit() + 1);
-        int expectedItems = pagination.limit();
-
         boolean requireClassJoin = false;
 
-        Map<String, Object> filter = env.getArgument("filter");
+        Map<String, Object> filter = env.getArgument("where");
         if (filter != null) {
             var applied = new HashSet<String>();
             builder.where(SqlCondition.parseAsCriterion(filter, loader == ModLoader.FABRIC ? FABRIC_MOD_CRITERIA : FORGE_MOD_CRITERIA, applied));
@@ -143,10 +128,10 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             }
         }
 
-        var mods = env.getSelectionSet().getFields("mods");
+        var mods = env.getSelectionSet().getFields("edges/node");
         configureModSearch(mods.isEmpty() ? EmptySelectionSet.INSTANCE : mods.getFirst().getSelectionSet(), builder, requireClassJoin);
 
-        return returnList(builder, "mods", expectedItems);
+        return paginate(builder, Pagination.parse(env.getArguments()), "mods.id");
     }
 
     @SuppressWarnings("unchecked")
@@ -163,7 +148,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         if (set.contains("classes")) {
             requireClassJoin = true;
             var selection = set.getFields("classes").getFirst();
-            var filArgs = selection.getArguments().get("filter");
+            var filArgs = selection.getArguments().get("where");
             if (filArgs != null) {
                 classJoinFilter.add(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, CLASS_CRITERIA, new HashSet<>()));
             }
@@ -201,7 +186,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                     .where(SqlCondition.condition("tags.mod = mods.id"))
                     .groupBy("tags.tag", "tags.replace", "tagname");
 
-            var filArgs = field.getArguments().get("filter");
+            var filArgs = field.getArguments().get("where");
             if (filArgs != null) {
                 var applied = new HashSet<String>();
                 sub.where(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, TAG_CRITERIA, applied));
@@ -224,7 +209,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                                 .joinOn("constants entryname", SqlCondition.condition("entryname.id = t1.entry"))
                                 .where(SqlCondition.condition("t1.tag = tags.tag and t1.mod = mods.id"));
 
-                        var filter = req.getArguments().get("filter");
+                        var filter = req.getArguments().get("where");
                         if (filter != null) {
                             b.where("entryname.constant", SqlFilter.parse(filter));
                         }
@@ -243,8 +228,6 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
             builder.groupBy("mods.id");
         }
-
-        builder.orderBy("mods.id");
     }
 
     private String columnAlias(SelectedField field) {
@@ -254,7 +237,30 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         return "$" + field.getAlias();
     }
 
-    private Object returnList(SqlSearchBuilder builder, String resultField, int expectedItems) {
+    private Object paginate(SqlSearchBuilder builder, Pagination pagination, String paginateOn) {
+        if (pagination.descending()) {
+            builder.orderBy(paginateOn + " desc");
+        } else {
+            builder.orderBy(paginateOn);
+        }
+
+        int limit = pagination.limit();
+
+        if (pagination.after() >= 0) {
+            builder.where.addFirst(SqlCondition.columnFilter(SqlFilter.greaterThanOrEqual(pagination.after()), paginateOn));
+            limit++;
+        }
+        if (pagination.before() >= 0) {
+            builder.where.addFirst(SqlCondition.columnFilter(SqlFilter.smallerThanOrEqual(pagination.before()), paginateOn));
+            limit++;
+        }
+
+        limit = Math.max(limit, pagination.limit() + 1); // We need at least one additional element so we can check if we have a next page
+
+        builder.limit(limit);
+
+        var expected = limit;
+
         return jdbi.withHandle(handle -> builder.build(handle)
                 .execute((statementSupplier, ctx) -> {
                     var rs = statementSupplier.get().getResultSet();
@@ -268,7 +274,9 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                         columns[i] = new ColInfo(builder.lowercasedAliases.getOrDefault(colName, colName), rs.getMetaData().getColumnTypeName(i));
                     }
 
-                    var lst = new ArrayList<Map<String, Object>>(Math.max(expectedItems, 0));
+                    var lst = new ArrayList<Map<String, Object>>(expected);
+
+                    boolean haveAfter = false, haveBefore = false;
 
                     while (rs.next()) {
                         var entry = HashMap.<String, Object>newHashMap(colCount);
@@ -287,34 +295,124 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                                 } else {
                                     entry.put(col.resultName, o);
                                 }
+
+                                if (col.resultName.equals("id")) {
+                                    if (pagination.after() >= 0 && Objects.equals(o, pagination.after())) {
+                                        haveAfter = true;
+                                    }
+                                    if (pagination.before() >= 0 && Objects.equals(o, pagination.before())) {
+                                        haveBefore = true;
+                                    }
+                                }
                             }
                         }
                         lst.add(entry);
                     }
 
-                    boolean hasNext = false;
+                    class SwappedPointers<T> {
+                        boolean normal = true;
+                        final List<T> list;
 
-                    if (expectedItems >= 0 && lst.size() > expectedItems) {
-                        hasNext = true;
+                        SwappedPointers(List<T> list) {
+                            this.list = list;
+                        }
+
+                        public void removeLast() {
+                            if (normal) {
+                                list.removeLast();
+                            } else {
+                                list.removeFirst();
+                            }
+                        }
+
+                        public void removeFirst() {
+                            if (normal) {
+                                list.removeFirst();
+                            } else {
+                                list.removeLast();
+                            }
+                        }
+
+                        public void swap() {
+                            normal = !normal;
+                        }
+                    }
+
+                    var pointers = new SwappedPointers<>(lst);
+                    if (pagination.descending()) {
+                        pointers.swap();
+                    }
+
+                    if (haveAfter) {
+                        pointers.removeFirst();
+                    }
+                    if (haveBefore) {
+                        pointers.removeLast();
+                    }
+
+                    boolean hasPrevious = haveAfter, hasNext = haveBefore;
+
+                    while (lst.size() > pagination.limit()) {
+                        if (pagination.descending()) {
+                            hasPrevious = true;
+                        } else {
+                            hasNext = true;
+                        }
                         lst.removeLast();
                     }
 
-                    var pag = HashMap.newHashMap(3);
+                    if (pagination.descending()) {
+                        Collections.reverse(lst);
+                    }
+
+                    var pag = HashMap.newHashMap(4);
+                    pag.put("hasPreviousPage", hasPrevious);
                     pag.put("hasNextPage", hasNext);
-                    pag.put("size", lst.size());
                     if (!lst.isEmpty()) {
-                        pag.put("endCursor", lst.getLast().get("id"));
+                        pag.put("startCursor", Utils.base64(lst.getFirst().get("id")));
+                        pag.put("endCursor", Utils.base64(lst.getLast().get("id")));
                     }
 
                     return Map.of(
-                            resultField, lst,
-                            "pageInfo", pag
+                            "edges", lst,
+                            "pageInfo", pag,
+                            "count", lst.size()
                     );
                 }));
     }
 
-    private record Pagination(int limit, int after) {
-        public static final Pagination DEFAULT = new Pagination(MAX_ITEMS_PER_REQUEST, -1);
+    private record Pagination(int limit, boolean descending, int after, int before) {
+        public static final Pagination DEFAULT = new Pagination(MAX_ITEMS_PER_REQUEST, false, -1, -1);
+
+        private static Pagination parse(Map<String, Object> args) {
+            int limit = MAX_ITEMS_PER_REQUEST;
+            boolean isLast = false;
+
+            Integer last = (Integer) args.get("last");
+            if (last == null) {
+                Integer first = (Integer) args.get("first");
+                if (first != null) {
+                    limit = Math.min(first, MAX_ITEMS_PER_REQUEST);
+                }
+            } else {
+                limit = Math.min(last, MAX_ITEMS_PER_REQUEST);
+                isLast = true;
+            }
+
+            int after = -1, before = -1;
+
+            String aft = (String) args.get("after");
+            if (aft != null) {
+                after = Integer.parseInt(new String(Base64.getDecoder().decode(aft), StandardCharsets.UTF_8));
+            }
+
+            String bef = (String) args.get("before");
+            if (bef != null) {
+                before = Integer.parseInt(new String(Base64.getDecoder().decode(bef), StandardCharsets.UTF_8));
+            }
+
+            return new Pagination(limit, isLast, after, before);
+        }
     }
 
     private record Order(OrderRule rule, boolean desc) {

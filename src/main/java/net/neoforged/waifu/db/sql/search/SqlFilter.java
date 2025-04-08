@@ -38,8 +38,16 @@ public interface SqlFilter {
         return make((field, ctx) -> field + " > " + ctx.insert(val), lhs -> lhs + " > " + val);
     }
 
+    static SqlFilter greaterThanOrEqual(Object val) {
+        return make((field, ctx) -> field + " >= " + ctx.insert(val), lhs -> lhs + " >= " + val);
+    }
+
     static SqlFilter smallerThan(Object val) {
         return make((field, ctx) -> field + " < " + ctx.insert(val), lhs -> lhs + " < " + val);
+    }
+
+    static SqlFilter smallerThanOrEqual(Object val) {
+        return make((field, ctx) -> field + " <= " + ctx.insert(val), lhs -> lhs + " <= " + val);
     }
 
     static SqlFilter not(SqlFilter op) {

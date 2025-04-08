@@ -1,20 +1,24 @@
 package net.neoforged.waifu.web.api;
 
-import graphql.ExecutionResult;
 import graphql.GraphQL;
 import graphql.language.Description;
+import graphql.language.FieldDefinition;
 import graphql.language.InterfaceTypeDefinition;
 import graphql.language.ListType;
 import graphql.language.NonNullType;
+import graphql.language.ObjectTypeDefinition;
+import graphql.language.SourceLocation;
 import graphql.language.Type;
 import graphql.language.TypeName;
 import graphql.scalars.ExtendedScalars;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
+import graphql.schema.GraphQLArgument;
 import graphql.schema.GraphQLCodeRegistry;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLInputObjectType;
 import graphql.schema.GraphQLList;
+import graphql.schema.GraphQLNamedSchemaElement;
 import graphql.schema.GraphQLNonNull;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLOutputType;
@@ -37,12 +41,12 @@ import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -86,7 +90,55 @@ public class GraphQLWebService {
         SchemaParser schemaParser = new SchemaParser();
         TypeDefinitionRegistry typeDefinitionRegistry = schemaParser.parse(getClass().getResourceAsStream("/web/api/schema.graphql"));
 
-        RuntimeWiring runtimeWiring = RuntimeWiring.newRuntimeWiring()
+        Map<String, ObjectTypeDefinition> typesToAdd = new HashMap<>();
+
+        typeDefinitionRegistry.types().forEach((name, bdef) -> {
+            if (bdef instanceof ObjectTypeDefinition def) {
+                for (FieldDefinition field : def.getFieldDefinitions()) {
+                    if (field.hasDirective("paginated") && field.getType() instanceof TypeName type) {
+                        var edgeName = type.getName() + "Edge";
+                        typesToAdd.computeIfAbsent(edgeName, $ -> ObjectTypeDefinition.newObjectTypeDefinition()
+                                .name(edgeName)
+                                .description(new Description("An edge of a `" + type.getName() + "`.", SourceLocation.EMPTY, false))
+                                .fieldDefinition(FieldDefinition.newFieldDefinition()
+                                        .name("node")
+                                        .description(new Description("The item at the end of the edge.", SourceLocation.EMPTY, false))
+                                        .type(new NonNullType(type))
+                                        .build())
+                                .fieldDefinition(FieldDefinition.newFieldDefinition()
+                                        .name("cursor")
+                                        .description(new Description("The cursor ID of the element.", SourceLocation.EMPTY, false))
+                                        .type(new NonNullType(new TypeName("ID")))
+                                        .build())
+                                .build());
+
+                        typesToAdd.computeIfAbsent(type.getName() + "Connection", $ -> ObjectTypeDefinition.newObjectTypeDefinition()
+                                .name(type.getName() + "Connection")
+                                .description(new Description("A connection (list) composed of `" + type.getName() + "`.", SourceLocation.EMPTY, false))
+                                .fieldDefinition(FieldDefinition.newFieldDefinition()
+                                        .name("pageInfo")
+                                        .description(new Description("Information to aid in pagination.", SourceLocation.EMPTY, false))
+                                        .type(new NonNullType(new TypeName("PageInfo")))
+                                        .build())
+                                .fieldDefinition(FieldDefinition.newFieldDefinition()
+                                        .name("edges")
+                                        .description(new Description("A list of edges.", SourceLocation.EMPTY, false))
+                                        .type(new NonNullType(new ListType(new NonNullType(new TypeName(edgeName)))))
+                                        .build())
+                                .fieldDefinition(FieldDefinition.newFieldDefinition()
+                                        .name("count")
+                                        .description(new Description("Identifies the amount of items in the returned edges.", SourceLocation.EMPTY, false))
+                                        .type(new NonNullType(new TypeName("Int")))
+                                        .build())
+                                .build());
+                    }
+                }
+            }
+        });
+
+        typesToAdd.values().forEach(typeDefinitionRegistry::add);
+
+        RuntimeWiring.Builder runtimeWiring = RuntimeWiring.newRuntimeWiring()
                 .directive("predicateType", new SchemaDirectiveWiring() {
                     @Override
                     public GraphQLInputObjectType onInputObjectType(SchemaDirectiveWiringEnvironment<GraphQLInputObjectType> environment) {
@@ -131,6 +183,35 @@ public class GraphQLWebService {
                         };
                     }
                 })
+                .directive("paginated", new SchemaDirectiveWiring() {
+                    @Override
+                    public GraphQLFieldDefinition onField(SchemaDirectiveWiringEnvironment<GraphQLFieldDefinition> environment) {
+                        return environment.getElement().transform(b -> {
+                            var type = ((GraphQLNamedSchemaElement) environment.getElement().getType()).getName();
+                            b.type(new GraphQLNonNull(new GraphQLTypeReference(type + "Connection")));
+                            b.argument(GraphQLArgument.newArgument()
+                                    .name("first")
+                                    .description("Returns the first _n_ elements from the list.")
+                                    .type(new GraphQLTypeReference("Int"))
+                                    .build());
+                            b.argument(GraphQLArgument.newArgument()
+                                    .name("after")
+                                    .description("Returns the elements in the list that come after the specified cursor.")
+                                    .type(new GraphQLTypeReference("ID"))
+                                    .build());
+                            b.argument(GraphQLArgument.newArgument()
+                                    .name("last")
+                                    .description("Returns the last _n_ elements from the list.")
+                                    .type(new GraphQLTypeReference("Int"))
+                                    .build());
+                            b.argument(GraphQLArgument.newArgument()
+                                    .name("before")
+                                    .description("Returns the elements in the list that come before the specified cursor.")
+                                    .type(new GraphQLTypeReference("ID"))
+                                    .build());
+                        });
+                    }
+                })
 
                 .codeRegistry(GraphQLCodeRegistry.newCodeRegistry()
                         .defaultDataFetcher(env -> new ConsiderAliasDataFetcher<>(env.getFieldDefinition().getName())))
@@ -149,13 +230,24 @@ public class GraphQLWebService {
 
                                 .dataFetcher("loader", get(Version::loaderAsGraphQLEnum))
                                 .dataFetcher("version", get(v -> v.version))
-                )
-                .build();
+                );
+
+        typesToAdd.forEach((key, def) -> {
+            if (key.endsWith("Edge")) {
+                runtimeWiring.type(key, b -> b
+                        .dataFetcher("cursor", environment -> {
+                            Map<String, Object> obj = environment.getSource();
+                            // noinspection DataFlowIssue
+                            return Utils.base64(obj.get("id"));
+                        })
+                        .dataFetcher("node", DataFetchingEnvironment::getSource));
+            }
+        });
 
 
         SchemaGenerator schemaGenerator = new SchemaGenerator();
         GraphQLSchema graphQLSchema = schemaGenerator.makeExecutableSchema(SchemaGenerator.Options.defaultOptions().useCommentsAsDescriptions(false)
-                .useAppliedDirectivesOnly(true), typeDefinitionRegistry, runtimeWiring);
+                .useAppliedDirectivesOnly(true), typeDefinitionRegistry, runtimeWiring.build());
 
         this.engine = GraphQL.newGraphQL(graphQLSchema).build();
 

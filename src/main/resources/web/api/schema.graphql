@@ -3,6 +3,7 @@
 directive @predicateType on INPUT_OBJECT
 directive @implement(interfaces: [String!]!) on OBJECT
 directive @specifiedBy(url: String!) on SCALAR
+directive @paginated on FIELD_DEFINITION
 
 scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/andimarek/date-time.html")
 
@@ -40,16 +41,21 @@ type GameVersion {
 
     "Query mods from the database"
     mods(
-        pagination: PaginationInput,
         "Optional filter applied to the query"
-        filter: ModPredicate
-    ): ModsResponse!
+        where: ModPredicate
+    ): Mod @paginated
 
     """
     Get the mods from the database that have the given IDs.
     Note that the mods are not returned in a specific order relative to the input IDs.
     """
-    modsById("The mod IDs to query. Cannot exceed 500 elements" ids: [Int!]!): ModsByIdResponse!
+    modsById(
+        """
+        The mod IDs to query.
+        If it exceeds the maximum amount of elements that a single query can return you can paginate it further.
+        """
+        ids: [Int!]!
+    ): Mod @paginated
 }
 
 "Represents an object that is identifiable by an unique ID (within its category)"
@@ -80,7 +86,7 @@ type Mod @implement(interfaces: ["Identifiable"]) {
     manifest: [ManifestEntry!]!
 
     "Get the classes this mod defines. Optionally takes in a filter on the class name"
-    classes(filter: ClassPredicate, order: ClassOrdering, limit: Int): [String!]!
+    classes(where: ClassPredicate, order: ClassOrdering, limit: Int): [String!]!
 
     "Get the tags this mod defines for the given registry"
     tags(
@@ -90,7 +96,7 @@ type Mod @implement(interfaces: ["Identifiable"]) {
         """
         registry: String!,
         "An optional filter applied to the returned tags"
-        filter: TagFilePredicate,
+        where: TagFilePredicate,
         "Limit the amount of tags returned"
         limit: Int
     ): [TagFile!]!
@@ -115,25 +121,12 @@ type ManifestAttribute {
     value: String!
 }
 
-type ModsResponse {
-    "The returned mods"
-    mods: [Mod!]!
-
-    "Information to be used for pagination"
-    pageInfo: PageInformation!
-}
-
-type ModsByIdResponse {
-    "The returned mods"
-    mods: [Mod!]!
-}
-
 "A Minecraft tag file"
 type TagFile {
     "The name of this tag (e.g. minecraft:mineable/pickaxe)"
     name: String!
     "The entries added to this tag. These can be either normal objects (e.g. minecraft:stone) or other tags, denoted by a # at the start (e.g. #minecraft:head_armor)"
-    entries("An optional filter applied to the entries returned" filter: StringPredicate): [String]!
+    entries("An optional filter applied to the entries returned" where: StringPredicate): [String]!
     """
     Whether this tag overrides all previously added entries.
     Corresponds to the "replace" field in the tag JSON.
@@ -211,15 +204,22 @@ input ManifestAttributePredicate @predicateType @oneOf {
     value: StringPredicate
 }
 
-type PageInformation {
+"Information about pagination in a connection."
+type PageInfo {
     "Whether there are more elements past the last element of the response"
     hasNextPage: Boolean!
 
-    "The cursor ID that points to the last element returned, if there is one"
-    endCursor: Int
+    """
+    Whether there are more elements before the last element of the response.
+    Note that this field may be false even if earlier pages exist when it is too expensive to check if earlier pages exist.
+    """
+    hasPreviousPage: Boolean!
 
-    "The size of the current page"
-    size: Int!
+    "The cursor ID that points to the first element returned, if there is one"
+    startCursor: ID
+
+    "The cursor ID that points to the last element returned, if there is one"
+    endCursor: ID
 }
 
 """
