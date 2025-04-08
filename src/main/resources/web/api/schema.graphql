@@ -110,7 +110,7 @@ type LightweightMod @implement(interfaces: ["Identifiable", "BaseMod"]) {
 "Represents a full mod from which data that requires more complex processing can be queries (classes, tags etc.)"
 type Mod @implement(interfaces: ["Identifiable", "BaseMod"]) {
     "Get the classes this mod defines. Optionally takes in a filter on the class name"
-    classes(where: ClassPredicate, order: ClassOrdering, limit: Int): [String!]!
+    classes(where: ClassPredicate, order: ClassOrdering, limit: Int): [ClassDefinition!]!
 
     "Get the tags this mod defines for the given registry"
     tags(
@@ -187,6 +187,9 @@ type Class @implement(interfaces: "Identifiable") {
 
 "A concrete definition of a class"
 type ClassDefinition @implement(interfaces: "Annotatable") {
+    "The name of this class"
+    name: String!
+
     "Classes this class directly inherits from (both super classes and interfaces)"
     parents: [String!]
 
