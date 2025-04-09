@@ -65,6 +65,11 @@ public final class SqlSearchBuilder {
         return this;
     }
 
+    public SqlSearchBuilder where(String clause) {
+        where.add(SqlCondition.condition(clause));
+        return this;
+    }
+
     public SqlSearchBuilder where(SqlCondition clause) {
         where.add(clause);
         return this;
@@ -83,6 +88,10 @@ public final class SqlSearchBuilder {
     public SqlSearchBuilder orderBy(String column) {
         orderColumn = column;
         return this;
+    }
+
+    public SqlSearchBuilder joinOn(String column, String cond) {
+        return joinOn(column, SqlCondition.condition(cond));
     }
 
     public SqlSearchBuilder joinOn(String column, SqlCondition cond) {
@@ -188,15 +197,25 @@ public final class SqlSearchBuilder {
         return this;
     }
 
+    public SqlSearchBuilder jsonSubQuery(String alias, Consumer<Map<String, String>> creator) {
+        var map = new LinkedHashMap<String, String>();
+        creator.accept(map);
+        return requestColumn("jsonb_build_object(" + map.entrySet().stream()
+                .map(e -> insert(e.getKey()) + ", " + e.getValue())
+                .collect(Collectors.joining(", ")) + ")", alias);
+    }
+
     public SqlSearchBuilder arrayAggregateSubQuery(String column, String alias, Consumer<SqlSearchBuilder> sub) {
         var sb = subBuilder(column);
         sub.accept(sb);
+        sb.requestAsJson();
         return columnSubQuery("(" + sb.format() + ")", alias, b -> b.requestColumn("coalesce(jsonb_agg(json_out), '[]'::jsonb)", "r"));
     }
 
     private String filters(Collection<SqlCondition> filters) {
         return filters.stream()
                 .map(c -> c.build(ctx))
+                .distinct()
                 .collect(Collectors.joining(" and "));
     }
 }

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 public class SqlSearchHelper implements DatabaseSearchHelper {
     public static final Map<String, FilterCriterion> MANIFEST_CRITERIA = Map.of(
@@ -220,16 +221,72 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         }
 
         for (SelectedField modField : definition.getSelectionSet().getFields("mod")) {
-            var set = modField.getSelectionSet();
-            sub.columnSubQuery("mods", columnAlias(modField), mod -> {
-                mod.requestAsJson().where(SqlCondition.condition("mods.id = class_defs.mod"));
-                MOD_FIELD_MAPPING.forEach((fld, dbMapping) -> {
-                    if (set.contains(fld)) {
-                        mod.requestColumn("mods." + dbMapping, fld);
-                    }
-                });
+            configureModField(modField, sub, "class_defs.mod");
+        }
+
+        for (SelectedField referencedMethod : definition.getSelectionSet().getFields("referencedMethods")) {
+            var selection = referencedMethod.getSelectionSet();
+            sub.arrayAggregateSubQuery("method_references", columnAlias(referencedMethod), b -> {
+                b.where("method_references.owner = class_defs.id");
+
+                if (selection.contains("referenceCount")) {
+                    b.requestColumn("count", "referenceCount");
+                }
+
+                b.joinOn("methods", "methods.id = method_references.reference");
+
+                if (selection.contains("class")) {
+                    b.joinOn("classes owner", "owner.id = methods.cls");
+                    b.requestColumn("owner.name", "class");
+                }
+                if (selection.contains("descriptor")) {
+                    b.joinOn("constants descriptor", SqlCondition.condition("methods.descriptor = descriptor.id"));
+                    b.requestColumn("descriptor.constant", "descriptor");
+                }
+                if (selection.contains("name")) {
+                    b.joinOn("constants name", SqlCondition.condition("methods.name = name.id"));
+                    b.requestColumn("name.constant", "name");
+                }
             });
         }
+
+        for (SelectedField referencedFields : definition.getSelectionSet().getFields("referencedFields")) {
+            var selection = referencedFields.getSelectionSet();
+            sub.arrayAggregateSubQuery("field_references", columnAlias(referencedFields), b -> {
+                b.where("field_references.owner = class_defs.id");
+
+                if (selection.contains("referenceCount")) {
+                    b.requestColumn("count", "referenceCount");
+                }
+
+                b.joinOn("fields", "fields.id = field_references.reference");
+
+                if (selection.contains("class")) {
+                    b.joinOn("classes owner", "owner.id = fields.cls");
+                    b.requestColumn("owner.name", "class");
+                }
+                if (selection.contains("name")) {
+                    b.joinOn("constants name", "fields.name = name.id");
+                    b.requestColumn("name.constant", "name");
+                }
+                if (selection.contains("type")) {
+                    b.joinOn("classes type", "fields.descriptor = type.id");
+                    b.requestColumn("type.name", "type");
+                }
+            });
+        }
+    }
+
+    private void configureModField(SelectedField modField, SqlSearchBuilder builder, String joinColumn) {
+        var set = modField.getSelectionSet();
+        builder.jsonSubQuery(columnAlias(modField), mod -> {
+            MOD_FIELD_MAPPING.forEach((fld, dbMapping) -> {
+                if (set.contains(fld)) {
+                    mod.put(fld, "mods." + dbMapping);
+                }
+            });
+        });
+        builder.joinOn("mods", SqlCondition.condition("mods.id = " + joinColumn));
     }
 
     @SuppressWarnings("unchecked")
@@ -276,6 +333,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 if (definition.getSelectionSet().contains("name")) {
                     nameJoin = true;
                     sub.requestColumn("classes.name", "name");
+                    sub.groupBy("classes.name");
                 }
 
                 formatDefinitionRequest(sub, definition);

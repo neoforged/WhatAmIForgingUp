@@ -207,6 +207,42 @@ type ClassDefinition @implement(interfaces: "Annotatable") {
     Note that this list is not complete and only contains fields relevant for API usage. Therefore private fields that have no annotations are not tracked.
     """
     fields: [FieldDefinition!]! # Maybe add a filter argument here too?
+
+    """
+    The methods this class references.
+    Note that this list is not complete and only contains references relevant for API usage. Therefore references to private, static or non-overriding methods of classes in the same mod are not tracked.
+    """
+    referencedMethods: [ReferencedMethod!]!
+
+    """
+    The fields this class references.
+    Note that this list is not complete and only contains references relevant for API usage. Therefore references to private or static fields of classes in the same mod are not tracked.
+    """
+    referencedFields: [ReferencedField!]!
+}
+
+"Represents a reference to a method within a concrete class definition"
+type ReferencedMethod {
+    "The name of the class of the referenced method"
+    class: String!
+    "The name of the referenced method"
+    name: String!
+    "The descriptor of the referenced method"
+    descriptor: String!
+    "How many times this method was referenced in the class definition"
+    referenceCount: Int!
+}
+
+"Represents a reference to a field within a concrete class definition"
+type ReferencedField {
+    "The name of the class of the referenced field"
+    class: String!
+    "The name of the referenced field"
+    name: String!
+    "The type of the referenced field"
+    type: String!
+    "How many times this field was referenced in the class definition"
+    referenceCount: Int!
 }
 
 "A concrete definition of a method"
