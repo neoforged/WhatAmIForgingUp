@@ -327,6 +327,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             builder.arrayAggregateSubQuery("class_defs", columnAlias(definition), sub -> {
                 sub.requestAsJson();
                 sub.where(SqlCondition.condition("class_defs.mod = mods.id"));
+                sub.groupBy("class_defs.id");
 
                 boolean nameJoin = false;
 

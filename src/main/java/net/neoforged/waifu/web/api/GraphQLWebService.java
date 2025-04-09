@@ -364,7 +364,7 @@ public class GraphQLWebService {
 
             var future = executor.submit(() -> engine.execute(in -> in.query(body.query).operationName(body.operationName).variables(variables)));
             try {
-                var executionResult = future.get(10, TimeUnit.SECONDS);
+                var executionResult = future.get(30, TimeUnit.SECONDS);
                 if (!executionResult.getErrors().isEmpty()) {
                     Main.LOGGER.error("Failure during GraphQL query: {}: {}", body, executionResult.getErrors());
                     ctx.json(Map.of("error", executionResult.getErrors().get(0).getMessage())).status(HttpStatus.BAD_REQUEST);
