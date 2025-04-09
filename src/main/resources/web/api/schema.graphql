@@ -116,7 +116,7 @@ type Mod @implement(interfaces: ["Identifiable", "BaseMod"]) {
     tags(
         """
         The registry to get tags for.
-        The format is namespace:registry (e.g. "minecraft:item" or "minecraft:worldgen/biome")
+        The format is namespace:registry (e.g. `minecraft:item` or `minecraft:worldgen/biome`)
         """
         registry: String!,
         "An optional filter applied to the returned tags"
@@ -200,13 +200,13 @@ type ClassDefinition @implement(interfaces: "Annotatable") {
     The methods this class defines directly.
     Note that this list is not complete and only contains methods relevant for API usage. Therefore private methods that have no annotations are not tracked.
     """
-    methods: [MethodDefinition!]! # Maybe add a filter argument here too?
+    methods("Optional filter to apply to the query" where: MethodPredicate): [MethodDefinition!]!
 
     """
     The fields this class defines directly.
     Note that this list is not complete and only contains fields relevant for API usage. Therefore private fields that have no annotations are not tracked.
     """
-    fields: [FieldDefinition!]! # Maybe add a filter argument here too?
+    fields("Optional filter to apply to the query" where: FieldPredicate): [FieldDefinition!]!
 
     """
     The methods this class references.
@@ -259,6 +259,22 @@ type FieldDefinition @implement(interfaces: "Annotatable") {
     name: String!
     "The type of this field. This is not a descriptor so classes are in internal JVM format (e.g. `java/lang/String` instead of `Ljava/lang/String;`)"
     type: String!
+}
+
+"Used to filter methods based on different criteria"
+input MethodPredicate @predicateType @oneOf {
+    "Filter based on the method's name"
+    name: StringPredicate
+    "Filter based on the method's descriptor"
+    descriptor: StringPredicate
+}
+
+"Used to filter fields based on different criteria"
+input FieldPredicate @predicateType @oneOf {
+    "Filter based on the field's name"
+    name: StringPredicate
+    "Filter based on the field's type"
+    type: StringPredicate
 }
 
 "Used to filter tags based on different criteria"
@@ -370,14 +386,6 @@ input DatePredicate @oneOf {
     before: DateTime
     "Matches if the date is after (greater than) the given date"
     after: DateTime
-}
-
-input PaginationInput {
-    "The cursor ID of the element to search after"
-    after: Int
-
-    "Maximum amount of elements to query"
-    limit: Int
 }
 
 enum OrderRule {

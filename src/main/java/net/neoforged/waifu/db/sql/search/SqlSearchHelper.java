@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Consumer;
+import java.util.Set;
 
 public class SqlSearchHelper implements DatabaseSearchHelper {
     public static final Map<String, FilterCriterion> MANIFEST_CRITERIA = Map.of(
@@ -76,6 +76,16 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
     private static final Map<String, FilterCriterion> ANNOTATION_CRITERIA = Map.of(
             "type", FilterCriterion.column("ann.name")
+    );
+
+    private static final Map<String, FilterCriterion> METHOD_CRITERIA = Map.of(
+            "name", FilterCriterion.column("name.constant"),
+            "descriptor", FilterCriterion.column("descriptor.constant")
+    );
+
+    private static final Map<String, FilterCriterion> FIELD_CRITERIA = Map.of(
+            "name", FilterCriterion.column("name.constant"),
+            "type", FilterCriterion.column("type.name")
     );
 
     private static final Map<String, String> MOD_FIELD_MAPPING = Map.of(
@@ -167,6 +177,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         return paginate(builder, Pagination.parse(env.getArguments()), "classes.id");
     }
 
+    @SuppressWarnings("unchecked")
     private void formatDefinitionRequest(SqlSearchBuilder sub, SelectedField definition) {
         if (definition.getSelectionSet().contains("parents")) {
             sub.joinOn("class_parents", SqlCondition.condition("class_parents.cls = class_defs.id"));
@@ -185,14 +196,26 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 met.where(SqlCondition.condition("method_defs.owner = class_defs.id"));
                 met.joinOn("methods", SqlCondition.condition("method_defs.type = methods.id"));
 
-                if (selectionSet.contains("name")) {
-                    met.joinOn("constants name", SqlCondition.condition("methods.name = name.id"));
-                    met.requestColumn("name.constant", "name");
+                Set<String> applied = new HashSet<>(2);
+                var filter = (Map<String, Object>) method.getArguments().get("where");
+                if (filter != null) {
+                    met.where(SqlCondition.parseAsCriterion(filter, METHOD_CRITERIA, applied));
                 }
 
-                if (selectionSet.contains("descriptor")) {
+                boolean nameSelected = selectionSet.contains("name");
+                if (nameSelected || applied.contains("name")) {
+                    met.joinOn("constants name", SqlCondition.condition("methods.name = name.id"));
+                    if (nameSelected) {
+                        met.requestColumn("name.constant", "name");
+                    }
+                }
+
+                boolean descriptorSelected = selectionSet.contains("descriptor");
+                if (descriptorSelected || applied.contains("descriptor")) {
                     met.joinOn("constants descriptor", SqlCondition.condition("methods.descriptor = descriptor.id"));
-                    met.requestColumn("descriptor.constant", "descriptor");
+                    if (descriptorSelected) {
+                        met.requestColumn("descriptor.constant", "descriptor");
+                    }
                 }
 
                 requestAnnotations(met, selectionSet.getFields("annotations"), "method_annotations", "method_defs");
@@ -206,14 +229,26 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 fld.where(SqlCondition.condition("field_defs.owner = class_defs.id"));
                 fld.joinOn("fields", SqlCondition.condition("field_defs.type = fields.id"));
 
-                if (selectionSet.contains("name")) {
-                    fld.joinOn("constants name", SqlCondition.condition("fields.name = name.id"));
-                    fld.requestColumn("name.constant", "name");
+                Set<String> applied = new HashSet<>(2);
+                var filter = (Map<String, Object>) fields.getArguments().get("where");
+                if (filter != null) {
+                    fld.where(SqlCondition.parseAsCriterion(filter, FIELD_CRITERIA, applied));
                 }
 
-                if (selectionSet.contains("type")) {
+                boolean typeSelected = selectionSet.contains("type");
+                if (typeSelected || applied.contains("type")) {
                     fld.joinOn("classes type", SqlCondition.condition("fields.descriptor = type.id"));
-                    fld.requestColumn("type.name", "type");
+                    if (typeSelected) {
+                        fld.requestColumn("type.name", "type");
+                    }
+                }
+
+                boolean nameSelected = selectionSet.contains("name");
+                if (nameSelected || applied.contains("name")) {
+                    fld.joinOn("constants name", SqlCondition.condition("fields.name = name.id"));
+                    if (nameSelected) {
+                        fld.requestColumn("name.constant", "name");
+                    }
                 }
 
                 requestAnnotations(fld, selectionSet.getFields("annotations"), "field_annotations", "field_defs");
