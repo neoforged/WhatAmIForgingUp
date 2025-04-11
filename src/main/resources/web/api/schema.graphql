@@ -181,8 +181,33 @@ type Class @implement(interfaces: "Identifiable") {
     "The name of this class"
     name: String!
 
+    """
+    The methods of this class, optionally matching the given predicate.
+    Note that it is not guaranteed that methods returned have a concrete implementation.
+    """
+    methods(where: MethodPredicate): [Method!]!
+
     "Returns all known concrete definitions of the class"
     definitions: [ClassDefinition]!
+}
+
+"Represents a method as returned by `Class.methods`"
+type Method @implement(interfaces: "Identifiable") {
+    "The name of this method"
+    name: String!
+    "The descriptor of this method"
+    descriptor: String!
+
+    "Returns the references to this method"
+    references(where: ReferencePredicate): [Reference!]!
+}
+
+"Represents a reference in the form of the class referencing the method/field and how many times it is referenced in that class"
+type Reference {
+    "The class in which this reference is contained"
+    class: ClassDefinition!
+    "How many times the referenced method/field was referenced in the class"
+    referenceCount: Int!
 }
 
 "A concrete definition of a class"
@@ -194,7 +219,7 @@ type ClassDefinition @implement(interfaces: "Annotatable") {
     parents: [String!]
 
     "The mod that defines this definition"
-    mod: LightweightMod
+    mod: LightweightMod!
 
     """
     The methods this class defines directly.
@@ -275,6 +300,12 @@ input FieldPredicate @predicateType @oneOf {
     name: StringPredicate
     "Filter based on the field's type"
     type: StringPredicate
+}
+
+"Used to filter references based on different criteria"
+input ReferencePredicate @predicateType @oneOf {
+    "Filter based on the mod that the reference is part of"
+    mod: ModPredicate
 }
 
 "Used to filter tags based on different criteria"

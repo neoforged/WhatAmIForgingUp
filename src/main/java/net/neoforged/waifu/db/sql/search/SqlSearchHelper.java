@@ -149,6 +149,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         return paginate(builder, Pagination.parse(env.getArguments()), "mods.id");
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Object getClasses(DataFetchingEnvironment env) {
         var builder = new SqlSearchBuilder("classes")
@@ -172,9 +173,78 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                     formatDefinitionRequest(sub, definition);
                 });
             }
+
+            for (SelectedField method : field.getSelectionSet().getFields("methods")) {
+                builder.arrayAggregateSubQuery("methods", columnAlias(method), sub -> {
+                    sub.requestAsJson().where(SqlCondition.condition("methods.cls = classes.id"))
+                            .requestColumn("methods.id", "id")
+                            .orderBy("methods.id");
+
+                    formatMethodRequest(sub, method);
+
+                    for (SelectedField reference : method.getSelectionSet().getFields("references")) {
+                        sub.arrayAggregateSubQuery("method_references", columnAlias(reference), refs -> {
+                            refs.where("method_references.reference = methods.id");
+
+                            var refFilter = (Map<String, Object>) reference.getArguments().get("where");
+                            if (refFilter != null) {
+                                refs.joinOn("class_defs", "class_defs.id = method_references.owner");
+                                refs.joinOn("mods", "mods.id = class_defs.mod");
+                                refs.where(SqlCondition.parseAsCriterion(refFilter, Map.of(
+                                        "mod", value -> SqlCondition.parseAsCriterion((Map<String, Object>) value, loader == ModLoader.FABRIC ? FABRIC_MOD_CRITERIA : FORGE_MOD_CRITERIA)
+                                )));
+                            }
+
+                            if (reference.getSelectionSet().contains("referenceCount")) {
+                                refs.requestColumn("count", "referenceCount");
+                            }
+
+                            for (SelectedField cls : reference.getSelectionSet().getFields("class")) {
+                                refs.requestSubColumn("class_defs", columnAlias(cls), cd -> {
+                                    cd.requestAsJson();
+                                    cd.where(SqlCondition.condition("class_defs.id = method_references.owner"));
+
+                                    if (cls.getSelectionSet().contains("name")) {
+                                        cd.joinOn("classes", "classes.id = class_defs.type");
+                                        cd.requestColumn("classes.name", "name");
+                                    }
+
+                                    formatDefinitionRequest(cd, cls);
+                                });
+                            }
+                        });
+                    }
+                });
+            }
         }
 
         return paginate(builder, Pagination.parse(env.getArguments()), "classes.id");
+    }
+
+    private void formatMethodRequest(SqlSearchBuilder met, SelectedField method) {
+        var selectionSet = method.getSelectionSet();
+
+        Set<String> applied = new HashSet<>(2);
+        var filter = (Map<String, Object>) method.getArguments().get("where");
+        if (filter != null) {
+            met.where(SqlCondition.parseAsCriterion(filter, METHOD_CRITERIA, applied));
+        }
+
+        boolean nameSelected = selectionSet.contains("name");
+        if (nameSelected || applied.contains("name")) {
+            met.joinOn("constants name", SqlCondition.condition("methods.name = name.id"));
+            if (nameSelected) {
+                met.requestColumn("name.constant", "name");
+            }
+        }
+
+        boolean descriptorSelected = selectionSet.contains("descriptor");
+        if (descriptorSelected || applied.contains("descriptor")) {
+            met.joinOn("constants descriptor", SqlCondition.condition("methods.descriptor = descriptor.id"));
+            if (descriptorSelected) {
+                met.requestColumn("descriptor.constant", "descriptor");
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -196,27 +266,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 met.where(SqlCondition.condition("method_defs.owner = class_defs.id"));
                 met.joinOn("methods", SqlCondition.condition("method_defs.type = methods.id"));
 
-                Set<String> applied = new HashSet<>(2);
-                var filter = (Map<String, Object>) method.getArguments().get("where");
-                if (filter != null) {
-                    met.where(SqlCondition.parseAsCriterion(filter, METHOD_CRITERIA, applied));
-                }
-
-                boolean nameSelected = selectionSet.contains("name");
-                if (nameSelected || applied.contains("name")) {
-                    met.joinOn("constants name", SqlCondition.condition("methods.name = name.id"));
-                    if (nameSelected) {
-                        met.requestColumn("name.constant", "name");
-                    }
-                }
-
-                boolean descriptorSelected = selectionSet.contains("descriptor");
-                if (descriptorSelected || applied.contains("descriptor")) {
-                    met.joinOn("constants descriptor", SqlCondition.condition("methods.descriptor = descriptor.id"));
-                    if (descriptorSelected) {
-                        met.requestColumn("descriptor.constant", "descriptor");
-                    }
-                }
+                formatMethodRequest(met, method);
 
                 requestAnnotations(met, selectionSet.getFields("annotations"), "method_annotations", "method_defs");
             });
