@@ -4,7 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
-import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
@@ -13,6 +12,8 @@ import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.MappingIterator;
 import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,6 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 public class ModrinthPlatform implements ModPlatform {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModrinthPlatform.class);
+
     private final HttpClient client;
 
     @Nullable
@@ -145,7 +148,13 @@ public class ModrinthPlatform implements ModPlatform {
         var req = new JsonObject();
         req.addProperty("algorithm", "sha1");
         req.add("hashes", hashes);
-        var response = sendPostRequest("/version_files", req, new TypeToken<Map<String, Version>>() {});
+
+        Map<String, Version> response = Map.of();
+        try {
+            response = sendPostRequest("/version_files", req, new TypeToken<>() {});
+        } catch (Exception ex) {
+            LOGGER.error("Failed to send Modrinth `/version_files` request... The endpoint may be blocked. ", ex);
+        }
 
         for (int i = 0; i < files.size(); i++) {
             var fromHash = response.get(files.get(i).getFileHash());
@@ -379,7 +388,7 @@ public class ModrinthPlatform implements ModPlatform {
         try {
             return Utils.GSON.fromJson(res.body(), type);
         } catch (JsonSyntaxException ex) {
-            Main.LOGGER.error("Failed to decode request body from {} ({}): {}", res.uri(), res, res.body(), ex);
+            LOGGER.error("Failed to decode request body from {} ({}): {}", res.uri(), res, res.body(), ex);
             throw ex;
         }
     }
