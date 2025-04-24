@@ -106,45 +106,90 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
     private final Jdbi jdbi;
     private final ModLoader loader;
 
+    private final DatabaseSchema schema;
+
+    private final DatabaseType mod, classDef;
+
+    @SuppressWarnings("unchecked")
     public SqlSearchHelper(Jdbi jdbi, ModLoader loader) {
         this.jdbi = jdbi;
         this.loader = loader;
         jdbi.getConfig(SqlStatements.class).setSqlParser(new HashPrefixSqlParser());
+
+        schema = new DatabaseSchema();
+
+        mod = schema.registerType("mods", b -> b
+                .directFields("id", "name", "authors", "license", "version", "manifest")
+                .field("curseforgeProjectId", "curseforge_project_id").field("modrinthProjectId", "modrinth_project_id")
+                .field("mavenCoordinates", "maven_coordinates")
+                .field("indexedOn", "index_date")
+
+                .filters(Map.of(
+                        "name", FilterCriterion.column("mods.name"),
+                        "authors", FilterCriterion.column("mods.authors"),
+                        "license", FilterCriterion.column("mods.license"),
+
+                        "inPack", new InPackCriterion("curseforge_project_id", "modrinth_project_id"),
+                        "curseforgeProjectId", FilterCriterion.column("curseforge_project_id"),
+                        "modrinthProjectId", FilterCriterion.column("modrinth_project_id"),
+
+                        "anyManifestAttribute", val -> SqlCondition.parseAsCriterion((Map<String, Object>) val, MANIFEST_CRITERIA),
+
+                        "indexed", val -> SqlCondition.columnFilter(SqlFilter.parseDateTime((Map<String, Object>) val), "index_date")
+                ))
+                .filter("modId", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.id" : "$.mods[*].modId"))
+                .filter("description", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.description" : "$.mods[*].description"))
+                .filterOnTable("anyClass", "class_defs")
+
+                .field("classes", DatabaseType.QueryBuilder.listSubTable("class_defs"))
+
+                .groupBy("mods.id"));
+
+        classDef = schema.registerType("class_defs", b -> b
+                .field("name", "classes.name")
+                .field("parents", (type, builder, fieldName, selection) -> builder
+                        .requestSubColumn("class_parents", fieldName, c -> c
+                                .joinOn("classes parent", "parent.id = class_parents.parent")
+                                .where("class_parents.cls = class_defs.id")
+                                .requestColumn("array_agg(parent.name)", null)))
+                .filterOnColumn("name", "classes.name"));
+
+        schema.registerJoinRule("mods", "class_defs", SqlCondition.condition("class_defs.mod = mods.id"));
+        schema.registerJoinRule("classes", "class_defs", SqlCondition.condition("class_defs.type = classes.id"));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Object getModsById(DataFetchingEnvironment env) {
-        var builder = new SqlSearchBuilder("mods");
+        var builder = mod.createQuery();
+        builder.requestColumn("mods.id", "id");
+
+        var mods = env.getSelectionSet().getFields("edges/node");
+        if (!mods.isEmpty()) {
+            mod.apply(builder, mods.getFirst());
+        }
 
         var ids = new ArrayList<>((List<Integer>) env.getArgument("ids"));
 
         builder.where(ctx -> "mods.id = any(" + ctx.insert(ids) + ")");
-
-        var mods = env.getSelectionSet().getFields("mods");
-        configureModSearch(mods.isEmpty() ? EmptySelectionSet.INSTANCE : mods.getFirst().getSelectionSet(), builder, false);
 
         return paginate(builder, Pagination.parse(env.getArguments()), "mods.id");
     }
 
     @Override
     public Object getMods(DataFetchingEnvironment env) {
-        var builder = new SqlSearchBuilder("mods");
+        var builder = mod.createQuery();
+        builder.requestColumn("mods.id", "id");
 
-        boolean requireClassJoin = false;
+        var mods = env.getSelectionSet().getFields("edges/node");
+        if (!mods.isEmpty()) {
+            mod.apply(builder, mods.getFirst());
+        }
 
         Map<String, Object> filter = env.getArgument("where");
         if (filter != null) {
-            var applied = new HashSet<String>();
-            builder.where(SqlCondition.parseAsCriterion(filter, loader == ModLoader.FABRIC ? FABRIC_MOD_CRITERIA : FORGE_MOD_CRITERIA, applied));
-
-            if (applied.contains("anyClassName")) {
-                requireClassJoin = true;
-            }
+            mod.applyFilter(builder, filter);
         }
-
-        var mods = env.getSelectionSet().getFields("edges/node");
-        configureModSearch(mods.isEmpty() ? EmptySelectionSet.INSTANCE : mods.getFirst().getSelectionSet(), builder, requireClassJoin);
 
         return paginate(builder, Pagination.parse(env.getArguments()), "mods.id");
     }

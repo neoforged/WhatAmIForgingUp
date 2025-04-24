@@ -36,6 +36,7 @@ public class Utils {
     public static final Thread.UncaughtExceptionHandler LOG_EXCEPTIONS = (t, e) -> Main.LOGGER.error("Thread {} threw uncaught exception: ", t, e);
     public static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) -> Instant.parse(json.getAsString()))
+            .serializeNulls()
             .create();
     public static final TomlParser TOML = new TomlParser();
     public static final ConfigWriter JSON_NC = new MinimalJsonWriter();

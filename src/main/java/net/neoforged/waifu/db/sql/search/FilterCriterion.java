@@ -24,4 +24,8 @@ public interface FilterCriterion {
 
         SqlCondition apply(Map<String, Object> value);
     }
+
+    static FilterCriterion subFilters(Map<String, FilterCriterion> criteria) {
+        return (MapOnly) value -> SqlCondition.parseAsCriterion(value, criteria);
+    }
 }

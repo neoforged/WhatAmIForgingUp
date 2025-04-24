@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 
 @CanIgnoreReturnValue
 public final class SqlSearchBuilder {
-    private final String table;
+    final String table;
     final Map<String, String> columns = new LinkedHashMap<>();
     private final Set<String> groups = new LinkedHashSet<>();
     final List<SqlCondition> where = new ArrayList<>();
@@ -136,6 +136,11 @@ public final class SqlSearchBuilder {
         builder.append(" from ")
                 .append(table);
 
+        // Build where first to allow the conditions to add additional joins
+        var where = this.where.stream()
+                .map(c -> c.build(this))
+                .collect(Collectors.joining(" and "));
+
         var joins = this.joins.asMap();
         joins.forEach((tb, fil) -> builder.append(" join ")
                 .append(tb)
@@ -143,10 +148,7 @@ public final class SqlSearchBuilder {
                 .append(filters(fil)));
 
         if (!where.isEmpty()) {
-            builder.append(" where ")
-                    .append(where.stream()
-                            .map(c -> c.build(ctx))
-                            .collect(Collectors.joining(" and ")));
+            builder.append(" where ").append(where);
         }
 
         if (!groups.isEmpty()) {
@@ -157,7 +159,7 @@ public final class SqlSearchBuilder {
         if (!having.isEmpty()) {
             builder.append(" having ")
                     .append(having.stream()
-                            .map(c -> c.build(ctx))
+                            .map(c -> c.build(this))
                             .collect(Collectors.joining(" and ")));
         }
 
@@ -214,7 +216,7 @@ public final class SqlSearchBuilder {
 
     private String filters(Collection<SqlCondition> filters) {
         return filters.stream()
-                .map(c -> c.build(ctx))
+                .map(c -> c.build(this))
                 .distinct()
                 .collect(Collectors.joining(" and "));
     }

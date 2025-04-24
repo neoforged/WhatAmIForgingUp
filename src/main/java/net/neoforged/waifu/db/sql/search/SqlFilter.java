@@ -8,7 +8,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public interface SqlFilter {
-    String buildSql(String field, SqlArgumentContext ctx);
+    String buildSql(String field, SqlSearchBuilder ctx);
 
     String buildJson(String lhs);
 
@@ -91,10 +91,10 @@ public interface SqlFilter {
         return SqlFilter.eq(in);
     }
 
-    static SqlFilter make(BiFunction<String, SqlArgumentContext, String> sql, Function<String, String> json) {
+    static SqlFilter make(BiFunction<String, SqlSearchBuilder, String> sql, Function<String, String> json) {
         return new SqlFilter() {
             @Override
-            public String buildSql(String field, SqlArgumentContext ctx) {
+            public String buildSql(String field, SqlSearchBuilder ctx) {
                 return sql.apply(field, ctx);
             }
 

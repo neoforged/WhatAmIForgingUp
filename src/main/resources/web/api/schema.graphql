@@ -339,8 +339,8 @@ input ModPredicate @predicateType @oneOf {
     """
     modId: StringPredicate
 
-    "A mod will match if any of the classes it defines has a name that matches the given filter"
-    anyClassName: StringPredicate
+    "A mod will match if any of the classes it defines matches the given predicate"
+    anyClass: ClassPredicate
     "A mod will match if any of the manifest attributes its jar has matches the given filter"
     anyManifestAttribute: ManifestAttributePredicate
 
