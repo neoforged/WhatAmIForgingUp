@@ -59,13 +59,13 @@ public class ModrinthPlatform implements ModPlatform {
     @Override
     public PlatformMod getModById(Object id) {
         var res = sendRequest("/project/" + id, new TypeToken<ProjectResponse>() {});
-        return createMod(res.id(), res.slug(), res);
+        return res == null ? null : createMod(res.id(), res.slug(), res);
     }
 
     @Override
     public PlatformMod getModBySlug(String slug) {
         var res = sendRequest("/project/" + slug, new TypeToken<ProjectResponse>() {});
-        return createMod(res.id(), res.slug(), res);
+        return res == null ? null : createMod(res.id(), res.slug(), res);
     }
 
     @Override
