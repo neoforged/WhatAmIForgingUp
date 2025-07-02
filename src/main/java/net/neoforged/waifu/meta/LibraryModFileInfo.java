@@ -29,6 +29,9 @@ class LibraryModFileInfo extends BaseModFileInfo implements ModFileInfo {
         if (coords != null) return coords;
         var fromMan = man.getMainAttributes().getValue(Attributes.Name.IMPLEMENTATION_TITLE);
         if (fromMan != null) return fromMan;
+        var anm = man.getMainAttributes().getValue("Automatic-Module-Name");
+        if (anm != null) return anm;
+
         try {
             try (var str = Files.walk(path.rootDirectory())
                     .filter(f -> f.toString().endsWith(".class"))) {
