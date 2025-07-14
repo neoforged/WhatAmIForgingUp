@@ -60,10 +60,20 @@ public class IndexingClassVisitor extends ClassVisitor {
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
         if (!name.endsWith("package-info") && !name.endsWith("module-info")) {
             current = new ClassData(
-                    name, superName, interfaces, new ArrayList<>(0), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(1 << 3)
+                    name, superName == null ? null : remapper.remapClass(superName),
+                    interfaces.length == 0 ? interfaces : remapClasses(interfaces),
+                    new ArrayList<>(0), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(1 << 3)
             );
             classList.add(current);
         }
+    }
+
+    private String[] remapClasses(String[] classes) {
+        var newClasses = new String[classes.length];
+        for (int i = 0; i < classes.length; i++) {
+            newClasses[i] = remapper.remapClass(classes[i]);
+        }
+        return newClasses;
     }
 
     @Override
@@ -161,7 +171,8 @@ public class IndexingClassVisitor extends ClassVisitor {
 
             @Override
             public void visitEnum(String name, String descriptor, String value) {
-                annotationInfo.members().put(name, new ClassData.EnumValue(Type.getType(remapper.remapDesc(descriptor)), value));
+                annotationInfo.members().put(name, new ClassData.EnumValue(Type.getType(remapper.remapDesc(descriptor)),
+                        remapper.remapField(Type.getType(descriptor).getInternalName(), value, descriptor)));
             }
 
             @Override
@@ -186,7 +197,8 @@ public class IndexingClassVisitor extends ClassVisitor {
 
                     @Override
                     public void visitEnum(String name, String descriptor, String value) {
-                        lst.add(new ClassData.EnumValue(Type.getType(remapper.remapDesc(descriptor)), value));
+                        lst.add(new ClassData.EnumValue(Type.getType(remapper.remapDesc(descriptor)),
+                                remapper.remapField(Type.getType(descriptor).getInternalName(), value, descriptor)));
                     }
                 };
             }
