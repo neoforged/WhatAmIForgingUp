@@ -125,6 +125,14 @@ type Mod @implement(interfaces: ["Identifiable", "BaseMod"]) {
         "Limit the amount of tags returned"
         limit: Int
     ): [TagFile!]!
+
+    "Get the enum extensions this mod defines"
+    enumExtensions(
+        "An optional filter applied to the returned entries"
+        where: EnumExtensionPredicate,
+        "Limit the amount of entries returned"
+        limit: Int
+    ): [EnumExtension!]!
 }
 
 "Represents a manifest entry (section)"
@@ -154,6 +162,18 @@ type TagFile {
     Corresponds to the "replace" field in the tag JSON.
     """
     replace: Boolean!
+}
+
+"A NeoForge enum extension entry"
+type EnumExtension {
+    "The internal name of the enum this extension targets"
+    enum: String!
+    "The descriptor of the constructor this extension uses"
+    constructor: String!
+    "The name of the enum field this extension adds"
+    name: String!
+    "The source of the parameters"
+    parameters: JSON!
 }
 
 "An annotation instance (the type and its value as a JSON object)"
@@ -410,6 +430,16 @@ input TagFilePredicate @predicateType @oneOf {
 
     "A tag file will match this predicate if any of its direct entries matches the given predicate"
     anyEntry: StringPredicate
+}
+
+"Used to filter enum extension entries based on different criteria"
+input EnumExtensionPredicate @predicateType @oneOf {
+    "Filter based on the internal name of the enum the extension is for"
+    enum: StringPredicate
+    "Filter based on the enum constructor the extension uses"
+    constructor: String
+    "Filter based on the name of the enum value the extension adds"
+    name: String
 }
 
 "Used to filter mods based on different criteria"

@@ -83,6 +83,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .filterOnTable("anyClass", "class_defs")
 
                 .field("classes", listSubTable("class_defs"))
+                .field("enumExtensions", listSubTable("enum_extensions"))
 
                 // TODO - this is special because of the registry, figure out a way not to need to make it special
                 .field("tags", (type, builder, fieldName, field) -> builder.arrayAggregateSubQuery("tags", columnAlias(field), sub -> {
@@ -265,6 +266,22 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .field("depth", directColumn("child_classes.depth"))
                 .filter("depth", FilterCriterion.column("child_classes.depth", SqlFilter.INT_FILTER))
         );
+
+        schema.registerType("enum_extensions", b -> b
+                .field("enum", "extension_enum.name")
+                .field("constructor", "extension_ctor.constant")
+                .field("name", "extension_name.constant")
+                .directFields("parameters")
+
+                .filterOnColumn("enum", "extension_enum.name")
+                .filterOnColumn("constructor", "extension_ctor.constant")
+                .filterOnColumn("name", "extension_name.constant")
+        );
+        schema.registerIndependentJoin("enum_extensions", "classes", "extension_enum", SqlCondition.equals("enum_extensions.enum", "extension_enum.id"));
+        schema.registerIndependentJoin("enum_extensions", "constants", "extension_name", SqlCondition.equals("enum_extensions.name", "extension_name.id"));
+        schema.registerIndependentJoin("enum_extensions", "constants", "extension_ctor", SqlCondition.equals("enum_extensions.constructor", "extension_ctor.id"));
+
+        schema.registerTwoWayJoin("mods", "enum_extensions", SqlCondition.equals("mods.id", "enum_extensions.mod"));
     }
 
     private DatabaseType registerAnnotationType(String annotationTable) {
