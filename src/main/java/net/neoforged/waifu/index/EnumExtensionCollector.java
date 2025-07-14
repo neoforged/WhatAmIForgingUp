@@ -3,6 +3,7 @@ package net.neoforged.waifu.index;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.neoforged.waifu.db.EnumExtension;
+import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModInfo;
 import net.neoforged.waifu.util.Utils;
@@ -13,19 +14,22 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
-public class EnumExtensionCollector {
-    public static List<EnumExtension> collect(ModFileInfo file) throws IOException {
-        var paths = file.getMods().stream().map(ModInfo::enumExtensions)
-                .filter(Objects::nonNull).map(file::getPath)
+public class EnumExtensionCollector implements ModFileIndexer {
+    @Override
+    public Consumer<IndexDatabase.ModTracker> collectAndPrepareUpsert(ModFileInfo modFile, FileTreeWalker walker) throws IOException {
+        var paths = modFile.getMods().stream().map(ModInfo::enumExtensions)
+                .filter(Objects::nonNull).map(modFile::getPath)
                 .toList();
 
-        if (paths.isEmpty()) return List.of();
+        if (paths.isEmpty()) return null;
         var lst = new ArrayList<EnumExtension>();
         for (Path path : paths) {
             read(path, lst);
         }
-        return lst;
+
+        return modTracker -> modTracker.insertEnumExtensions(lst);
     }
 
     private static void read(Path path, List<EnumExtension> lst) throws IOException {

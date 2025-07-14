@@ -5,7 +5,9 @@ import net.neoforged.waifu.db.ClassData;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.index.EnumExtensionCollector;
+import net.neoforged.waifu.index.FileTreeWalker;
 import net.neoforged.waifu.index.IndexingClassVisitor;
+import net.neoforged.waifu.index.ModFileIndexer;
 import net.neoforged.waifu.index.Remapper;
 import net.neoforged.waifu.index.TagCollector;
 import net.neoforged.waifu.meta.ModFileInfo;
@@ -37,6 +39,7 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -51,6 +54,10 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private final Remapper remapper;
 
     private final List<IndexCandidate> candidateMods = new ArrayList<>();
+
+    private final List<ModFileIndexer> indexers = List.of(
+            new TagCollector(), new EnumExtensionCollector()
+    );
 
     public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion, ModLoader loader) {
         this(baseCacheFolder, db, gameVersion, loader, Remapper.NOOP);
@@ -248,11 +255,17 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     }
 
     private Runnable indexAndPrepareUpload(@Nullable PlatformModFile platform, ModFileInfo file, T mod, boolean refs, DataSanitizer sanitizer) throws IOException {
+        var walker = FileTreeWalker.from(file.getRootDirectory());
+
         List<ClassData> classes = IndexingClassVisitor.collect(file.getRootDirectory(), refs, refs, remapper); // TODO - do we want a separate parameter?
 
-        var tags = TagCollector.collect(file.getPath("data"));
-
-        var extensions = EnumExtensionCollector.collect(file);
+        List<Consumer<IndexDatabase.ModTracker>> queue = new ArrayList<>(indexers.size());
+        for (ModFileIndexer indexer : indexers) {
+            var task = indexer.collectAndPrepareUpsert(file, walker);
+            if (task != null) {
+                queue.add(task);
+            }
+        }
 
         var sanitized = sanitizer.sanitize(classes);
 
@@ -261,8 +274,10 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                 tracker.deleteCurrent();
 
                 tracker.insertClasses(sanitized);
-                tracker.insertTags(tags);
-                tracker.insertEnumExtensions(extensions);
+
+                for (var consumer : queue) {
+                    consumer.accept(tracker);
+                }
 
                 tracker.setIndexDate(Instant.now());
 
