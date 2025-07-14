@@ -21,6 +21,9 @@ import java.util.stream.Collectors;
 
 @CanIgnoreReturnValue
 public final class SqlSearchBuilder {
+    @Nullable
+    private final SqlSearchBuilder parent;
+
     final String table;
     final Map<String, String> columns = new LinkedHashMap<>();
     private final Set<String> groups = new LinkedHashSet<>();
@@ -38,12 +41,22 @@ public final class SqlSearchBuilder {
     private int limit;
 
     public SqlSearchBuilder(String table) {
-        this(table, new SqlArgumentContext());
+        this(table, null);
     }
 
-    public SqlSearchBuilder(String table, SqlArgumentContext ctx) {
+    public SqlSearchBuilder(String table, @Nullable SqlSearchBuilder parent) {
+        this.parent = parent;
         this.table = table;
-        this.ctx = ctx;
+        this.ctx = parent == null ? new SqlArgumentContext() : parent.ctx;
+    }
+
+    @Nullable
+    public SqlSearchBuilder getParent() {
+        return parent;
+    }
+
+    public boolean isJoined(String table) {
+        return joins.containsKey(table);
     }
 
     public SqlSearchBuilder requestColumn(String col, @Nullable String alias) {
@@ -138,7 +151,7 @@ public final class SqlSearchBuilder {
 
         // Build where first to allow the conditions to add additional joins
         var where = this.where.stream()
-                .map(c -> c.build(this))
+                .map(c -> "(" + c.build(this) + ")")
                 .collect(Collectors.joining(" and "));
 
         var joins = this.joins.asMap();
@@ -189,11 +202,11 @@ public final class SqlSearchBuilder {
     }
 
     public SqlSearchBuilder subBuilder(String col) {
-        return new SqlSearchBuilder(col, ctx);
+        return new SqlSearchBuilder(col, this);
     }
 
     public SqlSearchBuilder columnSubQuery(String column, String alias, Consumer<SqlSearchBuilder> sub) {
-        var s = new SqlSearchBuilder(column, ctx);
+        var s = subBuilder(column);
         sub.accept(s);
         requestColumn("(" + s.format() + ")", alias);
         return this;
@@ -216,7 +229,7 @@ public final class SqlSearchBuilder {
 
     private String filters(Collection<SqlCondition> filters) {
         return filters.stream()
-                .map(c -> c.build(this))
+                .map(c -> "(" + c.build(this) + ")")
                 .distinct()
                 .collect(Collectors.joining(" and "));
     }

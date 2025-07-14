@@ -8,6 +8,17 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public interface SqlFilter {
+    FilterType STRING_FILTER = new FilterType(Map.of(
+            "matches", v -> SqlFilter.matches((String) v),
+            "startsWith", v -> SqlFilter.startsWith((String) v)
+    ));
+
+    FilterType INT_FILTER = new FilterType(Map.of(
+            "lessThan", SqlFilter::smallerThan,
+            "greaterThan", SqlFilter::greaterThan,
+            "isEven", v -> SqlFilter.isEven((boolean) v)
+    ));
+
     String buildSql(String field, SqlSearchBuilder ctx);
 
     String buildJson(String lhs);
@@ -55,40 +66,17 @@ public interface SqlFilter {
                 lhs -> "!(" + op.buildJson(lhs) + ")");
     }
 
+    static SqlFilter isEven(boolean even) {
+        var checkValue = even ? 0 : 1;
+        return make((field, ctx) -> field + " % 2 = " + checkValue, lhs -> lhs + " % 2 == " + checkValue);
+    }
+
     static SqlFilter parseDateTime(Map<String, Object> in) {
         var after = (OffsetDateTime) in.get("after");
         if (after != null) {
             return SqlFilter.greaterThan(after);
         }
         return SqlFilter.smallerThan(in.get("before"));
-    }
-
-    @SuppressWarnings("unchecked")
-    static SqlFilter parse(Object in) {
-        if (in instanceof Map<?,?> filter) {
-            var equals = filter.get("equals");
-            if (equals != null) return SqlFilter.eq(equals);
-
-            var matches = filter.get("matches");
-            if (matches != null) return SqlFilter.matches((String) matches);
-
-            var startsWith = filter.get("startsWith");
-            if (startsWith != null) return SqlFilter.startsWith((String) startsWith);
-
-            var allOf = (List<Map<String, Object>>) filter.get("allOf");
-            if (allOf != null) {
-                return SqlFilter.allOf(allOf.stream().map(SqlFilter::parse).toList());
-            }
-
-            var anyOf = (List<Map<String, Object>>) filter.get("anyOf");
-            if (anyOf != null) {
-                return SqlFilter.anyOf(anyOf.stream().map(SqlFilter::parse).toList());
-            }
-
-            var not = (Map<String, Object>) filter.get("not");
-            return SqlFilter.not(parse(not));
-        }
-        return SqlFilter.eq(in);
     }
 
     static SqlFilter make(BiFunction<String, SqlSearchBuilder, String> sql, Function<String, String> json) {
@@ -103,5 +91,29 @@ public interface SqlFilter {
                 return json.apply(lhs);
             }
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    record FilterType(
+            Map<String, Function<Object, SqlFilter>> additionalFilters) implements Function<Object, SqlFilter> {
+        @Override
+        public SqlFilter apply(Object in) {
+            if (in instanceof Map<?, ?> filter) {
+                var filterEntry = filter.entrySet().stream().findFirst().orElse(null);
+                assert filterEntry != null;
+
+                return switch ((String) filterEntry.getKey()) {
+                    case "equals" -> SqlFilter.eq(filterEntry.getValue());
+                    case "allOf" -> SqlFilter.allOf(((List<Map<String, Object>>) filterEntry.getValue())
+                            .stream().map(this).toList());
+                    case "anyOf" -> SqlFilter.anyOf(((List<Map<String, Object>>) filterEntry.getValue())
+                            .stream().map(this).toList());
+                    case "not" -> SqlFilter.not(apply(in));
+
+                    default -> additionalFilters.get(filterEntry.getKey()).apply(filterEntry.getValue());
+                };
+            }
+            return SqlFilter.eq(in);
+        }
     }
 }

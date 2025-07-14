@@ -1,12 +1,17 @@
 package net.neoforged.waifu.web.api;
 
 import graphql.GraphQL;
+import graphql.language.Argument;
 import graphql.language.Description;
+import graphql.language.Directive;
 import graphql.language.FieldDefinition;
+import graphql.language.InputObjectTypeDefinition;
+import graphql.language.InputValueDefinition;
 import graphql.language.InterfaceTypeDefinition;
 import graphql.language.ListType;
 import graphql.language.NonNullType;
 import graphql.language.ObjectTypeDefinition;
+import graphql.language.SDLDefinition;
 import graphql.language.SourceLocation;
 import graphql.language.Type;
 import graphql.language.TypeName;
@@ -15,16 +20,18 @@ import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLArgument;
 import graphql.schema.GraphQLCodeRegistry;
+import graphql.schema.GraphQLDirective;
 import graphql.schema.GraphQLFieldDefinition;
 import graphql.schema.GraphQLInputObjectType;
-import graphql.schema.GraphQLInputType;
 import graphql.schema.GraphQLInterfaceType;
 import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLNamedSchemaElement;
+import graphql.schema.GraphQLNamedType;
 import graphql.schema.GraphQLNonNull;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLOutputType;
 import graphql.schema.GraphQLSchema;
+import graphql.schema.GraphQLType;
 import graphql.schema.GraphQLTypeReference;
 import graphql.schema.PropertyDataFetcher;
 import graphql.schema.idl.RuntimeWiring;
@@ -93,10 +100,12 @@ public class GraphQLWebService {
         SchemaParser schemaParser = new SchemaParser();
         TypeDefinitionRegistry typeDefinitionRegistry = schemaParser.parse(getClass().getResourceAsStream("/web/api/schema.graphql"));
 
-        Map<String, ObjectTypeDefinition> typesToAdd = new HashMap<>();
+        Map<String, SDLDefinition<?>> typesToAdd = new HashMap<>();
 
         typeDefinitionRegistry.types().forEach((name, bdef) -> {
             if (bdef instanceof ObjectTypeDefinition def) {
+                var orderBy = new ArrayList<FieldDefinition>();
+
                 for (FieldDefinition field : def.getFieldDefinitions()) {
                     if (field.hasDirective("paginated") && field.getType() instanceof TypeName type) {
                         var edgeName = type.getName() + "Edge";
@@ -135,6 +144,23 @@ public class GraphQLWebService {
                                         .build())
                                 .build());
                     }
+                    if (field.hasDirective("orderBy")) {
+                        orderBy.add(field);
+                    }
+                }
+
+                if (!orderBy.isEmpty()) {
+                    typesToAdd.computeIfAbsent(def.getName() + "Ordering", $ -> InputObjectTypeDefinition.newInputObjectDefinition()
+                            .name(def.getName() + "Ordering")
+                            .directive(new Directive("oneOf"))
+                            .description(new Description("Type used to order `" + def.getName() + "`s", SourceLocation.EMPTY, false))
+                            .inputValueDefinitions(orderBy.stream().map(f -> InputValueDefinition.newInputValueDefinition()
+                                    .name(f.getName())
+                                    .description(new Description("Order by " + f.getName(), SourceLocation.EMPTY, false))
+                                    .type(new TypeName("OrderMethod"))
+                                    .build())
+                                    .toList())
+                            .build());
                 }
             }
         });
@@ -171,7 +197,9 @@ public class GraphQLWebService {
                                     .map(i -> environment.getRegistry().getType(i, InterfaceTypeDefinition.class))
                                     .flatMap(Optional::stream)
                                     .forEach(def -> {
-                                        def.getFieldDefinitions().forEach(f -> fields.add(field(f)));
+                                        def.getFieldDefinitions().forEach(f -> fields.add(
+                                                GraphQLWebService.onField(typesToAdd, field(f))
+                                        ));
                                         b.withInterface(GraphQLTypeReference.typeRef(def.getName()));
                                     });
 
@@ -190,7 +218,9 @@ public class GraphQLWebService {
                                     .map(i -> environment.getRegistry().getType(i, InterfaceTypeDefinition.class))
                                     .flatMap(Optional::stream)
                                     .forEach(def -> {
-                                        def.getFieldDefinitions().forEach(f -> fields.add(field(f)));
+                                        def.getFieldDefinitions().forEach(f -> fields.add(
+                                                GraphQLWebService.onField(typesToAdd, field(f))
+                                        ));
                                         b.withInterface(GraphQLTypeReference.typeRef(def.getName()));
                                     });
 
@@ -225,6 +255,12 @@ public class GraphQLWebService {
                                     .type(new GraphQLTypeReference("ID"))
                                     .build());
                         });
+                    }
+                })
+                .directiveWiring(new SchemaDirectiveWiring() {
+                    @Override
+                    public GraphQLFieldDefinition onField(SchemaDirectiveWiringEnvironment<GraphQLFieldDefinition> environment) {
+                        return GraphQLWebService.onField(typesToAdd, environment.getElement());
                     }
                 })
 
@@ -445,6 +481,20 @@ public class GraphQLWebService {
         }
     }
 
+    private static GraphQLFieldDefinition onField(Map<String, SDLDefinition<?>> typesToAdd, GraphQLFieldDefinition element) {
+        if (unwrap(element.getType()) instanceof GraphQLList list && unwrap(list.getWrappedType()) instanceof GraphQLNamedType named) {
+            if (typesToAdd.containsKey(named.getName() + "Ordering")) {
+                return element.transform(builder -> builder
+                        .argument(GraphQLArgument.newArgument()
+                                .name("order")
+                                .description("Optional ordering to apply to the returned elements")
+                                .type(new GraphQLTypeReference(named.getName() + "Ordering"))
+                                .build()));
+            }
+        }
+        return element;
+    }
+
     private static GraphQLFieldDefinition field(FieldDefinition f) {
         return GraphQLFieldDefinition.newFieldDefinition()
                 .name(f.getName())
@@ -455,6 +505,17 @@ public class GraphQLWebService {
                                 .description(description(d.getDescription()))
                                 .name(d.getName())
                                 .type(type(d.getType()))
+                                .build())
+                        .toList())
+                .replaceDirectives(f.getDirectives().stream()
+                        .map(d -> GraphQLDirective.newDirective()
+                                .name(d.getName())
+                                .replaceArguments(d.getArguments().stream()
+                                        .map(a -> GraphQLArgument.newArgument()
+                                                .name(a.getName())
+                                                .defaultValueLiteral(a.getValue())
+                                                .build())
+                                        .toList())
                                 .build())
                         .toList())
                 .build();
@@ -471,6 +532,10 @@ public class GraphQLWebService {
             case TypeName nm -> GraphQLTypeReference.typeRef(nm.getName());
             default -> null;
         };
+    }
+
+    private static GraphQLType unwrap(GraphQLType output) {
+        return output instanceof GraphQLNonNull nn ? nn.getWrappedType() : output;
     }
 
     private static final class ConsiderAliasDataFetcher<T> extends PropertyDataFetcher<T> {

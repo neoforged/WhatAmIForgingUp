@@ -1,8 +1,6 @@
 package net.neoforged.waifu.db.sql.search;
 
-import com.google.common.collect.ImmutableBiMap;
 import graphql.schema.DataFetchingEnvironment;
-import graphql.schema.DataFetchingFieldSelectionSet;
 import graphql.schema.SelectedField;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
@@ -24,48 +22,17 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
+import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.listSubTable;
+import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.subTable;
+
+@SuppressWarnings("FieldCanBeLocal")
 public class SqlSearchHelper implements DatabaseSearchHelper {
     public static final Map<String, FilterCriterion> MANIFEST_CRITERIA = Map.of(
             "name", FilterCriterion.jsonExpression("mods.manifest", "$.*[*].key"),
             "value", FilterCriterion.jsonExpression("mods.manifest", "$.*[*].value")
-    );
-
-    @SuppressWarnings("unchecked")
-    private static final Map<String, FilterCriterion> GENERAL_MOD_CRITERIA = Map.of(
-            "name", FilterCriterion.column("mods.name"),
-            "authors", FilterCriterion.column("mods.authors"),
-            "license", FilterCriterion.column("mods.license"),
-
-            "anyClassName", FilterCriterion.column("classes.name"),
-
-            "inPack", new InPackCriterion("curseforge_project_id", "modrinth_project_id"),
-            "curseforgeProjectId", FilterCriterion.column("curseforge_project_id"),
-            "modrinthProjectId", FilterCriterion.column("modrinth_project_id"),
-
-            "anyManifestAttribute", val -> SqlCondition.parseAsCriterion((Map<String, Object>) val, MANIFEST_CRITERIA),
-
-            "indexed", val -> SqlCondition.columnFilter(SqlFilter.parseDateTime((Map<String, Object>) val), "index_date")
-    );
-
-    private static final Map<String, FilterCriterion> FORGE_MOD_CRITERIA = ImmutableBiMap.<String, FilterCriterion>builder()
-            .putAll(GENERAL_MOD_CRITERIA)
-            .put("modId", FilterCriterion.jsonExpression("mods.mod_metadata_json", "$.mods[*].modId"))
-            .put("description", FilterCriterion.jsonExpression("mods.mod_metadata_json", "$.mods[*].description"))
-            .build();
-
-    private static final Map<String, FilterCriterion> FABRIC_MOD_CRITERIA = ImmutableBiMap.<String, FilterCriterion>builder()
-            .putAll(GENERAL_MOD_CRITERIA)
-            .put("modId", FilterCriterion.jsonExpression("mods.mod_metadata_json", "$.id"))
-            .put("description", FilterCriterion.jsonExpression("mods.mod_metadata_json", "$.description"))
-            .build();
-
-    private static final Map<String, FilterCriterion> CLASS_CRITERIA = Map.of(
-            "name", FilterCriterion.column("classes.name")
     );
 
     private static final Map<String, FilterCriterion> TAG_CRITERIA = Map.of(
@@ -74,46 +41,17 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             "anyEntry", FilterCriterion.column("entryname.constant")
     );
 
-    private static final Map<String, FilterCriterion> ANNOTATION_CRITERIA = Map.of(
-            "type", FilterCriterion.column("ann.name")
-    );
-
-    private static final Map<String, FilterCriterion> METHOD_CRITERIA = Map.of(
-            "name", FilterCriterion.column("name.constant"),
-            "descriptor", FilterCriterion.column("descriptor.constant")
-    );
-
-    private static final Map<String, FilterCriterion> FIELD_CRITERIA = Map.of(
-            "name", FilterCriterion.column("name.constant"),
-            "type", FilterCriterion.column("type.name")
-    );
-
-    private static final Map<String, String> MOD_FIELD_MAPPING = Map.of(
-            "name", "name",
-            "authors", "authors",
-            "license", "license",
-            "id", "id",
-            "version", "version",
-            "curseforgeProjectId", "curseforge_project_id",
-            "modrinthProjectId", "modrinth_project_id",
-            "mavenCoordinates", "maven_coordinates",
-            "manifest", "manifest",
-            "indexedOn", "index_date"
-    );
-
     private static final int MAX_ITEMS_PER_REQUEST = 500;
 
     private final Jdbi jdbi;
-    private final ModLoader loader;
 
     private final DatabaseSchema schema;
 
-    private final DatabaseType mod, classDef;
+    private final DatabaseType mod, classes;
 
     @SuppressWarnings("unchecked")
     public SqlSearchHelper(Jdbi jdbi, ModLoader loader) {
         this.jdbi = jdbi;
-        this.loader = loader;
         jdbi.getConfig(SqlStatements.class).setSqlParser(new HashPrefixSqlParser());
 
         schema = new DatabaseSchema();
@@ -141,21 +79,186 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .filter("description", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.description" : "$.mods[*].description"))
                 .filterOnTable("anyClass", "class_defs")
 
-                .field("classes", DatabaseType.QueryBuilder.listSubTable("class_defs"))
+                .field("classes", listSubTable("class_defs"))
+
+                // TODO - this is special because of the registry, figure out a way not to need to make it special
+                .field("tags", (type, builder, fieldName, field) -> builder.arrayAggregateSubQuery("tags", columnAlias(field), sub -> {
+                    var reg = (String) field.getArguments().get("registry");
+
+                    String baseTag = "/" + reg.replace(':', '/').replace("minecraft/", "") + "/";
+
+                    var tagReplace = builder.insert(baseTag);
+
+                    sub
+                            .joinOn("constants tagnm", ctx -> "tagnm.id = tags.tag and tagnm.constant ~ " + ctx.insert("^\\w+" + baseTag + ".+"))
+                            .joinOn("replace(tagnm.constant, " + tagReplace + ", ':') tagname", SqlCondition.condition("true"))
+                            .where(SqlCondition.condition("tags.mod = mods.id"))
+                            .groupBy("tags.tag", "tags.replace", "tagname");
+
+                    var filArgs = field.getArguments().get("where");
+                    if (filArgs != null) {
+                        var applied = new HashSet<String>();
+                        sub.where(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, TAG_CRITERIA, applied));
+
+                        if (applied.contains("anyEntry")) {
+                            sub.joinOn("constants entryname", SqlCondition.condition("entryname.id = tags.entry"));
+                        }
+                    }
+
+                    var limit = (Integer) field.getArguments().get("limit");
+                    if (limit != null) {
+                        sub.limit(limit);
+                    }
+
+                    for (SelectedField req : field.getSelectionSet().getImmediateFields()) {
+                        switch (req.getName()) {
+                            case "name" -> sub.requestColumn("tagname", columnAlias(req));
+                            case "entries" -> sub.requestSubColumn("tags t1", columnAlias(req), bl -> {
+                                bl.requestColumn("coalesce(array_agg(entryname.constant), array[]::text[])", null)
+                                        .joinOn("constants entryname", SqlCondition.condition("entryname.id = t1.entry"))
+                                        .where(SqlCondition.condition("t1.tag = tags.tag and t1.mod = mods.id"));
+
+                                var filter = req.getArguments().get("where");
+                                if (filter != null) {
+                                    bl.where("entryname.constant", SqlFilter.STRING_FILTER.apply(filter));
+                                }
+                            });
+                            case "replace" -> sub.requestColumn("tags.replace", columnAlias(req));
+                        }
+                    }
+                }))
 
                 .groupBy("mods.id"));
 
-        classDef = schema.registerType("class_defs", b -> b
+        var class_annotations = registerAnnotationType("class_annotations");
+        var method_annotations = registerAnnotationType("method_annotations");
+        var field_annotations = registerAnnotationType("field_annotations");
+
+        var methods = schema.registerType("methods", b -> b
+                .field("name", "method_name.constant")
+                .field("descriptor", "method_desc.constant")
+                .field("definitions", listSubTable("method_defs"))
+                .field("references", listSubTable("method_references"))
+
+                .filterOnColumn("name", "method_name.constant")
+                .filterOnColumn("descriptor", "method_desc.constant")
+        );
+        schema.registerIndependentJoin("methods", "classes", "method_class", SqlCondition.equals("methods.cls", "method_class.id"));
+        schema.registerIndependentJoin("methods", "constants", "method_name", SqlCondition.equals("methods.name", "method_name.id"));
+        schema.registerIndependentJoin("methods", "constants", "method_desc", SqlCondition.equals("methods.descriptor", "method_desc.id"));
+
+        var method_defs = schema.registerType("method_defs", b -> b
+                .field("name", "method_name.constant")
+                .field("descriptor", "method_desc.constant")
+                .field("annotations", listSubTable(method_annotations))
+
+                .filterOnColumn("name", "method_name.constant")
+                .filterOnColumn("descriptor", "method_desc.constant")
+        );
+        schema.registerTwoWayJoin("methods", "method_defs", SqlCondition.equals("methods.id", "method_defs.type"));
+        schema.registerTwoWayJoin("method_defs", "method_annotations", SqlCondition.equals("method_defs.id", "method_annotations.owner"));
+        schema.registerTwoWayJoin("method_defs", "class_defs", SqlCondition.equals("method_defs.owner", "class_defs.id"));
+
+        var method_references = schema.registerType("method_references", b -> b
+                .field("name", "method_name.constant")
+                .field("descriptor", "method_desc.constant")
+                .field("class", "method_class.name")
+                .field("referenceCount", "method_references.count")
+                .field("owner", subTable("class_defs"))
+
+                .filterOnTable("mod", "mods")
+                .filterOnColumn("referenceCount", "method_references.count", SqlFilter.INT_FILTER)
+        );
+        schema.registerTwoWayJoin("method_references", "methods", SqlCondition.equals("method_references.reference", "methods.id"));
+        schema.registerTwoWayJoin("class_defs", "method_references", SqlCondition.equals("class_defs.id", "method_references.owner"));
+
+        var fields = schema.registerType("fields", b -> b
+                .field("name", "field_name.constant")
+                .field("type", "field_type.name")
+                .field("definitions", listSubTable("field_defs"))
+                .field("references", listSubTable("field_references"))
+
+                .filterOnColumn("name", "field_name.constant")
+                .filterOnColumn("type", "field_type.name")
+        );
+        schema.registerIndependentJoin("fields", "classes", "field_class", SqlCondition.equals("fields.cls", "field_class.id"));
+        schema.registerIndependentJoin("fields", "constants", "field_name", SqlCondition.equals("fields.name", "field_name.id"));
+        schema.registerIndependentJoin("fields", "classes", "field_type", SqlCondition.equals("fields.descriptor", "field_type.id"));
+
+        var field_defs = schema.registerType("field_defs", b -> b
+                .field("name", "field_name.constant")
+                .field("type", "field_type.name")
+                .field("annotations", listSubTable(field_annotations))
+
+                .filterOnColumn("name", "field_name.constant")
+                .filterOnColumn("type", "field_type.name")
+        );
+        schema.registerTwoWayJoin("fields", "field_defs", SqlCondition.equals("fields.id", "field_defs.type"));
+        schema.registerTwoWayJoin("field_defs", "field_annotations", SqlCondition.equals("field_defs.id", "field_annotations.owner"));
+        schema.registerTwoWayJoin("field_defs", "class_defs", SqlCondition.equals("field_defs.owner", "class_defs.id"));
+
+        var field_references = schema.registerType("field_references", b -> b
+                .field("name", "field_name.constant")
+                .field("type", "field_type.name")
+                .field("class", "field_class.name")
+                .field("referenceCount", "field_references.count")
+                .field("owner", subTable("class_defs"))
+
+                .filterOnTable("mod", "mods")
+                .filterOnColumn("referenceCount", "field_references.count", SqlFilter.INT_FILTER)
+        );
+        schema.registerTwoWayJoin("field_references", "fields", SqlCondition.equals("field_references.reference", "fields.id"));
+        schema.registerTwoWayJoin("class_defs", "field_references", SqlCondition.equals("class_defs.id", "field_references.owner"));
+
+        var class_defs = schema.registerType("class_defs", b -> b
                 .field("name", "classes.name")
                 .field("parents", (type, builder, fieldName, selection) -> builder
                         .requestSubColumn("class_parents", fieldName, c -> c
                                 .joinOn("classes parent", "parent.id = class_parents.parent")
                                 .where("class_parents.cls = class_defs.id")
                                 .requestColumn("array_agg(parent.name)", null)))
-                .filterOnColumn("name", "classes.name"));
+                .field("mod", subTable(mod))
+                .field("annotations", listSubTable(class_annotations))
 
-        schema.registerJoinRule("mods", "class_defs", SqlCondition.condition("class_defs.mod = mods.id"));
-        schema.registerJoinRule("classes", "class_defs", SqlCondition.condition("class_defs.type = classes.id"));
+                .field("methods", listSubTable(method_defs))
+                .field("fields", listSubTable(field_defs))
+                .field("referencedMethods", listSubTable(method_references))
+                .field("referencedFields", listSubTable(field_references))
+
+                .filterOnColumn("name", "classes.name")
+                .filterOnTable("anyMethod", "method_defs")
+                .filterOnTable("anyField", "field_defs")
+        );
+        schema.registerTwoWayJoin("class_defs", "class_annotations", SqlCondition.equals("class_defs.id", "class_annotations.owner"));
+
+        schema.registerTwoWayJoin("mods", "class_defs", SqlCondition.condition("class_defs.mod = mods.id"));
+        schema.registerTwoWayJoin("classes", "class_defs", SqlCondition.condition("class_defs.type = classes.id"));
+
+        // TODO We have an independent join from method/field->class. Check if we still need it to prevent conflicts
+        schema.registerForwardJoin("classes", "methods", SqlCondition.equals("classes.id", "methods.cls"));
+        schema.registerForwardJoin("classes", "fields", SqlCondition.equals("classes.id", "fields.cls"));
+
+        classes = schema.registerType("classes", b -> b
+                .directFields("id", "name")
+
+                .field("methods", listSubTable(methods))
+                .field("fields", listSubTable(fields))
+                .field("definitions", listSubTable(class_defs))
+
+                .groupBy("classes.id")
+        );
+    }
+
+    private DatabaseType registerAnnotationType(String annotationTable) {
+        schema.registerIndependentJoin(annotationTable, "classes", "annotation_type", SqlCondition.equals(annotationTable + ".annotation", "annotation_type.id"));
+        schema.registerIndependentJoin(annotationTable, "json_constants", "annotation_value", SqlCondition.equals(annotationTable + ".value", "annotation_value.id"));
+
+        return schema.registerType(annotationTable, b -> b
+                .field("type", "annotation_type.name")
+                .field("value", "annotation_value.constant")
+
+                .filterOnColumn("type", "classes.name")
+        );
     }
 
     @Override
@@ -194,363 +297,22 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         return paginate(builder, Pagination.parse(env.getArguments()), "mods.id");
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Object getClasses(DataFetchingEnvironment env) {
-        var builder = new SqlSearchBuilder("classes")
-                .requestColumn("classes.id", "id")
-                .requestColumn("classes.name", "name");
+        var builder = classes.createQuery();
+        builder.requestColumn("classes.id", "id");
+
+        var classes = env.getSelectionSet().getFields("edges/node");
+        if (!classes.isEmpty()) {
+            this.classes.apply(builder, classes.getFirst());
+        }
 
         Map<String, Object> filter = env.getArgument("where");
         if (filter != null) {
-            builder.where(SqlCondition.parseAsCriterion(filter, CLASS_CRITERIA));
-        }
-
-        for (SelectedField field : env.getSelectionSet().getFields("edges/node")) {
-            for (SelectedField definition : field.getSelectionSet().getFields("definitions")) {
-                builder.arrayAggregateSubQuery("class_defs", columnAlias(definition), sub -> {
-                    sub.requestAsJson().where(SqlCondition.condition("class_defs.type = classes.id"));
-
-                    if (definition.getSelectionSet().contains("name")) {
-                        sub.requestColumn("classes.name", "name");
-                    }
-
-                    formatDefinitionRequest(sub, definition);
-                });
-            }
-
-            for (SelectedField method : field.getSelectionSet().getFields("methods")) {
-                builder.arrayAggregateSubQuery("methods", columnAlias(method), sub -> {
-                    sub.requestAsJson().where(SqlCondition.condition("methods.cls = classes.id"))
-                            .requestColumn("methods.id", "id")
-                            .orderBy("methods.id");
-
-                    formatMethodRequest(sub, method);
-
-                    for (SelectedField reference : method.getSelectionSet().getFields("references")) {
-                        sub.arrayAggregateSubQuery("method_references", columnAlias(reference), refs -> {
-                            refs.where("method_references.reference = methods.id");
-
-                            var refFilter = (Map<String, Object>) reference.getArguments().get("where");
-                            if (refFilter != null) {
-                                refs.joinOn("class_defs", "class_defs.id = method_references.owner");
-                                refs.joinOn("mods", "mods.id = class_defs.mod");
-                                refs.where(SqlCondition.parseAsCriterion(refFilter, Map.of(
-                                        "mod", value -> SqlCondition.parseAsCriterion((Map<String, Object>) value, loader == ModLoader.FABRIC ? FABRIC_MOD_CRITERIA : FORGE_MOD_CRITERIA)
-                                )));
-                            }
-
-                            if (reference.getSelectionSet().contains("referenceCount")) {
-                                refs.requestColumn("count", "referenceCount");
-                            }
-
-                            for (SelectedField cls : reference.getSelectionSet().getFields("class")) {
-                                refs.requestSubColumn("class_defs", columnAlias(cls), cd -> {
-                                    cd.requestAsJson();
-                                    cd.where(SqlCondition.condition("class_defs.id = method_references.owner"));
-
-                                    if (cls.getSelectionSet().contains("name")) {
-                                        cd.joinOn("classes", "classes.id = class_defs.type");
-                                        cd.requestColumn("classes.name", "name");
-                                    }
-
-                                    formatDefinitionRequest(cd, cls);
-                                });
-                            }
-                        });
-                    }
-                });
-            }
+            this.classes.applyFilter(builder, filter);
         }
 
         return paginate(builder, Pagination.parse(env.getArguments()), "classes.id");
-    }
-
-    private void formatMethodRequest(SqlSearchBuilder met, SelectedField method) {
-        var selectionSet = method.getSelectionSet();
-
-        Set<String> applied = new HashSet<>(2);
-        var filter = (Map<String, Object>) method.getArguments().get("where");
-        if (filter != null) {
-            met.where(SqlCondition.parseAsCriterion(filter, METHOD_CRITERIA, applied));
-        }
-
-        boolean nameSelected = selectionSet.contains("name");
-        if (nameSelected || applied.contains("name")) {
-            met.joinOn("constants name", SqlCondition.condition("methods.name = name.id"));
-            if (nameSelected) {
-                met.requestColumn("name.constant", "name");
-            }
-        }
-
-        boolean descriptorSelected = selectionSet.contains("descriptor");
-        if (descriptorSelected || applied.contains("descriptor")) {
-            met.joinOn("constants descriptor", SqlCondition.condition("methods.descriptor = descriptor.id"));
-            if (descriptorSelected) {
-                met.requestColumn("descriptor.constant", "descriptor");
-            }
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void formatDefinitionRequest(SqlSearchBuilder sub, SelectedField definition) {
-        if (definition.getSelectionSet().contains("parents")) {
-            sub.joinOn("class_parents", SqlCondition.condition("class_parents.cls = class_defs.id"));
-            sub.joinOn("classes parent", SqlCondition.condition("parent.id = class_parents.parent"));
-            sub.groupBy("class_defs.id");
-
-            sub.requestColumn("json_agg(parent.name)", "parents");
-        }
-
-        requestAnnotations(sub, definition.getSelectionSet().getFields("annotations"), "class_annotations", "class_defs");
-
-        for (SelectedField method : definition.getSelectionSet().getFields("methods")) {
-            var selectionSet = method.getSelectionSet();
-            sub.arrayAggregateSubQuery("method_defs", columnAlias(method), met -> {
-                met.requestAsJson();
-                met.where(SqlCondition.condition("method_defs.owner = class_defs.id"));
-                met.joinOn("methods", SqlCondition.condition("method_defs.type = methods.id"));
-
-                formatMethodRequest(met, method);
-
-                requestAnnotations(met, selectionSet.getFields("annotations"), "method_annotations", "method_defs");
-            });
-        }
-
-        for (SelectedField fields : definition.getSelectionSet().getFields("fields")) {
-            var selectionSet = fields.getSelectionSet();
-            sub.arrayAggregateSubQuery("field_defs", columnAlias(fields), fld -> {
-                fld.requestAsJson();
-                fld.where(SqlCondition.condition("field_defs.owner = class_defs.id"));
-                fld.joinOn("fields", SqlCondition.condition("field_defs.type = fields.id"));
-
-                Set<String> applied = new HashSet<>(2);
-                var filter = (Map<String, Object>) fields.getArguments().get("where");
-                if (filter != null) {
-                    fld.where(SqlCondition.parseAsCriterion(filter, FIELD_CRITERIA, applied));
-                }
-
-                boolean typeSelected = selectionSet.contains("type");
-                if (typeSelected || applied.contains("type")) {
-                    fld.joinOn("classes type", SqlCondition.condition("fields.descriptor = type.id"));
-                    if (typeSelected) {
-                        fld.requestColumn("type.name", "type");
-                    }
-                }
-
-                boolean nameSelected = selectionSet.contains("name");
-                if (nameSelected || applied.contains("name")) {
-                    fld.joinOn("constants name", SqlCondition.condition("fields.name = name.id"));
-                    if (nameSelected) {
-                        fld.requestColumn("name.constant", "name");
-                    }
-                }
-
-                requestAnnotations(fld, selectionSet.getFields("annotations"), "field_annotations", "field_defs");
-            });
-        }
-
-        for (SelectedField modField : definition.getSelectionSet().getFields("mod")) {
-            configureModField(modField, sub, "class_defs.mod");
-        }
-
-        for (SelectedField referencedMethod : definition.getSelectionSet().getFields("referencedMethods")) {
-            var selection = referencedMethod.getSelectionSet();
-            sub.arrayAggregateSubQuery("method_references", columnAlias(referencedMethod), b -> {
-                b.where("method_references.owner = class_defs.id");
-
-                if (selection.contains("referenceCount")) {
-                    b.requestColumn("count", "referenceCount");
-                }
-
-                b.joinOn("methods", "methods.id = method_references.reference");
-
-                if (selection.contains("class")) {
-                    b.joinOn("classes owner", "owner.id = methods.cls");
-                    b.requestColumn("owner.name", "class");
-                }
-                if (selection.contains("descriptor")) {
-                    b.joinOn("constants descriptor", SqlCondition.condition("methods.descriptor = descriptor.id"));
-                    b.requestColumn("descriptor.constant", "descriptor");
-                }
-                if (selection.contains("name")) {
-                    b.joinOn("constants name", SqlCondition.condition("methods.name = name.id"));
-                    b.requestColumn("name.constant", "name");
-                }
-            });
-        }
-
-        for (SelectedField referencedFields : definition.getSelectionSet().getFields("referencedFields")) {
-            var selection = referencedFields.getSelectionSet();
-            sub.arrayAggregateSubQuery("field_references", columnAlias(referencedFields), b -> {
-                b.where("field_references.owner = class_defs.id");
-
-                if (selection.contains("referenceCount")) {
-                    b.requestColumn("count", "referenceCount");
-                }
-
-                b.joinOn("fields", "fields.id = field_references.reference");
-
-                if (selection.contains("class")) {
-                    b.joinOn("classes owner", "owner.id = fields.cls");
-                    b.requestColumn("owner.name", "class");
-                }
-                if (selection.contains("name")) {
-                    b.joinOn("constants name", "fields.name = name.id");
-                    b.requestColumn("name.constant", "name");
-                }
-                if (selection.contains("type")) {
-                    b.joinOn("classes type", "fields.descriptor = type.id");
-                    b.requestColumn("type.name", "type");
-                }
-            });
-        }
-    }
-
-    private void configureModField(SelectedField modField, SqlSearchBuilder builder, String joinColumn) {
-        var set = modField.getSelectionSet();
-        builder.jsonSubQuery(columnAlias(modField), mod -> {
-            MOD_FIELD_MAPPING.forEach((fld, dbMapping) -> {
-                if (set.contains(fld)) {
-                    mod.put(fld, "mods." + dbMapping);
-                }
-            });
-        });
-        builder.joinOn("mods", SqlCondition.condition("mods.id = " + joinColumn));
-    }
-
-    @SuppressWarnings("unchecked")
-    private void requestAnnotations(SqlSearchBuilder builder, List<SelectedField> annotations, String column, String owner) {
-        for (SelectedField into : annotations) {
-            Map<String, Object> annFilter = (Map<String, Object>) into.getArguments().get("where");
-            builder.arrayAggregateSubQuery(column, columnAlias(into), b -> {
-                formatAnnotationRequest(b, column, owner);
-
-                if (annFilter != null) {
-                    b.where(SqlCondition.parseAsCriterion(annFilter, ANNOTATION_CRITERIA));
-                }
-            });
-        }
-    }
-
-    private void formatAnnotationRequest(SqlSearchBuilder builder, String column, String owner) {
-        builder.requestAsJson()
-                .requestColumn("ann.name", "type")
-                .requestColumn("value.constant", "value")
-                .joinOn("classes ann", SqlCondition.condition("ann.id = " + column + ".annotation"))
-                .joinOn("json_constants value", SqlCondition.condition("value.id = " + column + ".value"))
-                .where(SqlCondition.condition(column + ".owner = " + owner + ".id"));
-    }
-
-    @SuppressWarnings("unchecked")
-    private void configureModSearch(DataFetchingFieldSelectionSet set, SqlSearchBuilder builder, boolean requireClassJoin) {
-        builder.requestColumn("mods.id", "id"); // We always request the ID for pagination purposes
-
-        MOD_FIELD_MAPPING.forEach((fld, dbMapping) -> {
-            if (set.contains(fld)) {
-                builder.requestColumn("mods." + dbMapping, fld);
-            }
-        });
-
-        List<SqlCondition> classJoinFilter = new ArrayList<>();
-        for (SelectedField definition : set.getFields("classes")) {
-            builder.arrayAggregateSubQuery("class_defs", columnAlias(definition), sub -> {
-                sub.requestAsJson();
-                sub.where(SqlCondition.condition("class_defs.mod = mods.id"));
-                sub.groupBy("class_defs.id");
-
-                boolean nameJoin = false;
-
-                if (definition.getSelectionSet().contains("name")) {
-                    nameJoin = true;
-                    sub.requestColumn("classes.name", "name");
-                    sub.groupBy("classes.name");
-                }
-
-                formatDefinitionRequest(sub, definition);
-
-                var filArgs = definition.getArguments().get("where");
-                if (filArgs != null) {
-                    nameJoin = true;
-                    sub.where(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, CLASS_CRITERIA));
-                }
-
-                var order = (Map<String, Map<String, Object>>) definition.getArguments().get("order");
-                if (order != null) {
-                    var name = order.get("name");
-                    if (name != null) {
-                        nameJoin = true;
-                        sub.orderBy(new Order(name).createStatement("classes.name"));
-                    }
-                }
-
-                var limit = (Integer) definition.getArguments().get("limit");
-                if (limit != null) {
-                    sub.limit(limit);
-                }
-
-                if (nameJoin) {
-                    sub.joinOn("classes", SqlCondition.condition("class_defs.type = classes.id"));
-                }
-            });
-        }
-
-        set.getFields("tags").forEach(field -> {
-            var reg = (String) field.getArguments().get("registry");
-
-            String baseTag = "/" + reg.replace(':', '/').replace("minecraft/", "") + "/";
-
-            var tagReplace = builder.insert(baseTag);
-
-            var sub = builder.subBuilder("tags")
-                    .requestAsJson()
-                    .joinOn("constants tagnm", ctx -> "tagnm.id = tags.tag and tagnm.constant ~ " + ctx.insert("^\\w+" + baseTag + ".+"))
-                    .joinOn("replace(tagnm.constant, " + tagReplace + ", ':') tagname", SqlCondition.condition("true"))
-                    .where(SqlCondition.condition("tags.mod = mods.id"))
-                    .groupBy("tags.tag", "tags.replace", "tagname");
-
-            var filArgs = field.getArguments().get("where");
-            if (filArgs != null) {
-                var applied = new HashSet<String>();
-                sub.where(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, TAG_CRITERIA, applied));
-
-                if (applied.contains("anyEntry")) {
-                    sub.joinOn("constants entryname", SqlCondition.condition("entryname.id = tags.entry"));
-                }
-            }
-
-            var limit = (Integer) field.getArguments().get("limit");
-            if (limit != null) {
-                sub.limit(limit);
-            }
-
-            for (SelectedField req : field.getSelectionSet().getImmediateFields()) {
-                switch (req.getName()) {
-                    case "name" -> sub.requestColumn("tagname", columnAlias(req));
-                    case "entries" -> sub.requestSubColumn("tags t1", columnAlias(req), b -> {
-                        b.requestColumn("coalesce(array_agg(entryname.constant), array[]::text[])", null)
-                                .joinOn("constants entryname", SqlCondition.condition("entryname.id = t1.entry"))
-                                .where(SqlCondition.condition("t1.tag = tags.tag and t1.mod = mods.id"));
-
-                        var filter = req.getArguments().get("where");
-                        if (filter != null) {
-                            b.where("entryname.constant", SqlFilter.parse(filter));
-                        }
-                    });
-                    case "replace" -> sub.requestColumn("tags.replace", columnAlias(req));
-                }
-            }
-
-            builder.columnSubQuery("(" + sub.format() + ")", columnAlias(field), b -> b.requestColumn("coalesce(jsonb_agg(json_out), '[]'::jsonb)", "r"));
-        });
-
-        if (requireClassJoin) {
-            builder.joinOn("class_defs", SqlCondition.condition("class_defs.mod = mods.id"));
-            builder.joinOn("classes", SqlCondition.condition("classes.id = class_defs.type"));
-            builder.joinOn("classes", classJoinFilter);
-
-            builder.groupBy("mods.id");
-        }
     }
 
     private String columnAlias(SelectedField field) {
@@ -734,33 +496,6 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
             return new Pagination(limit, isLast, after, before);
         }
-    }
-
-    private record Order(OrderRule rule, boolean desc) {
-        private Order(Map<String, Object> map) {
-            this(OrderRule.valueOf(((String) map.getOrDefault("by", "value")).toUpperCase(Locale.ROOT)), Objects.equals(map.get("direction"), "desc"));
-        }
-
-        public String createStatement(String column) {
-            return rule.apply(column) + " " + (desc ? "desc" : "asc");
-        }
-    }
-
-    private enum OrderRule {
-        VALUE {
-            @Override
-            public String apply(String in) {
-                return in;
-            }
-        },
-        LENGTH {
-            @Override
-            public String apply(String in) {
-                return "length(" + in + ")";
-            }
-        };
-
-        public abstract String apply(String in);
     }
 
     private record InPackCriterion(String curseforgeColumn, String modrinthColumn) implements FilterCriterion.MapOnly {

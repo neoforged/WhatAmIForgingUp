@@ -7,11 +7,15 @@ public interface FilterCriterion {
     SqlCondition apply(Object value);
 
     static FilterCriterion column(String col) {
-        return value -> SqlCondition.columnFilter(SqlFilter.parse(value), col);
+        return column(col, SqlFilter.STRING_FILTER);
+    }
+
+    static FilterCriterion column(String col, SqlFilter.FilterType type) {
+        return value -> SqlCondition.columnFilter(type.apply(value), col);
     }
 
     static FilterCriterion jsonExpression(String column, String expression) {
-        return value -> SqlCondition.jsonFilter(SqlFilter.parse(value), column, expression);
+        return value -> SqlCondition.jsonFilter(SqlFilter.STRING_FILTER.apply(value), column, expression);
     }
 
     @FunctionalInterface

@@ -28,6 +28,10 @@ public interface SqlCondition {
         return ctx -> op.buildSql(col, ctx);
     }
 
+    static SqlCondition equals(String a, String b) {
+        return ctx -> a + " = " + b;
+    }
+
     static SqlCondition condition(String condition) {
         return ctx -> condition;
     }

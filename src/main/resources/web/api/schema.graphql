@@ -4,6 +4,7 @@ directive @predicateType on INPUT_OBJECT
 directive @implement(interfaces: [String!]!) on OBJECT | INTERFACE
 directive @specifiedBy(url: String!) on SCALAR
 directive @paginated on FIELD_DEFINITION
+directive @orderBy on FIELD_DEFINITION
 
 scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/andimarek/date-time.html")
 
@@ -110,7 +111,7 @@ type LightweightMod @implement(interfaces: ["Identifiable", "BaseMod"]) {
 "Represents a full mod from which data that requires more complex processing can be queries (classes, tags etc.)"
 type Mod @implement(interfaces: ["Identifiable", "BaseMod"]) {
     "Get the classes this mod defines. Optionally takes in a filter on the class name"
-    classes(where: ClassPredicate, order: ClassOrdering, limit: Int): [ClassDefinition!]!
+    classes(where: ClassDefinitionPredicate, limit: Int): [ClassDefinition!]!
 
     "Get the tags this mod defines for the given registry"
     tags(
@@ -183,37 +184,75 @@ type Class @implement(interfaces: "Identifiable") {
 
     """
     The methods of this class, optionally matching the given predicate.
-    Note that it is not guaranteed that methods returned have a concrete implementation.
+    Note that it is not guaranteed that the methods returned have a concrete implementation.
     """
-    methods(where: MethodPredicate): [Method!]!
+    methods(
+        "Optional filter to apply to the query"
+        where: MethodPredicate,
+        "Limit the amount of methods returned"
+        limit: Int
+    ): [Method!]!
+
+    """
+    The fields of this class, optionally matching the given predicate.
+    Note that it is not guaranteed that the fields returned have a concrete implementation.
+    """
+    fields(
+        "Optional filter to apply to the query"
+        where: FieldPredicate,
+        "Limit the amount of fields returned"
+        limit: Int
+    ): [Field!]!
 
     "Returns all known concrete definitions of the class"
-    definitions: [ClassDefinition]!
-}
-
-"Represents a method as returned by `Class.methods`"
-type Method @implement(interfaces: "Identifiable") {
-    "The name of this method"
-    name: String!
-    "The descriptor of this method"
-    descriptor: String!
-
-    "Returns the references to this method"
-    references(where: ReferencePredicate): [Reference!]!
+    definitions: [ClassDefinition!]!
 }
 
 "Represents a reference in the form of the class referencing the method/field and how many times it is referenced in that class"
 type Reference {
     "The class in which this reference is contained"
-    class: ClassDefinition!
+    owner: ClassDefinition!
     "How many times the referenced method/field was referenced in the class"
-    referenceCount: Int!
+    referenceCount: Int! @orderBy
+}
+
+"""
+Represents a type that can be referenced by other classes.
+Can be method or a field.
+"""
+interface Referenceable {
+    "Returns the references to this element"
+    references(
+        "Optional filter to apply to the query"
+        where: ReferencePredicate,
+        "Limit the amount of references returned"
+        limit: Int
+    ): [Reference!]!
+}
+
+"Represents a method as returned by `Class.methods`"
+type Method @implement(interfaces: ["Identifiable", "Referenceable"]) {
+    "The name of this method"
+    name: String!
+    "The descriptor of this method"
+    descriptor: String!
+}
+
+"Represents a method as returned by `Class.fields`"
+type Field @implement(interfaces: ["Identifiable", "Referenceable"]) {
+    "The name of this field"
+    name: String!
+    """
+    The type of this field
+    Can be a JVM internal class like like `java/lang/Object` or a type descriptor like `I`, `Z` or `[Ljava/lang/Object;`.
+    """
+    type: String!
 }
 
 "A concrete definition of a class"
 type ClassDefinition @implement(interfaces: "Annotatable") {
     "The name of this class"
-    name: String!
+    name: String! @orderBy
 
     "Classes this class directly inherits from (both super classes and interfaces)"
     parents: [String!]
@@ -225,13 +264,23 @@ type ClassDefinition @implement(interfaces: "Annotatable") {
     The methods this class defines directly.
     Note that this list is not complete and only contains methods relevant for API usage. Therefore private methods that have no annotations are not tracked.
     """
-    methods("Optional filter to apply to the query" where: MethodPredicate): [MethodDefinition!]!
+    methods(
+        "Optional filter to apply to the query"
+        where: MethodPredicate,
+        "Limit the amount of methods returned"
+        limit: Int
+    ): [MethodDefinition!]!
 
     """
     The fields this class defines directly.
     Note that this list is not complete and only contains fields relevant for API usage. Therefore private fields that have no annotations are not tracked.
     """
-    fields("Optional filter to apply to the query" where: FieldPredicate): [FieldDefinition!]!
+    fields(
+        "Optional filter to apply to the query"
+        where: FieldPredicate,
+        "Limit the amount of fields returned"
+        limit: Int
+    ): [FieldDefinition!]!
 
     """
     The methods this class references.
@@ -273,17 +322,17 @@ type ReferencedField {
 "A concrete definition of a method"
 type MethodDefinition @implement(interfaces: "Annotatable") {
     "The name of this method"
-    name: String!
+    name: String! @orderBy
     "The descriptor of this method"
-    descriptor: String!
+    descriptor: String! @orderBy
 }
 
 "A concrete definition of a field"
 type FieldDefinition @implement(interfaces: "Annotatable") {
     "The name of this method"
-    name: String!
+    name: String! @orderBy
     "The type of this field. This is not a descriptor so classes are in internal JVM format (e.g. `java/lang/String` instead of `Ljava/lang/String;`)"
-    type: String!
+    type: String! @orderBy
 }
 
 "Used to filter methods based on different criteria"
@@ -306,6 +355,8 @@ input FieldPredicate @predicateType @oneOf {
 input ReferencePredicate @predicateType @oneOf {
     "Filter based on the mod that the reference is part of"
     mod: ModPredicate
+    "Filter based on the amount of references"
+    referenceCount: IntPredicate
 }
 
 "Used to filter tags based on different criteria"
@@ -340,7 +391,7 @@ input ModPredicate @predicateType @oneOf {
     modId: StringPredicate
 
     "A mod will match if any of the classes it defines matches the given predicate"
-    anyClass: ClassPredicate
+    anyClass: ClassDefinitionPredicate
     "A mod will match if any of the manifest attributes its jar has matches the given filter"
     anyManifestAttribute: ManifestAttributePredicate
 
@@ -368,6 +419,17 @@ input ProjectId @oneOf {
 input ClassPredicate @predicateType @oneOf {
     "Filter based on the class' JVM name"
     name: StringPredicate
+}
+
+"Used to filter class definitions based on different criteria"
+input ClassDefinitionPredicate @predicateType @oneOf {
+    "Filter based on the class' JVM name"
+    name: StringPredicate
+
+    "A class definition will match if any of the methods it defines matches the given predicate"
+    anyMethod: MethodPredicate
+    "A class definition will match if any of the fields it defines matches the given predicate"
+    anyField: FieldPredicate
 }
 
 "Used to filter manifest attributes based on their name and/or value"
@@ -411,6 +473,23 @@ input StringPredicate @oneOf @predicateType {
     startsWith: String
 }
 
+"""
+Represents a way of filtering numbers based on different rules that are either logical operators
+on other filters (NOT, AND, OR) or number comparisons.
+"""
+input IntPredicate @oneOf @predicateType {
+    "The number being filtered must be less than the given number."
+    lessThan: Int
+    "The number being filtered must be greater than the given number."
+    greaterThan: Int
+
+    "The number being filtered must be equal to the given number."
+    equals: Int
+
+    "The number being filtered must be even if this is set to true, or odd otherwise."
+    isEven: Boolean
+}
+
 "A predicate applied to date types"
 input DatePredicate @oneOf {
     "Matches if the date is before (smaller than) the given date"
@@ -432,8 +511,4 @@ enum OrderDirection {
 input OrderMethod {
     by: OrderRule = value
     direction: OrderDirection = asc
-}
-
-input ClassOrdering @oneOf {
-    name: OrderMethod
 }

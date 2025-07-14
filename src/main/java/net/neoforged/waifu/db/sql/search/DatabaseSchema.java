@@ -28,14 +28,28 @@ public class DatabaseSchema {
         return type;
     }
 
-    public void registerJoinRule(String a, String b, SqlCondition joinCondition) {
+    public void registerTwoWayJoin(String a, String b, SqlCondition joinCondition) {
         joinPaths.putEdge(a, b);
         joinPaths.putEdge(b, a);
         joinRules.put(JoinKey.create(a, b), joinCondition);
     }
 
+    public void registerForwardJoin(String from, String to, SqlCondition joinCondition) {
+        joinPaths.putEdge(from, to);
+        joinRules.put(JoinKey.create(from, to), joinCondition);
+    }
+
+    public void registerIndependentJoin(String from, String to, String alias, SqlCondition joinCondition) {
+        registerForwardJoin(from, alias, new IndependentJoinCondition(to, joinCondition));
+    }
+
     public void join(SqlSearchBuilder builder, String from, String to) {
-        builder.joinOn(to, getJoinRule(from, to));
+        var rule = getJoinRule(from, to);
+        if (rule instanceof IndependentJoinCondition(var real, var cond)) {
+            builder.joinOn(real + " " + to, cond);
+        } else {
+            builder.joinOn(to, rule);
+        }
     }
 
     public SqlCondition getJoinRule(String from, String to) {
@@ -90,6 +104,13 @@ public class DatabaseSchema {
         public static JoinKey create(String a, String b) {
             if (a.compareTo(b) < 0) return new JoinKey(a, b);
             return new JoinKey(b, a);
+        }
+    }
+
+    private record IndependentJoinCondition(String realTable, SqlCondition cond) implements SqlCondition {
+        @Override
+        public String build(SqlSearchBuilder ctx) {
+            return cond.build(ctx);
         }
     }
 }

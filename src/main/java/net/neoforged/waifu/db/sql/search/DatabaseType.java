@@ -56,26 +56,74 @@ public class DatabaseType {
     public interface QueryBuilder {
         void query(DatabaseType type, SqlSearchBuilder builder, String fieldName, SelectedField selection);
 
-        static QueryBuilder subTable(DatabaseType schema) {
-            return (topLevel, builder, fieldName, selection) -> builder.columnSubQuery(schema.tableName, fieldName, sub -> schema.apply(sub, selection));
+        default void applyOrder(DatabaseType type, SqlSearchBuilder builder, Map<String, Object> order) {
+
         }
 
+        static QueryBuilder subTable(DatabaseType schema) {
+            return subTable(schema.tableName);
+        }
+
+        static QueryBuilder subTable(String type) {
+            return (topLevel, builder, fieldName, selection) -> {
+                var schema = topLevel.schema.getType(type);
+                builder.columnSubQuery(schema.tableName, fieldName, sub -> {
+                    sub.where(topLevel.schema.getJoinRule(builder.table, schema.tableName));
+                    schema.apply(sub, selection);
+                    sub.requestAsJson();
+                });
+            };
+        }
+
+        static QueryBuilder listSubTable(DatabaseType type) {
+            return listSubTable(type.tableName);
+        }
+
+        @SuppressWarnings("unchecked")
         static QueryBuilder listSubTable(String typeName) {
             return (topLevel, builder, fieldName, selection) -> {
                 var type = topLevel.schema.getType(typeName);
                 builder.arrayAggregateSubQuery(type.tableName, fieldName, sub -> {
                     sub.where(topLevel.schema.getJoinRule(builder.table, typeName));
                     type.apply(sub, selection);
+
+                    var limit = (Integer) selection.getArguments().get("limit");
+                    if (limit != null) {
+                        sub.limit(limit);
+                    }
+
+                    var order = (Map<String, Map<String, Object>>) selection.getArguments().get("order");
+                    if (order != null && order.entrySet().size() == 1) {
+                        var orderEntry = order.entrySet().stream().findFirst().orElseThrow();
+                        var field = orderEntry.getKey();
+                        type.fields.get(field).applyOrder(type, sub, orderEntry.getValue());
+                    }
                 });
             };
         }
 
+
         static QueryBuilder column(String column) {
-            return (schema, builder, fieldName, selection) -> {
-                builder.requestColumn(column, fieldName);
-                var spl = column.split("\\.");
-                if (spl.length == 2 && !spl[0].equals(schema.tableName)) {
-                    schema.schema.possiblyJoin(builder, spl[0]);
+            return new QueryBuilder() {
+                @Override
+                public void query(DatabaseType type, SqlSearchBuilder builder, String fieldName, SelectedField selection) {
+                    possiblyJoin(type, builder);
+                    builder.requestColumn(column.split("\\.").length == 1 ? type.tableName + "." + column : column, fieldName);
+                }
+
+                @Override
+                public void applyOrder(DatabaseType type, SqlSearchBuilder builder, Map<String, Object> order) {
+                    possiblyJoin(type, builder);
+                    builder.orderBy(new SqlOrder(order).createStatement(column.split("\\.").length == 1 ? type.tableName + "." + column : column));
+                }
+
+                private void possiblyJoin(DatabaseType type, SqlSearchBuilder builder) {
+                    var spl = column.split("\\.");
+                    if (spl.length == 2 && !spl[0].equals(type.tableName)) {
+                        if (!builder.isJoined(spl[0])) {
+                            type.schema.possiblyJoin(builder, spl[0]);
+                        }
+                    }
                 }
             };
         }
@@ -119,14 +167,18 @@ public class DatabaseType {
         }
 
         public Builder filterOnColumn(String filterType, String column) {
+            return filterOnColumn(filterType, column, SqlFilter.STRING_FILTER);
+        }
+
+        public Builder filterOnColumn(String filterType, String column, SqlFilter.FilterType type) {
             var spl = column.split("\\.");
             if (spl.length == 2 && !spl[0].equals(this.tableName)) {
                 filters.put(filterType, value -> ctx -> {
                     schema.possiblyJoin(ctx, spl[0]);
-                    return SqlFilter.parse(value).buildSql(column, ctx);
+                    return type.apply(value).buildSql(column, ctx);
                 });
             } else {
-                filters.put(filterType, FilterCriterion.column(column));
+                filters.put(filterType, FilterCriterion.column(column, type));
             }
             return this;
         }
