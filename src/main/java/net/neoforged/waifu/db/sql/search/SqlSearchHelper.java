@@ -25,8 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.directColumn;
 import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.listSubTable;
 import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.subTable;
+import static net.neoforged.waifu.db.sql.search.DatabaseType.applyLimit;
+import static net.neoforged.waifu.db.sql.search.DatabaseType.applyOrder;
 
 @SuppressWarnings("FieldCanBeLocal")
 public class SqlSearchHelper implements DatabaseSearchHelper {
@@ -105,10 +108,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                         }
                     }
 
-                    var limit = (Integer) field.getArguments().get("limit");
-                    if (limit != null) {
-                        sub.limit(limit);
-                    }
+                    applyLimit(sub, field);
 
                     for (SelectedField req : field.getSelectionSet().getImmediateFields()) {
                         switch (req.getName()) {
@@ -245,7 +245,25 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .field("fields", listSubTable(fields))
                 .field("definitions", listSubTable(class_defs))
 
+                .filterOnColumn("name", "classes.name")
                 .groupBy("classes.id")
+
+                // Only for Class
+                .field("inheritors", (type, builder, fieldName, selection) -> builder.arrayAggregateSubQuery("classes", fieldName, sub -> {
+                    sub.joinOn("classes", SqlCondition.equals("child_classes.type", "classes.id"));
+                    schema.getType("classes").apply(sub, selection);
+                    applyLimit(sub, selection);
+                    applyOrder(type, sub, selection);
+
+                    // This is a bit of a hack, but avoiding it requires rethinking how automatic joining works
+                    // We first pretend to query "classes" so that any further attempts of joining start from there
+                    // and then after we apply all joins we change the table back to the real one
+                    sub.setTable("get_child_classes(classes.id) child_classes");
+                }))
+
+                // Only for InheritanceTreeClass
+                .field("depth", directColumn("child_classes.depth"))
+                .filter("depth", FilterCriterion.column("child_classes.depth", SqlFilter.INT_FILTER))
         );
     }
 

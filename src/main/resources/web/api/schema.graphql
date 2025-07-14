@@ -177,8 +177,8 @@ input AnnotationPredicate @predicateType @oneOf {
     type: StringPredicate
 }
 
-"A class described by its name (e.g. `java/lang/String`)"
-type Class @implement(interfaces: "Identifiable") {
+"A base interfaces for classes identified by their name (e.g. `java/lang/String`)"
+interface BaseClass @implement(interfaces: "Identifiable") {
     "The name of this class"
     name: String!
 
@@ -206,6 +206,44 @@ type Class @implement(interfaces: "Identifiable") {
 
     "Returns all known concrete definitions of the class"
     definitions: [ClassDefinition!]!
+}
+
+"""
+A class identified by its name (e.g. `java/lang/String`) as returned by `Class.inheritors` which has a certain depth from the root of the inheritance tree.
+"""
+type InheritanceTreeClass @implement(interfaces: ["Identifiable", "BaseClass"]) {
+    """
+    The depth of this class in the inheritance tree.
+    Classes with a depth of 1 are direct children of the class from which the search was started, classes with a depth of 2 are their children and so on.
+    """
+    depth: Int! @orderBy
+}
+
+"Used to filter inheriting classes based on different criteria"
+input InheritorPredicate @predicateType @oneOf {
+    "Filter based on the class' JVM name"
+    name: StringPredicate
+
+    "Filter based on the class' depth in the inheritance tree"
+    depth: IntPredicate
+}
+
+"""
+A class identified by its name (e.g. `java/lang/String`) from which an inheritor search can be started.
+"""
+type Class @implement(interfaces: ["Identifiable", "BaseClass"]) {
+    """
+    Returns all known classes that inherit from this class and which optionally match the given filter.
+    """
+    inheritors(
+        """
+        A filter to apply to the returned classes.
+        Note that this filter applies on each node individually. This means that when a class is removed by the predicate, classes that further inherit from it will still be returned.
+        """
+        where: InheritorPredicate,
+        "Limit the amount of classes returned"
+        limit: Int
+    ): [InheritanceTreeClass!]!
 }
 
 "Represents a reference in the form of the class referencing the method/field and how many times it is referenced in that class"

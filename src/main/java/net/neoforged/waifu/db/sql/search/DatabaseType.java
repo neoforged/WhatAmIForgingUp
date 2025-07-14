@@ -79,29 +79,31 @@ public class DatabaseType {
             return listSubTable(type.tableName);
         }
 
-        @SuppressWarnings("unchecked")
         static QueryBuilder listSubTable(String typeName) {
             return (topLevel, builder, fieldName, selection) -> {
                 var type = topLevel.schema.getType(typeName);
                 builder.arrayAggregateSubQuery(type.tableName, fieldName, sub -> {
                     sub.where(topLevel.schema.getJoinRule(builder.table, typeName));
                     type.apply(sub, selection);
-
-                    var limit = (Integer) selection.getArguments().get("limit");
-                    if (limit != null) {
-                        sub.limit(limit);
-                    }
-
-                    var order = (Map<String, Map<String, Object>>) selection.getArguments().get("order");
-                    if (order != null && order.entrySet().size() == 1) {
-                        var orderEntry = order.entrySet().stream().findFirst().orElseThrow();
-                        var field = orderEntry.getKey();
-                        type.fields.get(field).applyOrder(type, sub, orderEntry.getValue());
-                    }
+                    applyLimit(sub, selection);
+                    DatabaseType.applyOrder(type, sub, selection);
                 });
             };
         }
 
+        static QueryBuilder directColumn(String column) {
+            return new QueryBuilder() {
+                @Override
+                public void query(DatabaseType type, SqlSearchBuilder builder, String fieldName, SelectedField selection) {
+                    builder.requestColumn(column, fieldName);
+                }
+
+                @Override
+                public void applyOrder(DatabaseType type, SqlSearchBuilder builder, Map<String, Object> order) {
+                    builder.orderBy(new SqlOrder(order).createStatement(column));
+                }
+            };
+        }
 
         static QueryBuilder column(String column) {
             return new QueryBuilder() {
@@ -210,6 +212,23 @@ public class DatabaseType {
 
         public DatabaseType build() {
             return new DatabaseType(schema, tableName, groupBy, Collections.unmodifiableMap(fields), Collections.unmodifiableMap(filters));
+        }
+    }
+
+    public static void applyLimit(SqlSearchBuilder builder, SelectedField selection) {
+        var limit = (Integer) selection.getArguments().get("limit");
+        if (limit != null) {
+            builder.limit(limit);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static void applyOrder(DatabaseType type, SqlSearchBuilder builder, SelectedField selection) {
+        var order = (Map<String, Map<String, Object>>) selection.getArguments().get("order");
+        if (order != null && order.entrySet().size() == 1) {
+            var orderEntry = order.entrySet().stream().findFirst().orElseThrow();
+            var field = orderEntry.getKey();
+            type.fields.get(field).applyOrder(type, builder, orderEntry.getValue());
         }
     }
 }

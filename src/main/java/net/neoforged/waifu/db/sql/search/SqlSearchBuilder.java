@@ -24,7 +24,7 @@ public final class SqlSearchBuilder {
     @Nullable
     private final SqlSearchBuilder parent;
 
-    final String table;
+    String table;
     final Map<String, String> columns = new LinkedHashMap<>();
     private final Set<String> groups = new LinkedHashSet<>();
     final List<SqlCondition> where = new ArrayList<>();
@@ -48,6 +48,10 @@ public final class SqlSearchBuilder {
         this.parent = parent;
         this.table = table;
         this.ctx = parent == null ? new SqlArgumentContext() : parent.ctx;
+    }
+
+    public void setTable(String table) {
+        this.table = table;
     }
 
     @Nullable
