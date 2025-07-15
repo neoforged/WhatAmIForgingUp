@@ -344,17 +344,17 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                     mod = Main.MODRINTH_PLATFORM.getModById(event.optString("modrinth"));
                 }
                 if (mod == null) {
-                    event.reply("Cannot find a mod with the given ID!").queue();
+                    event.getHook().sendMessage("Cannot find a mod with the given ID!").queue();
                     return;
                 }
 
                 try (var db = Main.createDatabase(event.optString("version"), ModLoader.valueOf(event.optString("loader")))) {
                     var dbMod = db.getMod(mod);
                     if (dbMod == null) {
-                        event.reply("Mod is not indexed!").queue();
+                        event.getHook().sendMessage("Mod is not indexed!").queue();
                     } else {
                         dbMod.delete();
-                        event.reply("Mod `" + dbMod.getName() + "` deleted!").queue();
+                        event.getHook().sendMessage("Mod `" + dbMod.getName() + "` deleted!").queue();
                     }
                 }
             }
