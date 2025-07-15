@@ -421,20 +421,30 @@ public class GraphQLWebService {
 
     private Object getVersion(DataFetchingEnvironment env) {
         String ver = env.getArgument("version");
-        ModLoader loader = switch ((String) Objects.requireNonNull(env.getArgument("loader"))) {
-            case "NeoForge" -> ModLoader.NEOFORGE;
-            case "Fabric" -> ModLoader.FABRIC;
-            case "Forge" -> ModLoader.FORGE;
-            default -> throw null;
-        };
+        ModLoader loader = getLoader(env.getArgument("loader"));
         var helper = getHelper(ver, loader);
         return helper == null ? null : new Version(ver, loader);
     }
 
     private Object getVersions(DataFetchingEnvironment env) {
-        return db.getIndexedGameVersions().stream()
+        var stream = db.getIndexedGameVersions().stream();
+        var loader = env.getArguments().get("loader");
+        if (loader != null) {
+            var load = getLoader(loader);
+            stream = stream.filter(v -> v.loader().equals(load));
+        }
+        return stream
                 .map(v -> new Version(v.gameVersion(), v.loader()))
                 .toList();
+    }
+
+    private ModLoader getLoader(Object argument) {
+        return switch ((String) argument) {
+            case "NeoForge" -> ModLoader.NEOFORGE;
+            case "Fabric" -> ModLoader.FABRIC;
+            case "Forge" -> ModLoader.FORGE;
+            default -> throw null;
+        };
     }
 
     private DataFetcher<?> invoke(BiFunction<Version, DataFetchingEnvironment, ?> getter) {

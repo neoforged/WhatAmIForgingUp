@@ -25,7 +25,10 @@ enum Loader {
 
 type Query {
     "Get all indexed game versions"
-    gameVersions: [GameVersion!]!
+    gameVersions(
+        "Optional filter. Return only game versions with this loader"
+        loader: Loader
+    ): [GameVersion!]!
 
     "Query a game version based on the Minecraft version and the loader"
     gameVersion(
@@ -156,7 +159,7 @@ type TagFile {
     "The name of this tag (e.g. minecraft:mineable/pickaxe)"
     name: String!
     "The entries added to this tag. These can be either normal objects (e.g. minecraft:stone) or other tags, denoted by a # at the start (e.g. #minecraft:head_armor)"
-    entries("An optional filter applied to the entries returned" where: StringPredicate): [String]!
+    entries("An optional filter applied to the entries returned" where: StringPredicate): [String!]!
     """
     Whether this tag overrides all previously added entries.
     Corresponds to the "replace" field in the tag JSON.
