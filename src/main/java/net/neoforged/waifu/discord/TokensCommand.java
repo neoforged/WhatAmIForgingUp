@@ -5,6 +5,7 @@ import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.Command;
+import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.neoforged.waifu.web.api.TokenManager;
@@ -37,14 +38,15 @@ public class TokensCommand extends SlashCommand {
             this.help = "Create a new API token";
             this.options = List.of(
                     new OptionData(OptionType.STRING, "name", "The name used to identify the token", true),
-                    new OptionData(OptionType.STRING, "ratelimit", "An optional rate limit for the token. Example: 12/10m (12 requests every 10 minutes)", false)
+                    new OptionData(OptionType.STRING, "ratelimit", "An optional rate limit for the token. Example: 12/10m (12 requests every 10 minutes)", false),
+                    new OptionData(OptionType.INTEGER, "timeout", "An optional timeout in seconds the token will have. This will override the default timeout.", false)
             );
         }
 
         @Override
         protected void execute(SlashCommandEvent event) {
             var name = event.optString("name");
-            var token = manager.createToken(name, event.optString("ratelimit"));
+            var token = manager.createToken(name, event.optString("ratelimit"), event.getOption("timeout", OptionMapping::getAsInt));
             event.reply("Token with name `" + name + "` generated!\nThe token is `" + token + "`. You won't be able to see it again.")
                     .setEphemeral(true).queue();
         }

@@ -45,7 +45,9 @@ public class WebService {
             }
         }
 
-        this.graphQl = new GraphQLWebService(javalin, db, tokens, anonAccess, anonRateLimit);
+        var defaultTimeout = Integer.parseInt(System.getenv().getOrDefault("GRAPHQL_DEFAULT_TIMEOUT", "30"));
+
+        this.graphQl = new GraphQLWebService(javalin, db, tokens, anonAccess, anonRateLimit, defaultTimeout);
     }
 
     public void start() {

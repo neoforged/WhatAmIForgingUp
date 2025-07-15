@@ -23,7 +23,10 @@ WhatAmIForgingUp is configured using environment variables:
 - `POSTGRES_DB_USERNAME`: the username of a user with write (and importantly create schema) permissions to the database
 - `POSTGRES_DB_PASSWORD`: the password of the database user
 - `KEEP_PLATFORM_CACHES`: boolean defaulting to `true`. If set to `false`, the bot will not keep indexed mod jars in its cache, deleting them after they've been indexed. Note that while this is used for space saving purposes, for the initial index you will still need to be able to store all mod jars (which could amount to several gigabytes) as they will be deleted only after all mods are indexed
-- `DEFAULT_INDEX_INTERVAL`: duration defaulting to `1h`. When a version is tracked without a index interval specified, the interval will default to this duration. Example duration: `1d5h3m45s` - 1 day, 5 hours, 3 minutes and 45 seconds. This duration has second precision.
+- `DEFAULT_INDEX_INTERVAL`: duration defaulting to `1h`. When a version is tracked without a index interval specified, the interval will default to this duration. Example duration: `1d5h3m45s` - 1 day, 5 hours, 3 minutes and 45 seconds. This duration has second precision
+- `WEB_API_PORT`: when configured, the API webserver will be started on the port configured in this value
+- `GRAPHQL_ANONYMOUS_RATE_LIMIT`: rate-limit for anonymous GraphQL API access. When not configured, anonymous access is disabled, requiring tokens for all requests
+- `GRAPHQL_DEFAULT_TIMEOUT`: default timeout (in seconds) for GraphQL requests (can be overridden on a per-token basis). Default value is `30`.
 
 As for memory usage, 16 gigabytes are recommended.
 

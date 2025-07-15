@@ -1,7 +1,7 @@
 package net.neoforged.waifu.web.api;
 
+import graphql.ExecutionResult;
 import graphql.GraphQL;
-import graphql.language.Argument;
 import graphql.language.Description;
 import graphql.language.Directive;
 import graphql.language.FieldDefinition;
@@ -74,6 +74,7 @@ public class GraphQLWebService {
     private final boolean anonymousAccess;
     @Nullable
     private final TokenManager.RateLimit anonymousRateLimit;
+    private final int defaultTimeout;
 
     private final AtomicInteger anonymousResetsIn = new AtomicInteger();
     private final Map<String, AtomicInteger> anonymousLimits = new ConcurrentHashMap<>();
@@ -82,18 +83,20 @@ public class GraphQLWebService {
     private final TokenManager tokenManager;
     private final GraphQL engine;
 
-    private final Map<String, Optional<TokenRateLimit>> tokens = new ConcurrentHashMap<>();
+    record TokenInfo(int executionTimeout, Optional<TokenRateLimit> rateLimit) {}
+    private final Map<String, TokenInfo> tokens = new ConcurrentHashMap<>();
     private final ScheduledExecutorService rateLimitService;
 
     private record TokenRateLimit(int requests, Duration interval, AtomicInteger resetsIn, AtomicInteger remaining) {}
 
     private final ExecutorService executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("graphql-executor-", 0).factory());
 
-    public GraphQLWebService(Javalin javalin, MainDatabase db, TokenManager tokenManager, boolean anonymousAccess, @Nullable TokenManager.RateLimit anonymousRateLimit) {
+    public GraphQLWebService(Javalin javalin, MainDatabase db, TokenManager tokenManager, boolean anonymousAccess, @Nullable TokenManager.RateLimit anonymousRateLimit, int defaultTimeout) {
         this.db = db;
         this.tokenManager = tokenManager;
         this.anonymousAccess = anonymousAccess;
         this.anonymousRateLimit = anonymousAccess ? anonymousRateLimit : null;
+        this.defaultTimeout = defaultTimeout;
 
         this.rateLimitService = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().name("graphql-rate-limiter").factory());
 
@@ -321,8 +324,9 @@ public class GraphQLWebService {
 
         rateLimitService.scheduleWithFixedDelay(() -> {
             for (var entry : tokens.entrySet()) {
-                if (entry.getValue().isPresent()) {
-                    var limit = entry.getValue().orElseThrow();
+                var rateLimit = entry.getValue().rateLimit();
+                if (rateLimit.isPresent()) {
+                    var limit = rateLimit.orElseThrow();
                     if (limit.resetsIn.decrementAndGet() <= 0) {
                         limit.resetsIn.set((int) limit.interval.getSeconds());
                         limit.remaining.set(limit.requests);
@@ -343,6 +347,8 @@ public class GraphQLWebService {
 
         javalin.post("graphql", ctx -> {
             var token = ctx.header("Authorization");
+            var executionTimeout = defaultTimeout;
+
             if (token == null) {
                 if (!anonymousAccess) {
                     ctx.status(HttpStatus.UNAUTHORIZED).json(Map.of("error", "Access token not provided"));
@@ -370,14 +376,16 @@ public class GraphQLWebService {
                     ctx.header("x-ratelimit-remaining", String.valueOf(remaining));
                 }
             } else {
-                var tokenLimit = tokens.get(token);
-                if (tokenLimit == null) {
+                var tokenInfo = tokens.get(token);
+                if (tokenInfo == null) {
                     ctx.status(HttpStatus.UNAUTHORIZED).json(Map.of("error", "Access token is invalid"));
                     return;
                 }
 
-                if (tokenLimit.isPresent()) {
-                    var limit = tokenLimit.orElseThrow();
+                executionTimeout = tokenInfo.executionTimeout();
+
+                if (tokenInfo.rateLimit().isPresent()) {
+                    var limit = tokenInfo.rateLimit().orElseThrow();
 
                     ctx.header("x-ratelimit-reset", String.valueOf(limit.resetsIn.get()));
 
@@ -400,7 +408,13 @@ public class GraphQLWebService {
 
             var future = executor.submit(() -> engine.execute(in -> in.query(body.query).operationName(body.operationName).variables(variables)));
             try {
-                var executionResult = future.get(30, TimeUnit.SECONDS);
+                ExecutionResult executionResult;
+                if (executionTimeout < 0) {
+                    executionResult = future.get();
+                } else {
+                    executionResult = future.get(executionTimeout, TimeUnit.SECONDS);
+                }
+
                 if (!executionResult.getErrors().isEmpty()) {
                     Main.LOGGER.error("Failure during GraphQL query: {}: {}", body, executionResult.getErrors());
                     ctx.json(Map.of("error", executionResult.getErrors().get(0).getMessage())).status(HttpStatus.BAD_REQUEST);
@@ -415,8 +429,11 @@ public class GraphQLWebService {
     }
 
     private void addToken(TokenManager.Token token) {
-        tokens.put(token.token(), Optional.ofNullable(token.limit())
-                .map(l -> new TokenRateLimit(l.requests(), l.per(), new AtomicInteger((int) l.per().getSeconds()), new AtomicInteger(l.requests()))));
+        tokens.put(token.token(), new TokenInfo(
+                token.executionTimeout() == null ? defaultTimeout : token.executionTimeout(),
+                Optional.ofNullable(token.limit())
+                        .map(l -> new TokenRateLimit(l.requests(), l.per(), new AtomicInteger((int) l.per().getSeconds()), new AtomicInteger(l.requests())))
+        ));
     }
 
     private Object getVersion(DataFetchingEnvironment env) {

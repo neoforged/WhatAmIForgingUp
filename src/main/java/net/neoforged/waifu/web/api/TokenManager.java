@@ -71,12 +71,12 @@ public class TokenManager {
         onRemove.add(cb);
     }
 
-    public String createToken(String name, @Nullable String limit) {
+    public String createToken(String name, @Nullable String limit, @Nullable Integer timeout) {
         String token = generate();
 
-        transactional.insert(name, token, limit);
+        transactional.insert(name, token, limit, timeout);
 
-        onAdd.forEach(addCallback -> addCallback.onAdd(new Token(name, token, limit == null ? null : RateLimit.parse(limit))));
+        onAdd.forEach(addCallback -> addCallback.onAdd(new Token(name, token, limit == null ? null : RateLimit.parse(limit), timeout)));
 
         return token;
     }
@@ -86,7 +86,7 @@ public class TokenManager {
         var tok = transactional.getToken(name);
         if (tok == null) return null;
         removeToken(name);
-        return createToken(name, tok.limit() == null ? null : tok.limit().toMachine());
+        return createToken(name, tok.limit() == null ? null : tok.limit().toMachine(), tok.executionTimeout());
     }
 
     private String generate() {
@@ -111,8 +111,8 @@ public class TokenManager {
     }
 
     public interface DBTrans {
-        @SqlUpdate("insert into tokens(name, token, ratelimit) values (?, ?, ?)")
-        void insert(String name, String token, @Nullable String limit);
+        @SqlUpdate("insert into tokens(name, token, ratelimit, timeout) values (?, ?, ?, ?)")
+        void insert(String name, String token, @Nullable String limit, @Nullable Integer timeout);
 
         @Nullable
         @UseRowMapper(Token.Mapper.class)
@@ -127,12 +127,12 @@ public class TokenManager {
         List<Token> getTokens();
     }
 
-    public record Token(String name, String token, @Nullable RateLimit limit) {
+    public record Token(String name, String token, @Nullable RateLimit limit, @Nullable Integer executionTimeout) {
         public static class Mapper implements RowMapper<Token> {
             @Override
             public Token map(ResultSet rs, StatementContext ctx) throws SQLException {
                 var limit = rs.getString("ratelimit");
-                return new Token(rs.getString("name"), rs.getString("token"), limit == null ? null : RateLimit.parse(limit));
+                return new Token(rs.getString("name"), rs.getString("token"), limit == null ? null : RateLimit.parse(limit), (Integer) rs.getObject("timeout"));
             }
         }
     }
