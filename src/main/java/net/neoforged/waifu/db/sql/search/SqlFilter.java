@@ -104,11 +104,12 @@ public interface SqlFilter {
 
                 return switch ((String) filterEntry.getKey()) {
                     case "equals" -> SqlFilter.eq(filterEntry.getValue());
+                    case "not" -> SqlFilter.not(apply(filterEntry.getValue()));
+
                     case "allOf" -> SqlFilter.allOf(((List<Map<String, Object>>) filterEntry.getValue())
                             .stream().map(this).toList());
                     case "anyOf" -> SqlFilter.anyOf(((List<Map<String, Object>>) filterEntry.getValue())
                             .stream().map(this).toList());
-                    case "not" -> SqlFilter.not(apply(in));
 
                     default -> additionalFilters.get(filterEntry.getKey()).apply(filterEntry.getValue());
                 };
