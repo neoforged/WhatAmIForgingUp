@@ -44,6 +44,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import java.util.zip.ZipException;
 
 public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private static final boolean KEEP_CACHES = Boolean.parseBoolean(System.getenv().getOrDefault("KEEP_PLATFORM_CACHES", "true"));
@@ -383,19 +384,24 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                 try {
                     var path = download(file);
 
-                    var mod = loader.getReader().read(
-                            new ModFilePath(
-                                    path, FileSystems.newFileSystem(path).getRootDirectories().iterator().next(),
-                                    file.getHash(), KEEP_CACHES ? null : path
-                            ),
-                            null, null
-                    );
+                    try {
+                        var mod = loader.getReader().read(
+                                new ModFilePath(
+                                        path, FileSystems.newFileSystem(path).getRootDirectories().iterator().next(),
+                                        file.getHash(), KEEP_CACHES ? null : path
+                                ),
+                                null, null
+                        );
 
-                    downloadCounter.add(file);
+                        downloadCounter.add(file);
 
-                    if (mod != null) {
-                        cf.complete(new IndexCandidate(file, mod));
-                    } else {
+                        if (mod != null) {
+                            cf.complete(new IndexCandidate(file, mod));
+                        } else {
+                            cf.complete(null);
+                        }
+                    } catch (ZipException zip) {
+                        Main.LOGGER.error("Failed to read mod file {} at path {} due to zip exception. File is probably corrupted.", file, path, zip);
                         cf.complete(null);
                     }
                 } catch (Throwable ex) {
