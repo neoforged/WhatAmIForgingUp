@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.db.ClassData;
+import net.neoforged.waifu.db.DataMapFile;
 import net.neoforged.waifu.db.EnumExtension;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.db.TagFile;
@@ -304,6 +305,27 @@ order by mods.name;""")
                 }
 
                 @Override
+                public void insertDataMaps(List<DataMapFile> maps) {
+                    if (maps.isEmpty()) return;
+
+                    try {
+                        var stmt = new BatchingStatement(con.prepareStatement("select * from insert_data_map(?, ?, ?)"), 100);
+                        for (var map : maps) {
+                            stmt.setInt(1, modId);
+                            stmt.setString(2, map.name());
+                            stmt.setArray(3, con.createArrayOf("text", map.entries().stream()
+                                    .map(e -> Utils.GSON.toJson(e, DataMapFile.DataMapEntry.class))
+                                    .toArray(String[]::new)));
+                            stmt.addBatch();
+                        }
+
+                        stmt.executeBatch();
+                    } catch (SQLException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+                @Override
                 public void insertEnumExtensions(List<EnumExtension> extensions) {
                     if (extensions.isEmpty()) return;
 
@@ -327,18 +349,13 @@ order by mods.name;""")
                 @Override
                 public void deleteCurrent() {
                     try {
-                        {
-                            var stmt = con.prepareStatement("delete from class_defs where mod = ?");
-                            stmt.setInt(1, modId);
-                            stmt.execute();
-                        }
-                        {
-                            var stmt = con.prepareStatement("delete from tags where mod = ?");
-                            stmt.setInt(1, modId);
-                            stmt.execute();
-                        }
-                        {
-                            var stmt = con.prepareStatement("delete from enum_extensions where mod = ?");
+                        for (var statement : List.of(
+                                "delete from class_defs where mod = ?",
+                                "delete from tags where mod = ?",
+                                "delete from data_maps where mod = ?",
+                                "delete from enum_extensions where mod = ?"
+                        )) {
+                            var stmt = con.prepareStatement(statement);
                             stmt.setInt(1, modId);
                             stmt.execute();
                         }

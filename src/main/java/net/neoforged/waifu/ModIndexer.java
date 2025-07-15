@@ -4,6 +4,7 @@ import io.github.matyrobbrt.curseforgeapi.util.Pair;
 import net.neoforged.waifu.db.ClassData;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
+import net.neoforged.waifu.index.DataMapCollector;
 import net.neoforged.waifu.index.EnumExtensionCollector;
 import net.neoforged.waifu.index.FileTreeWalker;
 import net.neoforged.waifu.index.IndexingClassVisitor;
@@ -56,7 +57,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private final List<IndexCandidate> candidateMods = new ArrayList<>();
 
     private final List<ModFileIndexer> indexers = List.of(
-            new TagCollector(), new EnumExtensionCollector()
+            new TagCollector(), new DataMapCollector(), new EnumExtensionCollector()
     );
 
     public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion, ModLoader loader) {

@@ -44,6 +44,10 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             "anyEntry", FilterCriterion.column("entryname.constant")
     );
 
+    private static final Map<String, FilterCriterion> DATA_MAP_CRITERIA = Map.of(
+            "name", FilterCriterion.column("dmapname")
+    );
+
     private static final int MAX_ITEMS_PER_REQUEST = 500;
 
     private final Jdbi jdbi;
@@ -85,7 +89,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .field("classes", listSubTable("class_defs"))
                 .field("enumExtensions", listSubTable("enum_extensions"))
 
-                // TODO - this is special because of the registry, figure out a way not to need to make it special
+                // TODO - these are special because of the registry, figure out a way not to need to make them special
                 .field("tags", (type, builder, fieldName, field) -> builder.arrayAggregateSubQuery("tags", columnAlias(field), sub -> {
                     var reg = (String) field.getArguments().get("registry");
 
@@ -95,7 +99,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
                     sub
                             .joinOn("constants tagnm", ctx -> "tagnm.id = tags.tag and tagnm.constant ~ " + ctx.insert("^\\w+" + baseTag + ".+"))
-                            .joinOn("replace(tagnm.constant, " + tagReplace + ", ':') tagname", SqlCondition.condition("true"))
+                            .joinOn("replace(tagnm.constant, " + tagReplace + ", ':') tagname", SqlCondition.TRUE)
                             .where(SqlCondition.condition("tags.mod = mods.id"))
                             .groupBy("tags.tag", "tags.replace", "tagname");
 
@@ -125,6 +129,38 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                                 }
                             });
                             case "replace" -> sub.requestColumn("tags.replace", columnAlias(req));
+                        }
+                    }
+                }))
+                .field("dataMaps", (type, builder, fieldName, field) -> builder.arrayAggregateSubQuery("data_maps", columnAlias(field), sub -> {
+                    var reg = (String) field.getArguments().get("registry");
+
+                    String baseDataMap = "/" + reg.replace(':', '/').replace("minecraft/", "") + "/";
+
+                    var dataMapReplace = builder.insert(baseDataMap);
+
+                    sub
+                            .joinOn("constants dmapnm", ctx -> "dmapnm.id = data_maps.data_map and dmapnm.constant ~ " + ctx.insert("^\\w+" + baseDataMap + ".+"))
+                            .joinOn("replace(dmapnm.constant, " + dataMapReplace + ", ':') dmapname", SqlCondition.TRUE)
+                            .where(SqlCondition.condition("data_maps.mod = mods.id"))
+                            .groupBy("data_maps.data_map", "dmapname");
+
+                    var filArgs = field.getArguments().get("where");
+                    if (filArgs != null) {
+                        sub.where(SqlCondition.parseAsCriterion((Map<String, Object>) filArgs, DATA_MAP_CRITERIA));
+                    }
+
+                    applyLimit(sub, field);
+
+                    for (SelectedField req : field.getSelectionSet().getImmediateFields()) {
+                        switch (req.getName()) {
+                            case "name" -> sub.requestColumn("dmapname", columnAlias(req));
+                            case "entries" -> sub.requestSubColumn("data_maps t1", columnAlias(req), bl -> {
+                                bl.requestColumn("coalesce(jsonb_agg(json_build_object('key', entrykey.constant, 'value', entryvalue.constant, 'replace', t1.replace)), '[]'::jsonb)", null)
+                                        .joinOn("constants entrykey", SqlCondition.condition("entrykey.id = t1.key"))
+                                        .joinOn("json_constants entryvalue", SqlCondition.condition("entryvalue.id = t1.value"))
+                                        .where(SqlCondition.condition("t1.data_map = data_maps.data_map and t1.mod = mods.id"));
+                            });
                         }
                     }
                 }))

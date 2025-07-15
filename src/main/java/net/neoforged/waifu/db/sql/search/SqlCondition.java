@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 
 @FunctionalInterface
 public interface SqlCondition {
+    SqlCondition TRUE = condition("true");
+
     String build(SqlSearchBuilder ctx);
 
     static SqlCondition allOf(List<SqlCondition> ops) {

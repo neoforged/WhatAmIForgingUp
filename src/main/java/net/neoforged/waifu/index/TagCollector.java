@@ -22,7 +22,7 @@ public class TagCollector implements ModFileIndexer {
                 var obj = Utils.GSON.fromJson(is, JsonObject.class);
                 var values = obj.getAsJsonArray("values");
                 if (values != null) {
-                    var entries = new ArrayList<String>();
+                    var entries = new ArrayList<String>(values.size());
                     values.forEach(element -> {
                         if (element.isJsonPrimitive()) {
                             entries.add(prefixDefaultNamespace(element.getAsString()));
@@ -49,7 +49,7 @@ public class TagCollector implements ModFileIndexer {
         return modTracker -> modTracker.insertTags(tags);
     }
 
-    private static String prefixDefaultNamespace(String str) {
+    static String prefixDefaultNamespace(String str) {
         if (str.indexOf(':') >= 0) return str;
         if (str.startsWith("#")) {
             return "#minecraft:" + str.substring(1);
