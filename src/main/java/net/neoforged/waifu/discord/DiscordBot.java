@@ -22,6 +22,7 @@ import net.neoforged.waifu.ModIndexer;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
+import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.DateUtils;
@@ -51,6 +52,9 @@ import java.util.stream.Collectors;
 public class DiscordBot implements GameVersionIndexService.ListenerFactory {
     private static final List<Command.Choice> LOADERS = Arrays.stream(ModLoader.values())
             .map(l -> new Command.Choice(StringUtils.capitalise(l.name().toLowerCase(Locale.ROOT)), l.name()))
+            .toList();
+    private static final List<Command.Choice> PLATFORMS = Main.PLATFORMS.stream()
+            .map(p -> new Command.Choice(p.getName(), p.getName()))
             .toList();
 
     private final JDA jda;
@@ -211,7 +215,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         new OptionData(OptionType.STRING, "version", "The game version of the files", true),
                         new OptionData(OptionType.STRING, "loader", "The loader of the files", true).addChoices(LOADERS),
                         new OptionData(OptionType.STRING, "platform", "The platform of the files", true)
-                                .addChoices(Main.PLATFORMS.stream().map(p -> new Command.Choice(p.getName(), p.getName())).toList()),
+                                .addChoices(PLATFORMS),
                         new OptionData(OptionType.STRING, "files", "Comma-separated files to index", true)
                 );
             }
@@ -314,6 +318,45 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 }
 
                 event.getHook().sendMessage("Successfully linked mods!").complete();
+            }
+        });
+        builder.addSlashCommand(new SlashCommand() {
+            {
+                this.name = "delete-mod";
+                this.help = "Delete a mod with the given platform ID";
+                this.options = List.of(
+                        new OptionData(OptionType.STRING, "version", "Game version to delete mod in", true),
+                        new OptionData(OptionType.STRING, "loader", "Loader to delete mod in", true)
+                                .addChoices(LOADERS),
+                        new OptionData(OptionType.INTEGER, "curseforge", "CurseForge project ID", false),
+                        new OptionData(OptionType.STRING, "modrinth", "Modrinth project ID", false)
+                );
+            }
+
+            @Override
+            protected void execute(SlashCommandEvent event) {
+                event.deferReply().complete();
+
+                PlatformMod mod;
+                if (event.hasOption("curseforge")) {
+                    mod = Main.CURSE_FORGE_PLATFORM.getModById(event.getOption("curseforge", OptionMapping::getAsInt));
+                } else {
+                    mod = Main.MODRINTH_PLATFORM.getModById(event.optString("modrinth"));
+                }
+                if (mod == null) {
+                    event.reply("Cannot find a mod with the given ID!").queue();
+                    return;
+                }
+
+                try (var db = Main.createDatabase(event.optString("version"), ModLoader.valueOf(event.optString("loader")))) {
+                    var dbMod = db.getMod(mod);
+                    if (dbMod == null) {
+                        event.reply("Mod is not indexed!").queue();
+                    } else {
+                        dbMod.delete();
+                        event.reply("Mod `" + dbMod.getName() + "` deleted!").queue();
+                    }
+                }
             }
         });
 

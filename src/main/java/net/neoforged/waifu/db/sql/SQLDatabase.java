@@ -394,7 +394,7 @@ order by mods.name;""")
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
     }
 
     private static <T> ResultProducer<T> returning(Mapper<T> function) {

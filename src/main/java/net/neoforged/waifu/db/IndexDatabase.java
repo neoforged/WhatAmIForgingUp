@@ -46,6 +46,9 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
 
     <E extends Exception> void trackMod(T mod, ThrowingConsumer<ModTracker, E> consumer) throws E;
 
+    @Override
+    void close();
+
     interface ModTracker {
         void insertClasses(List<ClassData> classes);
 
