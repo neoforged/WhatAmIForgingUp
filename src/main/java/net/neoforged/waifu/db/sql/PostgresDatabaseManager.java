@@ -16,6 +16,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.function.Consumer;
 
 public class PostgresDatabaseManager implements DatabaseManager {
     private final String url;
@@ -65,11 +66,11 @@ public class PostgresDatabaseManager implements DatabaseManager {
     }
 
     @Override
-    public DatabaseSearchHelper search(String gameVersion, ModLoader loader) {
+    public DatabaseSearchHelper search(String gameVersion, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
         var props = copy();
         props.put("readOnly", "true");
         props.put("currentSchema", schema(gameVersion, loader));
-        return new SqlSearchHelper(jdbi(props), loader);
+        return new SqlSearchHelper(jdbi(props), loader, cancellationInvoker);
     }
 
     @Override

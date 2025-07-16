@@ -10,9 +10,13 @@ import net.neoforged.waifu.util.Utils;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.statement.HashPrefixSqlParser;
 import org.jdbi.v3.core.statement.SqlStatements;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.core.statement.StatementCustomizer;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Array;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -24,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.directColumn;
 import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.listSubTable;
@@ -51,14 +56,16 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
     private static final int MAX_ITEMS_PER_REQUEST = 500;
 
     private final Jdbi jdbi;
+    private final Consumer<Runnable> cancellationInvoker;
 
     private final DatabaseSchema schema;
 
     private final DatabaseType mod, classes;
 
     @SuppressWarnings("unchecked")
-    public SqlSearchHelper(Jdbi jdbi, ModLoader loader) {
+    public SqlSearchHelper(Jdbi jdbi, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
         this.jdbi = jdbi;
+        this.cancellationInvoker = cancellationInvoker;
         jdbi.getConfig(SqlStatements.class).setSqlParser(new HashPrefixSqlParser());
 
         schema = new DatabaseSchema();
@@ -418,6 +425,29 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         var expected = limit;
 
         return jdbi.withHandle(handle -> builder.build(handle)
+                .addCustomizer(new StatementCustomizer() {
+                    PreparedStatement stmt;
+                    {
+                        cancellationInvoker.accept(() -> {
+                            if (stmt != null) {
+                                try {
+                                    stmt.cancel();
+                                } catch (SQLException ignored) {
+                                }
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void beforeExecution(PreparedStatement stmt, StatementContext ctx) throws SQLException {
+                        this.stmt = stmt;
+                    }
+
+                    @Override
+                    public void afterExecution(PreparedStatement stmt, StatementContext ctx) throws SQLException {
+                        this.stmt = null;
+                    }
+                })
                 .execute((statementSupplier, ctx) -> {
                     var rs = statementSupplier.get().getResultSet();
                     record ColInfo(String resultName, String type) {}

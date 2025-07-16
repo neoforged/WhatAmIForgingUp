@@ -52,6 +52,7 @@ import org.jetbrains.annotations.Nullable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -82,6 +83,8 @@ public class GraphQLWebService {
     private final MainDatabase db;
     private final TokenManager tokenManager;
     private final GraphQL engine;
+
+    private final ThreadLocal<List<Runnable>> cancellationInvokers = ThreadLocal.withInitial(ArrayList::new);
 
     record TokenInfo(int executionTimeout, Optional<TokenRateLimit> rateLimit) {}
     private final Map<String, TokenInfo> tokens = new ConcurrentHashMap<>();
@@ -406,7 +409,12 @@ public class GraphQLWebService {
             var body = ctx.bodyAsClass(Body.class);
             Map<String, Object> variables = Objects.requireNonNullElse(body.variables(), Map.of());
 
-            var future = executor.submit(() -> engine.execute(in -> in.query(body.query).operationName(body.operationName).variables(variables)));
+            var cancellation = new LinkedList<Runnable>();
+
+            var future = executor.submit(() -> {
+                cancellationInvokers.set(cancellation);
+                return engine.execute(in -> in.query(body.query).operationName(body.operationName).variables(variables));
+            });
             try {
                 ExecutionResult executionResult;
                 if (executionTimeout < 0) {
@@ -423,6 +431,7 @@ public class GraphQLWebService {
                 ctx.json(Utils.GSON.toJson(Map.of("data", executionResult.getData())));
             } catch (TimeoutException timeout) {
                 ctx.json(Map.of("error", "Execution timed out"));
+                cancellation.forEach(Runnable::run);
                 future.cancel(true);
             }
         });
@@ -474,7 +483,7 @@ public class GraphQLWebService {
 
     @Nullable
     private DatabaseSearchHelper getHelper(String version, ModLoader loader) {
-        return helpers.computeIfAbsent(new VersionKey(version, loader), ke -> Main.DB_MANAGER.exists(version, loader) ? Optional.of(Main.DB_MANAGER.search(version, loader)) : Optional.empty())
+        return helpers.computeIfAbsent(new VersionKey(version, loader), ke -> Main.DB_MANAGER.exists(version, loader) ? Optional.of(Main.DB_MANAGER.search(version, loader, ivk -> cancellationInvokers.get().add(ivk))) : Optional.empty())
                 .orElse(null);
     }
 
