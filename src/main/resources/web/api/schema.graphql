@@ -100,6 +100,15 @@ interface BaseMod @implement(interfaces: "Identifiable") {
 
     "The time this mod was last indexed"
     indexedOn: DateTime
+
+    """
+    The metadata of this mod, in JSON format.
+    Can be sourced from one of the following files depending on the loader:
+    - `META-INF/neoforge.mods.toml` for NeoForge
+    - `META-INF/mods.toml` for Forge
+    - `fabric.mod.json` for Fabric
+    """
+    metadata("Optional JSONPath to return the element(s) at a specific path from the metadata" path: String): JSON
 }
 
 """

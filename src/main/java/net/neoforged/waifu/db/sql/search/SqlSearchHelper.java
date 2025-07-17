@@ -75,6 +75,16 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .field("curseforgeProjectId", "curseforge_project_id").field("modrinthProjectId", "modrinth_project_id")
                 .field("mavenCoordinates", "maven_coordinates")
                 .field("indexedOn", "index_date")
+                .field("metadata", (type, builder, fieldName, selection) -> {
+                    var path = (String) selection.getArguments().get("path");
+                    if (path == null) {
+                        builder.requestColumn("mods.mod_metadata_json", fieldName);
+                    } else {
+                        var columnName = "__mod_metadata_json_" + fieldName;
+                        builder.joinOn("jsonb_path_query_array(mods.mod_metadata_json, " + builder.insert(path) + "::jsonpath) " + columnName, SqlCondition.TRUE);
+                        builder.requestColumn("case when jsonb_array_length(" + columnName + ") = 1 then " + columnName + " -> 0 when jsonb_array_length(" + columnName + ") = 0 then null else " + columnName + " end", fieldName);
+                    }
+                })
 
                 .filters(Map.of(
                         "name", FilterCriterion.column("mods.name"),
@@ -93,6 +103,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .filter("description", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.description" : "$.mods[*].description"))
                 .filterOnTable("anyClass", "class_defs")
 
+                // Only for complete Mod instances (i.e. not LightweightMod)
                 .field("classes", listSubTable("class_defs"))
                 .field("enumExtensions", listSubTable("enum_extensions"))
 
