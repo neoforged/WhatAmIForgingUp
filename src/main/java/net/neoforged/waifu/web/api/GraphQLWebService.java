@@ -369,7 +369,7 @@ public class GraphQLWebService {
 
                     var current = limit.get();
                     if (current <= 0) {
-                        ctx.status(HttpStatus.BAD_REQUEST)
+                        ctx.status(HttpStatus.TOO_MANY_REQUESTS)
                                 .header("x-ratelimit-remaining", "0")
                                 .json(Map.of("error", "Rate limit (" + anonymousRateLimit.requests() + ") exceeded, try again in " + anonymousResetsIn.get() + " seconds"));
                         return;
@@ -394,7 +394,7 @@ public class GraphQLWebService {
 
                     var current = limit.remaining.get();
                     if (current <= 0) {
-                        ctx.status(HttpStatus.BAD_REQUEST)
+                        ctx.status(HttpStatus.TOO_MANY_REQUESTS)
                                 .header("x-ratelimit-remaining", "0")
                                 .json(Map.of("error", "Rate limit (" + limit.requests() + ") exceeded, try again in " + limit.resetsIn.get() + " seconds"));
                         return;

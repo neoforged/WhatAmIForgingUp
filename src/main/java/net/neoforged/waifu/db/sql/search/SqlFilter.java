@@ -16,6 +16,8 @@ public interface SqlFilter {
     FilterType INT_FILTER = new FilterType(Map.of(
             "lessThan", SqlFilter::smallerThan,
             "greaterThan", SqlFilter::greaterThan,
+            "lessThanOrEqual", SqlFilter::smallerThanOrEqual,
+            "greaterThanOrEqual", SqlFilter::greaterThanOrEqual,
             "isEven", v -> SqlFilter.isEven((boolean) v)
     ));
 
