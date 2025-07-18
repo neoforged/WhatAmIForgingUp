@@ -454,10 +454,32 @@ input MethodPredicate @predicateType @oneOf {
     name: StringPredicate
     "Filter based on the method's descriptor"
     descriptor: StringPredicate
+
+    "A method will match if any of the (direct) references to it match the given predicate"
+    anyReference: ReferencePredicate
+}
+
+"Used to filter method definitions based on different criteria"
+input MethodDefinitionPredicate @predicateType @oneOf {
+    "Filter based on the method's name"
+    name: StringPredicate
+    "Filter based on the method's descriptor"
+    descriptor: StringPredicate
 }
 
 "Used to filter fields based on different criteria"
 input FieldPredicate @predicateType @oneOf {
+    "Filter based on the field's name"
+    name: StringPredicate
+    "Filter based on the field's type"
+    type: StringPredicate
+
+    "A field will match if any of the (direct) references to it match the given predicate"
+    anyReference: ReferencePredicate
+}
+
+"Used to filter field definitions based on different criteria"
+input FieldDefinitionPredicate @predicateType @oneOf {
     "Filter based on the field's name"
     name: StringPredicate
     "Filter based on the field's type"
@@ -548,6 +570,11 @@ input ProjectId @oneOf {
 input ClassPredicate @predicateType @oneOf {
     "Filter based on the class' JVM name"
     name: StringPredicate
+
+    "A class will match if any of its methods match the given predicate"
+    anyMethod: MethodPredicate
+    "A class will match if any of its fields match the given predicate"
+    anyField: FieldPredicate
 }
 
 "Used to filter class definitions based on different criteria"
@@ -555,13 +582,19 @@ input ClassDefinitionPredicate @predicateType @oneOf {
     "Filter based on the class' JVM name"
     name: StringPredicate
 
+    "A class definition will match if the mod that defines it matches the given predicate"
+    mod: ModPredicate
+
+    "A class definition will match if any of its <b>direct</b> parents match the given predicate"
+    anyParent: StringPredicate
+
     "A class definition will match if any of its annotations match the given predicate"
     anyAnnotation: AnnotationPredicate
 
     "A class definition will match if any of the methods it defines matches the given predicate"
-    anyMethod: MethodPredicate
+    anyMethod: MethodDefinitionPredicate
     "A class definition will match if any of the fields it defines matches the given predicate"
-    anyField: FieldPredicate
+    anyField: FieldDefinitionPredicate
 }
 
 "Used to filter manifest attributes based on their name and/or value"

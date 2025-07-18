@@ -197,6 +197,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
                 .filterOnColumn("name", "method_name.constant")
                 .filterOnColumn("descriptor", "method_desc.constant")
+                .filterOnTable("anyReference", "method_references")
         );
         schema.registerIndependentJoin("methods", "classes", "method_class", SqlCondition.equals("methods.cls", "method_class.id"));
         schema.registerIndependentJoin("methods", "constants", "method_name", SqlCondition.equals("methods.name", "method_name.id"));
@@ -235,6 +236,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
                 .filterOnColumn("name", "field_name.constant")
                 .filterOnColumn("type", "field_type.name")
+                .filterOnTable("anyReference", "field_references")
         );
         schema.registerIndependentJoin("fields", "classes", "field_class", SqlCondition.equals("fields.cls", "field_class.id"));
         schema.registerIndependentJoin("fields", "constants", "field_name", SqlCondition.equals("fields.name", "field_name.id"));
@@ -281,10 +283,20 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .field("referencedFields", listSubTable(field_references))
 
                 .filterOnColumn("name", "classes.name")
+                .filterOnTable("mod", mod)
                 .filterOnTable("anyMethod", "method_defs")
                 .filterOnTable("anyField", "field_defs")
                 .filterOnTable("anyAnnotation", class_annotations)
+
+                .filter("anyParent", value -> builder -> {
+                    var sub = builder.subBuilder("class_parents");
+                    sub.where(SqlCondition.equals("class_defs.id", "class_parents.cls"));
+                    sub.joinOn("classes parent", "parent.id = class_parents.parent");
+                    sub.where("parent.name", SqlFilter.STRING_FILTER.apply(value));
+                    return "exists (" + sub.requestColumn("*", null).format() + ")";
+                })
         );
+
         schema.registerTwoWayJoin("class_defs", "class_annotations", SqlCondition.equals("class_defs.id", "class_annotations.owner"));
 
         schema.registerTwoWayJoin("mods", "class_defs", SqlCondition.condition("class_defs.mod = mods.id"));
@@ -302,6 +314,9 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .field("definitions", listSubTable(class_defs))
 
                 .filterOnColumn("name", "classes.name")
+                .filterOnTable("anyMethod", methods)
+                .filterOnTable("anyField", fields)
+
                 .groupBy("classes.id")
 
                 // Only for Class
