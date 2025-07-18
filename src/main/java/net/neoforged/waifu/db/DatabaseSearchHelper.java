@@ -7,4 +7,6 @@ public interface DatabaseSearchHelper {
     Object getModsById(DataFetchingEnvironment env);
 
     Object getClasses(DataFetchingEnvironment env);
+
+    Object getClassDefinitions(DataFetchingEnvironment env);
 }

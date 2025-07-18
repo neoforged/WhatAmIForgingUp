@@ -21,6 +21,10 @@ public interface SqlFilter {
             "isEven", v -> SqlFilter.isEven((boolean) v)
     ));
 
+    FilterType JSON_FILTER = new FilterType(Map.of(
+            "pathExists", v -> SqlFilter.jsonpath_exists((String) v)
+    ));
+
     String buildSql(String field, SqlSearchBuilder ctx);
 
     String buildJson(String lhs);
@@ -71,6 +75,13 @@ public interface SqlFilter {
     static SqlFilter isEven(boolean even) {
         var checkValue = even ? 0 : 1;
         return make((field, ctx) -> field + " % 2 = " + checkValue, lhs -> lhs + " % 2 == " + checkValue);
+    }
+
+    static SqlFilter jsonpath_exists(String path) {
+        return make(
+                (field, ctx) -> "jsonb_path_exists(" + field + ", " + ctx.insert(path) + "::jsonpath)",
+                lhs -> lhs + " ? (" + path + ")"
+        );
     }
 
     static SqlFilter parseDateTime(Map<String, Object> in) {

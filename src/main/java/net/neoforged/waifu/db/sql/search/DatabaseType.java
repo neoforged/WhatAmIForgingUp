@@ -185,6 +185,10 @@ public class DatabaseType {
             return this;
         }
 
+        public Builder filterOnTable(String filterType, DatabaseType type) {
+            return this.filterOnTable(filterType, type.tableName);
+        }
+
         @SuppressWarnings("unchecked")
         public Builder filterOnTable(String filterType, String table) {
             filters.put(filterType, value -> ctx -> {

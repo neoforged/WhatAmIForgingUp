@@ -68,6 +68,12 @@ type GameVersion {
         "Optional filter applied to the query"
         where: ClassPredicate
     ): Class @paginated
+
+    "Get the class definitions known by this game version that optionally match the given predicate"
+    classDefinitions(
+        "Optional filter applied to the query"
+        where: ClassDefinitionPredicate
+    ): ClassDefinition @paginated
 }
 
 "Represents an object that is identifiable by an unique ID (within its category)"
@@ -241,6 +247,9 @@ interface Annotatable {
 input AnnotationPredicate @predicateType @oneOf {
     "Filter based on the annotation type"
     type: StringPredicate
+
+    "Filter based on the annotation value"
+    value: JSONPredicate
 }
 
 "A base interfaces for classes identified by their name (e.g. `java/lang/String`)"
@@ -546,6 +555,9 @@ input ClassDefinitionPredicate @predicateType @oneOf {
     "Filter based on the class' JVM name"
     name: StringPredicate
 
+    "A class definition will match if any of its annotations match the given predicate"
+    anyAnnotation: AnnotationPredicate
+
     "A class definition will match if any of the methods it defines matches the given predicate"
     anyMethod: MethodPredicate
     "A class definition will match if any of the fields it defines matches the given predicate"
@@ -613,6 +625,15 @@ input IntPredicate @oneOf @predicateType {
 
     "The number being filtered must be even if this is set to true, or odd otherwise."
     isEven: Boolean
+}
+
+"""
+Represents a way of filtering JSON values based on different rules that are either logical operators
+on other filters (NOT, AND, OR) or JSON queries.
+"""
+input JSONPredicate @oneOf @predicateType {
+    "A JSON value will match this predicate if at least a value matching the given JSONPath exists"
+    pathExists: String
 }
 
 "A predicate applied to date types"

@@ -284,6 +284,7 @@ public class GraphQLWebService {
                         builder.dataFetcher("mods", invoke(Version::getMods))
                                 .dataFetcher("modsById", invoke(Version::getModsById))
                                 .dataFetcher("classes", invoke(Version::getClasses))
+                                .dataFetcher("classDefinitions", invoke(Version::getClassDefinitions))
 
                                 .dataFetcher("loader", get(Version::loaderAsGraphQLEnum))
                                 .dataFetcher("version", get(v -> v.version))
@@ -514,6 +515,10 @@ public class GraphQLWebService {
 
         public Object getClasses(DataFetchingEnvironment env) {
             return getHelper(version, loader).getClasses(env);
+        }
+
+        public Object getClassDefinitions(DataFetchingEnvironment env) {
+            return getHelper(version, loader).getClassDefinitions(env);
         }
     }
 

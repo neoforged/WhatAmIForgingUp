@@ -60,7 +60,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
     private final DatabaseSchema schema;
 
-    private final DatabaseType mod, classes;
+    private final DatabaseType mod, classes, class_defs;
 
     @SuppressWarnings("unchecked")
     public SqlSearchHelper(Jdbi jdbi, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
@@ -265,7 +265,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         schema.registerTwoWayJoin("field_references", "fields", SqlCondition.equals("field_references.reference", "fields.id"));
         schema.registerTwoWayJoin("class_defs", "field_references", SqlCondition.equals("class_defs.id", "field_references.owner"));
 
-        var class_defs = schema.registerType("class_defs", b -> b
+        class_defs = schema.registerType("class_defs", b -> b
                 .field("name", "classes.name")
                 .field("parents", (type, builder, fieldName, selection) -> builder
                         .requestSubColumn("class_parents", fieldName, c -> c
@@ -283,6 +283,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .filterOnColumn("name", "classes.name")
                 .filterOnTable("anyMethod", "method_defs")
                 .filterOnTable("anyField", "field_defs")
+                .filterOnTable("anyAnnotation", class_annotations)
         );
         schema.registerTwoWayJoin("class_defs", "class_annotations", SqlCondition.equals("class_defs.id", "class_annotations.owner"));
 
@@ -346,12 +347,12 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .field("type", "annotation_type.name")
                 .field("value", "annotation_value.constant")
 
-                .filterOnColumn("type", "classes.name")
+                .filterOnColumn("type", "annotation_type.name")
+                .filterOnColumn("value", "annotation_value.constant", SqlFilter.JSON_FILTER)
         );
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Object getModsById(DataFetchingEnvironment env) {
         var builder = mod.createQuery();
         builder.requestColumn("mods.id", "id");
@@ -361,7 +362,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
             mod.apply(builder, mods.getFirst());
         }
 
-        var ids = new ArrayList<>((List<Integer>) env.getArgument("ids"));
+        var ids = new ArrayList<>(env.<List<Integer>>getArgument("ids"));
 
         builder.where(ctx -> "mods.id = any(" + ctx.insert(ids) + ")");
 
@@ -402,6 +403,24 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         }
 
         return paginate(builder, Pagination.parse(env.getArguments()), "classes.id");
+    }
+
+    @Override
+    public Object getClassDefinitions(DataFetchingEnvironment env) {
+        var builder = class_defs.createQuery();
+        builder.requestColumn("class_defs.id", "id");
+
+        var classes = env.getSelectionSet().getFields("edges/node");
+        if (!classes.isEmpty()) {
+            this.class_defs.apply(builder, classes.getFirst());
+        }
+
+        Map<String, Object> filter = env.getArgument("where");
+        if (filter != null) {
+            this.class_defs.applyFilter(builder, filter);
+        }
+
+        return paginate(builder, Pagination.parse(env.getArguments()), "class_defs.id");
     }
 
     private String columnAlias(SelectedField field) {
