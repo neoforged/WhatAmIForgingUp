@@ -670,7 +670,7 @@ input JSONPredicate @oneOf @predicateType {
 }
 
 "A predicate applied to date types"
-input DatePredicate @oneOf {
+input DatePredicate @oneOf @predicateType {
     "Matches if the date is before (smaller than) the given date"
     before: DateTime
     "Matches if the date is after (greater than) the given date"

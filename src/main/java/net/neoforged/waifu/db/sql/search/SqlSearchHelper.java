@@ -95,10 +95,9 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                         "curseforgeProjectId", FilterCriterion.column("curseforge_project_id"),
                         "modrinthProjectId", FilterCriterion.column("modrinth_project_id"),
 
-                        "anyManifestAttribute", val -> SqlCondition.parseAsCriterion((Map<String, Object>) val, MANIFEST_CRITERIA),
-
-                        "indexed", val -> SqlCondition.columnFilter(SqlFilter.parseDateTime((Map<String, Object>) val), "index_date")
+                        "anyManifestAttribute", val -> SqlCondition.parseAsCriterion((Map<String, Object>) val, MANIFEST_CRITERIA)
                 ))
+                .filterOnColumn("indexed", "index_date", SqlFilter.DATE_TIME_FILTER)
                 .filter("modId", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.id" : "$.mods[*].modId"))
                 .filter("description", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.description" : "$.mods[*].description"))
                 .filterOnTable("anyClass", "class_defs")

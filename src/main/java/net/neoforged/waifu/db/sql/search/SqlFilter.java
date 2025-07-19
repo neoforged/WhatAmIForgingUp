@@ -1,6 +1,5 @@
 package net.neoforged.waifu.db.sql.search;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -23,6 +22,11 @@ public interface SqlFilter {
 
     FilterType JSON_FILTER = new FilterType(Map.of(
             "pathExists", v -> SqlFilter.jsonpath_exists((String) v)
+    ));
+
+    FilterType DATE_TIME_FILTER = new FilterType(Map.of(
+            "after", SqlFilter::greaterThan,
+            "before", SqlFilter::smallerThan
     ));
 
     String buildSql(String field, SqlSearchBuilder ctx);
@@ -82,14 +86,6 @@ public interface SqlFilter {
                 (field, ctx) -> "jsonb_path_exists(" + field + ", " + ctx.insert(path) + "::jsonpath)",
                 lhs -> lhs + " ? (" + path + ")"
         );
-    }
-
-    static SqlFilter parseDateTime(Map<String, Object> in) {
-        var after = (OffsetDateTime) in.get("after");
-        if (after != null) {
-            return SqlFilter.greaterThan(after);
-        }
-        return SqlFilter.smallerThan(in.get("before"));
     }
 
     static SqlFilter make(BiFunction<String, SqlSearchBuilder, String> sql, Function<String, String> json) {
