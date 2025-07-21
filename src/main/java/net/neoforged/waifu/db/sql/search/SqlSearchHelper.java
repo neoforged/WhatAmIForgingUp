@@ -142,7 +142,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
                                 var filter = req.getArguments().get("where");
                                 if (filter != null) {
-                                    bl.where("entryname.constant", SqlFilter.STRING_FILTER.apply(filter));
+                                    bl.where("entryname.constant", SqlFilter.STRING_FILTER.parse(filter));
                                 }
                             });
                             case "replace" -> sub.requestColumn("tags.replace", columnAlias(req));
@@ -291,7 +291,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                     var sub = builder.subBuilder("class_parents");
                     sub.where(SqlCondition.equals("class_defs.id", "class_parents.cls"));
                     sub.joinOn("classes parent", "parent.id = class_parents.parent");
-                    sub.where("parent.name", SqlFilter.STRING_FILTER.apply(value));
+                    sub.where("parent.name", SqlFilter.STRING_FILTER.parse(value));
                     return "exists (" + sub.requestColumn("*", null).format() + ")";
                 })
         );

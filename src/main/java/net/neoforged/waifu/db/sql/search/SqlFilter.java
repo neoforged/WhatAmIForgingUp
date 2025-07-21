@@ -1,46 +1,113 @@
 package net.neoforged.waifu.db.sql.search;
 
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
+@FunctionalInterface
 public interface SqlFilter {
-    FilterType STRING_FILTER = new FilterType(Map.of(
-            "matches", v -> SqlFilter.matches((String) v),
-            "startsWith", v -> SqlFilter.startsWith((String) v)
-    ));
+    FilterType INT_FILTER = builder()
+            .filter("lessThan", SqlFilter::smallerThan)
+            .filter("lessThanOrEqual", SqlFilter::smallerThanOrEqual)
 
-    FilterType INT_FILTER = new FilterType(Map.of(
-            "lessThan", SqlFilter::smallerThan,
-            "greaterThan", SqlFilter::greaterThan,
-            "lessThanOrEqual", SqlFilter::smallerThanOrEqual,
-            "greaterThanOrEqual", SqlFilter::greaterThanOrEqual,
-            "isEven", v -> SqlFilter.isEven((boolean) v)
-    ));
+            .filter("greaterThan", SqlFilter::greaterThan)
+            .filter("greaterThanOrEqual", SqlFilter::greaterThanOrEqual)
 
-    FilterType JSON_FILTER = new FilterType(Map.of(
-            "pathExists", v -> SqlFilter.jsonpath_exists((String) v)
-    ));
+            .filter("isEven", SqlFilter::isEven)
+            .build();
 
-    FilterType DATE_TIME_FILTER = new FilterType(Map.of(
-            "after", SqlFilter::greaterThan,
-            "before", SqlFilter::smallerThan
-    ));
+    FilterType STRING_FILTER = builder()
+            .filter("matches", SqlFilter::matches)
+            .filter("startsWith", SqlFilter::startsWith)
+
+            .transform("length", "length(%s)", INT_FILTER)
+
+            .build();
+
+    FilterType JSON_FILTER = builder()
+            .filter("pathExists", SqlFilter::jsonpath_exists)
+            .build();
+
+    FilterType DATE_TIME_FILTER = builder()
+            .filter("after", SqlFilter::greaterThan)
+            .filter("before", SqlFilter::smallerThan)
+            .build();
 
     String buildSql(String field, SqlSearchBuilder ctx);
 
-    String buildJson(String lhs);
+    @Nullable
+    default String buildJson(String lhs) {
+        return null;
+    }
 
     static SqlFilter allOf(List<SqlFilter> ops) {
-        return make((field, ctx) -> ops.stream().map(o -> "(" + o.buildSql(field, ctx) + ")").collect(Collectors.joining(" and ")),
-                lhs -> ops.stream().map(o -> "(" + o.buildJson(lhs) + ")").collect(Collectors.joining(" && ")));
+        return new SqlFilter() {
+            @Override
+            public String buildSql(String field, SqlSearchBuilder ctx) {
+                return ops.stream().map(o -> "(" + o.buildSql(field, ctx) + ")").collect(Collectors.joining(" and "));
+            }
+
+            @Override
+            @SuppressWarnings("DuplicatedCode")
+            public @Nullable String buildJson(String lhs) {
+                var jsonValues = new ArrayList<String>();
+                for (var op : ops) {
+                    var built = op.buildJson(lhs);
+                    if (built == null) {
+                        return null;
+                    }
+
+                    jsonValues.add("(" + built + ")");
+                }
+                return String.join(" && ", jsonValues);
+            }
+        };
     }
 
     static SqlFilter anyOf(List<SqlFilter> ops) {
-        return make((field, ctx) -> ops.stream().map(o -> "(" + o.buildSql(field, ctx) + ")").collect(Collectors.joining(" or ")),
-                lhs -> ops.stream().map(o -> "(" + o.buildJson(lhs) + ")").collect(Collectors.joining("|| ")));
+        return new SqlFilter() {
+            @Override
+            public String buildSql(String field, SqlSearchBuilder ctx) {
+                return ops.stream().map(o -> "(" + o.buildSql(field, ctx) + ")").collect(Collectors.joining(" or "));
+            }
+
+            @Override
+            @SuppressWarnings("DuplicatedCode")
+            public @Nullable String buildJson(String lhs) {
+                var jsonValues = new ArrayList<String>();
+                for (var op : ops) {
+                    var built = op.buildJson(lhs);
+                    if (built == null) {
+                        return null;
+                    }
+
+                    jsonValues.add("(" + built + ")");
+                }
+                return String.join(" || ", jsonValues);
+            }
+        };
+    }
+
+    static SqlFilter not(SqlFilter op) {
+        return new SqlFilter() {
+            @Override
+            public String buildSql(String field, SqlSearchBuilder ctx) {
+                return "not (" + op.buildSql(field, ctx) + ")";
+            }
+
+            @Override
+            public @Nullable String buildJson(String lhs) {
+                var built = op.buildJson(lhs);
+                return built == null ? null : ("!(" + built + ")");
+            }
+        };
     }
 
     static SqlFilter eq(Object value) {
@@ -71,11 +138,6 @@ public interface SqlFilter {
         return make((field, ctx) -> field + " <= " + ctx.insert(val), lhs -> lhs + " <= " + val);
     }
 
-    static SqlFilter not(SqlFilter op) {
-        return make((field, ctx) -> "not (" + op.buildSql(field, ctx) + ")",
-                lhs -> "!(" + op.buildJson(lhs) + ")");
-    }
-
     static SqlFilter isEven(boolean even) {
         var checkValue = even ? 0 : 1;
         return make((field, ctx) -> field + " % 2 = " + checkValue, lhs -> lhs + " % 2 == " + checkValue);
@@ -102,28 +164,60 @@ public interface SqlFilter {
         };
     }
 
-    @SuppressWarnings("unchecked")
-    record FilterType(
-            Map<String, Function<Object, SqlFilter>> additionalFilters) implements Function<Object, SqlFilter> {
-        @Override
-        public SqlFilter apply(Object in) {
+    @FunctionalInterface
+    interface FilterType {
+        SqlFilter parse(Object in);
+    }
+
+    static TypeBuilder builder() {
+        return new TypeBuilder();
+    }
+
+    class TypeBuilder {
+        private final Map<String, Function<Object, SqlFilter>> filters = new HashMap<>();
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        public <T> TypeBuilder filter(String type, Function<T, SqlFilter> filterFunction) {
+            filters.put(type, (Function) filterFunction);
+            return this;
+        }
+
+        public TypeBuilder transform(String type, String transformPattern) {
+            return transform(type, transformPattern, this::parse);
+        }
+
+        public TypeBuilder transform(String type, String transformPattern, FilterType subFilter) {
+            return transform(type, transformPattern::formatted, subFilter);
+        }
+
+        public TypeBuilder transform(String type, UnaryOperator<String> transformer, FilterType subFilter) {
+            filters.put(type, o -> (field, ctx) -> subFilter.parse(o).buildSql(transformer.apply(field), ctx));
+            return this;
+        }
+
+        @SuppressWarnings("unchecked")
+        private SqlFilter parse(Object in) {
             if (in instanceof Map<?, ?> filter) {
                 var filterEntry = filter.entrySet().stream().findFirst().orElse(null);
                 assert filterEntry != null;
 
                 return switch ((String) filterEntry.getKey()) {
                     case "equals" -> SqlFilter.eq(filterEntry.getValue());
-                    case "not" -> SqlFilter.not(apply(filterEntry.getValue()));
+                    case "not" -> SqlFilter.not(parse(filterEntry.getValue()));
 
                     case "allOf" -> SqlFilter.allOf(((List<Map<String, Object>>) filterEntry.getValue())
-                            .stream().map(this).toList());
+                            .stream().map(this::parse).toList());
                     case "anyOf" -> SqlFilter.anyOf(((List<Map<String, Object>>) filterEntry.getValue())
-                            .stream().map(this).toList());
+                            .stream().map(this::parse).toList());
 
-                    default -> additionalFilters.get(filterEntry.getKey()).apply(filterEntry.getValue());
+                    default -> filters.get(filterEntry.getKey()).apply(filterEntry.getValue());
                 };
             }
             return SqlFilter.eq(in);
+        }
+
+        public FilterType build() {
+            return this::parse;
         }
     }
 }

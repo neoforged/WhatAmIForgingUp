@@ -177,7 +177,7 @@ public class DatabaseType {
             if (spl.length == 2 && !spl[0].equals(this.tableName)) {
                 filters.put(filterType, value -> ctx -> {
                     schema.possiblyJoin(ctx, spl[0]);
-                    return type.apply(value).buildSql(column, ctx);
+                    return type.parse(value).buildSql(column, ctx);
                 });
             } else {
                 filters.put(filterType, FilterCriterion.column(column, type));

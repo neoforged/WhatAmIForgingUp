@@ -636,6 +636,9 @@ input StringPredicate @oneOf @predicateType {
 
     "The string being filtered must start with the given string."
     startsWith: String
+
+    "The string being filtered will pass this predicate if its length matches the given predicate."
+    length: IntPredicate
 }
 
 """

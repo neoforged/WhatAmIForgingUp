@@ -11,11 +11,11 @@ public interface FilterCriterion {
     }
 
     static FilterCriterion column(String col, SqlFilter.FilterType type) {
-        return value -> SqlCondition.columnFilter(type.apply(value), col);
+        return value -> SqlCondition.columnFilter(type.parse(value), col);
     }
 
     static FilterCriterion jsonExpression(String column, String expression) {
-        return value -> SqlCondition.jsonFilter(SqlFilter.STRING_FILTER.apply(value), column, expression);
+        return value -> SqlCondition.jsonFilter(SqlFilter.STRING_FILTER.parse(value), column, expression, "trim('\"' from elem::text)");
     }
 
     @FunctionalInterface
@@ -27,9 +27,5 @@ public interface FilterCriterion {
         }
 
         SqlCondition apply(Map<String, Object> value);
-    }
-
-    static FilterCriterion subFilters(Map<String, FilterCriterion> criteria) {
-        return (MapOnly) value -> SqlCondition.parseAsCriterion(value, criteria);
     }
 }
