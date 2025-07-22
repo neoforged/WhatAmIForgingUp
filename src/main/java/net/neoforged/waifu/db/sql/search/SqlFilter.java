@@ -21,13 +21,16 @@ public interface SqlFilter {
             .filter("greaterThanOrEqual", SqlFilter::greaterThanOrEqual)
 
             .filter("isEven", SqlFilter::isEven)
+
+            .transform("abs", "abs(%s)"::formatted, "%s.abs()"::formatted)
+
             .build();
 
     FilterType STRING_FILTER = builder()
             .filter("matches", SqlFilter::matches)
             .filter("startsWith", SqlFilter::startsWith)
 
-            .transform("length", "length(%s)", INT_FILTER)
+            .transform("length", "length(%s)"::formatted, null, INT_FILTER)
 
             .build();
 
@@ -182,16 +185,22 @@ public interface SqlFilter {
             return this;
         }
 
-        public TypeBuilder transform(String type, String transformPattern) {
-            return transform(type, transformPattern, this::parse);
+        public TypeBuilder transform(String type, UnaryOperator<String> transformer, @Nullable UnaryOperator<String> jsonTransformer) {
+            return transform(type, transformer, jsonTransformer, this::parse);
         }
 
-        public TypeBuilder transform(String type, String transformPattern, FilterType subFilter) {
-            return transform(type, transformPattern::formatted, subFilter);
-        }
+        public TypeBuilder transform(String type, UnaryOperator<String> transformer, @Nullable UnaryOperator<String> jsonTransformer, FilterType subFilter) {
+            filters.put(type, o -> new SqlFilter() {
+                @Override
+                public String buildSql(String field, SqlSearchBuilder ctx) {
+                    return subFilter.parse(o).buildSql(transformer.apply(field), ctx);
+                }
 
-        public TypeBuilder transform(String type, UnaryOperator<String> transformer, FilterType subFilter) {
-            filters.put(type, o -> (field, ctx) -> subFilter.parse(o).buildSql(transformer.apply(field), ctx));
+                @Override
+                public @Nullable String buildJson(String lhs) {
+                    return jsonTransformer == null ? null : jsonTransformer.apply(lhs);
+                }
+            });
             return this;
         }
 
@@ -209,6 +218,10 @@ public interface SqlFilter {
                             .stream().map(this::parse).toList());
                     case "anyOf" -> SqlFilter.anyOf(((List<Map<String, Object>>) filterEntry.getValue())
                             .stream().map(this::parse).toList());
+
+                    case "isNull" -> ((Boolean) filterEntry.getValue()) ?
+                            make((f, ctx) -> f + " is null", l -> l + " == null") :
+                            make((f, ctx) -> f + " is not null", l -> l + " != null");
 
                     default -> filters.get(filterEntry.getKey()).apply(filterEntry.getValue());
                 };

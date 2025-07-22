@@ -550,9 +550,9 @@ input ModPredicate @predicateType @oneOf {
     inPack: ProjectId
 
     "A mod will match if it is associated with the CurseForge project with the given ID"
-    curseforgeProjectId: Int
+    curseforgeProjectId: IntPredicate
     "A mod will match if it is associated with the Modrinth project with the given ID"
-    modrinthProjectId: String
+    modrinthProjectId: StringPredicate
 
     "A mod will match if the date it has last been indexed on matches the given predicate"
     indexed: DatePredicate
@@ -661,6 +661,9 @@ input IntPredicate @oneOf @predicateType {
 
     "The number being filtered must be even if this is set to true, or odd otherwise."
     isEven: Boolean
+
+    "The number being filtered will pass this predicate if its absolute value matches the given predicate."
+    abs: IntPredicate
 }
 
 """

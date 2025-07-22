@@ -188,6 +188,9 @@ public class GraphQLWebService {
                             b.field(f -> f.name("allOf")
                                     .type(GraphQLList.list(GraphQLNonNull.nonNull(GraphQLTypeReference.typeRef(typeName))))
                                     .description("Match if all of the given filters match"));
+                            b.field(f -> f.name("isNull")
+                                    .type(GraphQLTypeReference.typeRef("Boolean"))
+                                    .description("If `true`, match if the value tested is null. Otherwise, match if non-null."));
                         });
                     }
                 })
