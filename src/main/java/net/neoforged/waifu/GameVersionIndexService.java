@@ -3,6 +3,8 @@ package net.neoforged.waifu;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.index.Remapper;
+import net.neoforged.waifu.index.data.DataIndexer;
+import net.neoforged.waifu.index.data.TagCollector;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
@@ -89,7 +91,7 @@ public class GameVersionIndexService implements Runnable {
             var listener = listenerFactory.startIndexingListener(version, loader, platform);
 
             try {
-                var indexer = new ModIndexer<>(platformCache, db, version, loader, remapper);
+                var indexer = new ModIndexer<>(platformCache, db, version, loader, remapper, ModIndexer.DEFAULT_INDEXERS);
 
                 LOGGER.info("Scanning platform {} for game version {} and loader {}", platform.getName(), version, loader);
                 var counter = listener.startPlatformScan();
@@ -197,7 +199,11 @@ public class GameVersionIndexService implements Runnable {
             if (loaderDbMod == null || !loaderDbMod.getVersion().equals(loaderVersion)) {
                 LOGGER.info("Indexing loader {} for game version {}. Found new version: {}", loader, version, loaderVersion);
                 try {
-                    var indexer = new ModIndexer<>(platformCache, db, version, loader);
+                    var indexer = new ModIndexer<>(platformCache, db, version, loader, Remapper.NOOP, List.of(
+                            // We collect tags for platform mods so we can build a full tag hierarchy
+                            // Otherwise we aren't interested in any other data files
+                            DataIndexer.just(TagCollector::new)
+                    ));
                     var loaderMods = loaderProvider.jarProvider().apply(loaderVersion);
                     for (ModFileInfo loaderMod : loaderMods) {
                         indexer.indexLoaderMod(loaderMod);

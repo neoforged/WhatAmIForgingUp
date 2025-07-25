@@ -11,6 +11,8 @@ import net.neoforged.waifu.db.ClassData;
 import net.neoforged.waifu.db.DataMapFile;
 import net.neoforged.waifu.db.EnumExtension;
 import net.neoforged.waifu.db.IndexDatabase;
+import net.neoforged.waifu.db.JsonFile;
+import net.neoforged.waifu.db.RecipeFile;
 import net.neoforged.waifu.db.TagFile;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModInfo;
@@ -326,6 +328,45 @@ order by mods.name;""")
                 }
 
                 @Override
+                public void insertRecipes(List<RecipeFile> recipes) {
+                    if (recipes.isEmpty()) return;
+
+                    try {
+                        var stmt = new BatchingStatement(con.prepareStatement("insert into recipes(mod, name, type, value) values (?, get_constant(?), get_constant(?), ?::jsonb)"), 250);
+                        for (var recipe : recipes) {
+                            stmt.setInt(1, modId);
+                            stmt.setString(2, recipe.name());
+                            stmt.setString(3, recipe.type());
+                            stmt.setString(4, Utils.GSON.toJson(recipe.value()));
+                            stmt.addBatch();
+                        }
+
+                        stmt.executeBatch();
+                    } catch (SQLException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+                @Override
+                public void insertDataFiles(List<JsonFile> files) {
+                    if (files.isEmpty()) return;
+
+                    try {
+                        var stmt = new BatchingStatement(con.prepareStatement("insert into data_files(mod, path, value) values (?, get_constant(?), ?::jsonb)"), 250);
+                        for (var file : files) {
+                            stmt.setInt(1, modId);
+                            stmt.setString(2, file.path());
+                            stmt.setString(3, file.content());
+                            stmt.addBatch();
+                        }
+
+                        stmt.executeBatch();
+                    } catch (SQLException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+                @Override
                 public void insertEnumExtensions(List<EnumExtension> extensions) {
                     if (extensions.isEmpty()) return;
 
@@ -353,6 +394,8 @@ order by mods.name;""")
                                 "delete from class_defs where mod = ?",
                                 "delete from tags where mod = ?",
                                 "delete from data_maps where mod = ?",
+                                "delete from recipes where mod = ?",
+                                "delete from data_files where mod = ?",
                                 "delete from enum_extensions where mod = ?"
                         )) {
                             var stmt = con.prepareStatement(statement);

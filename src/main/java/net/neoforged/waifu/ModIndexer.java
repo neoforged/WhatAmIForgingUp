@@ -4,13 +4,15 @@ import io.github.matyrobbrt.curseforgeapi.util.Pair;
 import net.neoforged.waifu.db.ClassData;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.IndexDatabase;
-import net.neoforged.waifu.index.DataMapCollector;
+import net.neoforged.waifu.index.data.DataIndexer;
+import net.neoforged.waifu.index.data.DataMapCollector;
 import net.neoforged.waifu.index.EnumExtensionCollector;
 import net.neoforged.waifu.index.FileTreeWalker;
 import net.neoforged.waifu.index.IndexingClassVisitor;
 import net.neoforged.waifu.index.ModFileIndexer;
 import net.neoforged.waifu.index.Remapper;
-import net.neoforged.waifu.index.TagCollector;
+import net.neoforged.waifu.index.data.RecipeCollector;
+import net.neoforged.waifu.index.data.TagCollector;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFilePath;
 import net.neoforged.waifu.platform.ModLoader;
@@ -48,6 +50,14 @@ import java.util.zip.ZipException;
 
 public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
     private static final boolean KEEP_CACHES = Boolean.parseBoolean(System.getenv().getOrDefault("KEEP_PLATFORM_CACHES", "true"));
+    public static final List<ModFileIndexer> DEFAULT_INDEXERS = List.of(
+            new EnumExtensionCollector(), DataIndexer.withFallback(
+                    TagCollector::new,
+                    DataMapCollector::new,
+                    RecipeCollector::new
+            )
+    );
+
     private final Path baseCacheFolder;
     private final IndexDatabase<T> db;
     private final String gameVersion;
@@ -57,20 +67,19 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
 
     private final List<IndexCandidate> candidateMods = new ArrayList<>();
 
-    private final List<ModFileIndexer> indexers = List.of(
-            new TagCollector(), new DataMapCollector(), new EnumExtensionCollector()
-    );
+    private final List<ModFileIndexer> indexers;
 
     public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion, ModLoader loader) {
-        this(baseCacheFolder, db, gameVersion, loader, Remapper.NOOP);
+        this(baseCacheFolder, db, gameVersion, loader, Remapper.NOOP, DEFAULT_INDEXERS);
     }
 
-    public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion, ModLoader loader, Remapper remapper) {
+    public ModIndexer(Path baseCacheFolder, IndexDatabase<T> db, String gameVersion, ModLoader loader, Remapper remapper, List<ModFileIndexer> indexers) {
         this.baseCacheFolder = baseCacheFolder;
         this.db = db;
         this.gameVersion = gameVersion;
         this.loader = loader;
         this.remapper = remapper;
+        this.indexers = indexers;
     }
 
     public void indexLoaderMod(ModFileInfo info) throws IOException {

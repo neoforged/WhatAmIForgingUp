@@ -56,6 +56,10 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
 
         void insertDataMaps(List<DataMapFile> maps);
 
+        void insertRecipes(List<RecipeFile> recipes);
+
+        void insertDataFiles(List<JsonFile> files);
+
         void insertEnumExtensions(List<EnumExtension> extensions);
 
         void deleteCurrent();
