@@ -6,6 +6,7 @@ import com.electronwill.nightconfig.toml.TomlParser;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializer;
+import com.google.gson.Strictness;
 import net.neoforged.waifu.Main;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,6 +37,7 @@ public class Utils {
     public static final Thread.UncaughtExceptionHandler LOG_EXCEPTIONS = (t, e) -> Main.LOGGER.error("Thread {} threw uncaught exception: ", t, e);
     public static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) -> Instant.parse(json.getAsString()))
+            .setStrictness(Strictness.LENIENT)
             .serializeNulls()
             .create();
     public static final TomlParser TOML = new TomlParser();

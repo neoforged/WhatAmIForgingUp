@@ -1,4 +1,6 @@
 package net.neoforged.waifu.db;
 
-public record JsonFile(String path, String content) {
+import com.google.gson.JsonElement;
+
+public record JsonFile(String path, JsonElement content) {
 }

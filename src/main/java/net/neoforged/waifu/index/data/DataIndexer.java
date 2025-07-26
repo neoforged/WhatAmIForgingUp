@@ -62,17 +62,19 @@ public class DataIndexer implements ModFileIndexer {
             var indexer = indexers.get(type);
 
             try {
-                if (indexer == null) {
-                    if (fallback) { // This is an optimisation - if we do not need to collect unhandled files as generic json files (that's what "fallback" means) then we don't need to hold it in memory even if just for a bit
-                        otherDataFiles.add(new JsonFile(
-                                namespace + "/" + type + "/" + path,
-                                Files.readString(file)
-                        ));
-                    }
-                } else {
+                if (indexer != null) {
                     try (var is = Files.newBufferedReader(file)) {
                         var element = Utils.GSON.fromJson(is, JsonElement.class);
                         indexer.accept(namespace, path, element);
+                    }
+                } else if (fallback) { // This is an optimisation - if we do not need to collect unhandled files as generic json files (that's what "fallback" means) then we don't need to hold it in memory even if just for a bit
+                    try (var is = Files.newBufferedReader(file)) {
+                        otherDataFiles.add(new JsonFile(
+                                namespace + "/" + type + "/" + path,
+                                // We go through JSON to parse it leniently (i.e. with comments)
+                                // as PostgreSQL adheres to the strict standard
+                                Utils.GSON.fromJson(is, JsonElement.class)
+                        ));
                     }
                 }
             } catch (Exception ignored) {

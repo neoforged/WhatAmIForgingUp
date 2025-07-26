@@ -356,7 +356,7 @@ order by mods.name;""")
                         for (var file : files) {
                             stmt.setInt(1, modId);
                             stmt.setString(2, file.path());
-                            stmt.setString(3, file.content());
+                            stmt.setString(3, Utils.GSON.toJson(file.content()));
                             stmt.addBatch();
                         }
 
