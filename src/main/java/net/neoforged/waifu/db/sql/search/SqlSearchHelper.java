@@ -70,6 +70,20 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
         schema = new DatabaseSchema();
 
+        var recipes = schema.registerType("recipes", b -> b
+                .field("name", "recipe_name.constant")
+                .field("type", "recipe_type.constant")
+                .field("recipe", "recipes.value")
+
+                .filterOnColumn("name", "recipe_name.constant")
+                .filterOnColumn("type", "recipe_type.constant")
+                .filterOnColumn("recipe", "recipes.value", SqlFilter.JSON_FILTER)
+        );
+        schema.registerIndependentJoin("recipes", "constants", "recipe_name", SqlCondition.equals("recipes.name", "recipe_name.id"));
+        schema.registerIndependentJoin("recipes", "constants", "recipe_type", SqlCondition.equals("recipes.type", "recipe_type.id"));
+
+        schema.registerTwoWayJoin("mods", "recipes", SqlCondition.equals("mods.id", "recipes.mod"));
+
         mod = schema.registerType("mods", b -> b
                 .directFields("id", "name", "authors", "license", "version", "manifest")
                 .field("curseforgeProjectId", "curseforge_project_id").field("modrinthProjectId", "modrinth_project_id")
@@ -105,6 +119,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 // Only for complete Mod instances (i.e. not LightweightMod)
                 .field("classes", listSubTable("class_defs"))
                 .field("enumExtensions", listSubTable("enum_extensions"))
+                .field("recipes", listSubTable(recipes))
 
                 // TODO - these are special because of the registry, figure out a way not to need to make them special
                 .field("tags", (type, builder, fieldName, field) -> builder.arrayAggregateSubQuery("tags", columnAlias(field), sub -> {

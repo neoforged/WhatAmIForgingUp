@@ -157,6 +157,14 @@ type Mod @implement(interfaces: ["Identifiable", "BaseMod"]) {
         limit: Int
     ): [DataMapFile!]!
 
+    "Get the recipes this mod defines"
+    recipes(
+        "An optional filter applied to the returned recipe files"
+        where: RecipeFilePredicate,
+        "Limit the amount of recipes returned"
+        limit: Int
+    ): [RecipeFile!]!
+
     "Get the enum extensions this mod defines"
     enumExtensions(
         "An optional filter applied to the returned entries"
@@ -193,6 +201,16 @@ type TagFile {
     Corresponds to the "replace" field in the tag JSON.
     """
     replace: Boolean!
+}
+
+"A Minecraft recipe file"
+type RecipeFile {
+    "The name of this recipe (e.g. `minecraft:composter`)"
+    name: String!
+    "The type of this recipe (e.g. `minecraft:crafting_shaped`)"
+    type: String!
+    "The contents of the recipe file, in JSON format. This object does not include the `type`."
+    recipe: JSON!
 }
 
 "A NeoForge data map file"
@@ -507,6 +525,16 @@ input TagFilePredicate @predicateType @oneOf {
 
     "A tag file will match this predicate if any of its direct entries matches the given predicate"
     anyEntry: StringPredicate
+}
+
+"Used to filter recipes based on different criteria"
+input RecipeFilePredicate @predicateType @oneOf {
+    "Filter based on the recipe name"
+    name: StringPredicate
+    "Filter based on the recipe type"
+    type: StringPredicate
+    "Filter based on the recipe JSON (the object given to this predicate does not include the type)"
+    recipe: JSONPredicate
 }
 
 "Used to filter data map files based on different criteria"
