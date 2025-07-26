@@ -163,4 +163,8 @@ public class Utils {
     public static String base64(Object o) {
         return Base64.getEncoder().encodeToString(o.toString().getBytes(StandardCharsets.UTF_8));
     }
+
+    public static String joinList(Object o) {
+        return o instanceof List<?> lst ? lst.stream().map(Object::toString).collect(Collectors.joining(",")) : o.toString();
+    }
 }

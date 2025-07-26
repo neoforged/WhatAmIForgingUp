@@ -289,6 +289,8 @@ public class GraphQLWebService {
                                 .dataFetcher("classes", invoke(Version::getClasses))
                                 .dataFetcher("classDefinitions", invoke(Version::getClassDefinitions))
 
+                                .dataFetcher("recipes", invoke(Version::getRecipes))
+
                                 .dataFetcher("loader", get(Version::loaderAsGraphQLEnum))
                                 .dataFetcher("version", get(v -> v.version))
                 );
@@ -299,7 +301,7 @@ public class GraphQLWebService {
                         .dataFetcher("cursor", environment -> {
                             Map<String, Object> obj = environment.getSource();
                             // noinspection DataFlowIssue
-                            return Utils.base64(obj.get("id"));
+                            return Utils.base64(Utils.joinList(obj.get("id")));
                         })
                         .dataFetcher("node", DataFetchingEnvironment::getSource));
             }
@@ -522,6 +524,10 @@ public class GraphQLWebService {
 
         public Object getClassDefinitions(DataFetchingEnvironment env) {
             return getHelper(version, loader).getClassDefinitions(env);
+        }
+
+        public Object getRecipes(DataFetchingEnvironment env) {
+            return getHelper(version, loader).getRecipes(env);
         }
     }
 

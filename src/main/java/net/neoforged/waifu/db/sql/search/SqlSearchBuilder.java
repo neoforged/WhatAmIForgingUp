@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,7 +35,7 @@ public final class SqlSearchBuilder {
 
     private boolean requestAsJson;
 
-    private String orderColumn;
+    private final Set<String> orderColumns = new LinkedHashSet<>();
 
     final Map<String, String> lowercasedAliases = new HashMap<>();
 
@@ -103,7 +104,7 @@ public final class SqlSearchBuilder {
     }
 
     public SqlSearchBuilder orderBy(String column) {
-        orderColumn = column;
+        this.orderColumns.add(column);
         return this;
     }
 
@@ -180,8 +181,8 @@ public final class SqlSearchBuilder {
                             .collect(Collectors.joining(" and ")));
         }
 
-        if (orderColumn != null) {
-            builder.append(" order by ").append(orderColumn);
+        if (!orderColumns.isEmpty()) {
+            builder.append(" order by ").append(String.join(", ", orderColumns));
         }
 
         if (limit > 0) {

@@ -74,6 +74,12 @@ type GameVersion {
         "Optional filter applied to the query"
         where: ClassDefinitionPredicate
     ): ClassDefinition @paginated
+
+    "Get the recipe files known by this game version that optionally match the given predicate"
+    recipes(
+        "Optional filter applied to the query"
+        where: RecipeFilePredicate
+    ): RecipeFile @paginated
 }
 
 "Represents an object that is identifiable by an unique ID (within its category)"
@@ -205,6 +211,9 @@ type TagFile {
 
 "A Minecraft recipe file"
 type RecipeFile {
+    "The mod that defines this recipe file"
+    mod: LightweightMod!
+
     "The name of this recipe (e.g. `minecraft:composter`)"
     name: String!
     "The type of this recipe (e.g. `minecraft:crafting_shaped`)"

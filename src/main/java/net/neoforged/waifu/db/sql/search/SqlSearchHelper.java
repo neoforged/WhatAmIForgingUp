@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.directColumn;
 import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.listSubTable;
@@ -60,7 +61,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
     private final DatabaseSchema schema;
 
-    private final DatabaseType mod, classes, class_defs;
+    private final DatabaseType mod, classes, class_defs, recipes;
 
     @SuppressWarnings("unchecked")
     public SqlSearchHelper(Jdbi jdbi, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
@@ -70,10 +71,11 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
         schema = new DatabaseSchema();
 
-        var recipes = schema.registerType("recipes", b -> b
+        recipes = schema.registerType("recipes", b -> b
                 .field("name", "recipe_name.constant")
                 .field("type", "recipe_type.constant")
                 .field("recipe", "recipes.value")
+                .field("mod", subTable("mods"))
 
                 .filterOnColumn("name", "recipe_name.constant")
                 .filterOnColumn("type", "recipe_type.constant")
@@ -452,6 +454,24 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         return paginate(builder, Pagination.parse(env.getArguments()), "class_defs.id");
     }
 
+    @Override
+    public Object getRecipes(DataFetchingEnvironment env) {
+        var builder = recipes.createQuery();
+        builder.requestColumn("array[recipes.mod, recipes.name]", "id");
+
+        var recipes = env.getSelectionSet().getFields("edges/node");
+        if (!recipes.isEmpty()) {
+            this.recipes.apply(builder, recipes.getFirst());
+        }
+
+        Map<String, Object> filter = env.getArgument("where");
+        if (filter != null) {
+            this.recipes.applyFilter(builder, filter);
+        }
+
+        return paginate(builder, Pagination.parse(env.getArguments()), "recipes.mod", "recipes.name");
+    }
+
     private String columnAlias(SelectedField field) {
         if (field.getAlias() == null) {
             return field.getName();
@@ -459,25 +479,26 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         return "$" + field.getAlias();
     }
 
-    private Object paginate(SqlSearchBuilder builder, Pagination pagination, String paginateOn) {
-        if (pagination.descending()) {
-            builder.orderBy(paginateOn + " desc");
-        } else {
-            builder.orderBy(paginateOn);
+    private Object paginate(SqlSearchBuilder builder, Pagination pagination, String... paginateOn) {
+        for (String pag : paginateOn) {
+            if (pagination.descending()) {
+                builder.orderBy(pag + " desc");
+            } else {
+                builder.orderBy(pag);
+            }
         }
 
-        int limit = pagination.limit();
+        // We need at least one additional element so we can check if we have a next page
+        int limit = pagination.limit() + 1;
 
-        if (pagination.after() >= 0) {
-            builder.where.addFirst(SqlCondition.columnFilter(SqlFilter.greaterThanOrEqual(pagination.after()), paginateOn));
+        if (!pagination.after().isEmpty()) {
+            builder.where.addFirst(buildWhereClause(pagination.after(), paginateOn, false));
             limit++;
         }
-        if (pagination.before() >= 0) {
-            builder.where.addFirst(SqlCondition.columnFilter(SqlFilter.smallerThanOrEqual(pagination.before()), paginateOn));
+        if (!pagination.before().isEmpty()) {
+            builder.where.addFirst(buildWhereClause(pagination.before(), paginateOn, true));
             limit++;
         }
-
-        limit = Math.max(limit, pagination.limit() + 1); // We need at least one additional element so we can check if we have a next page
 
         builder.limit(limit);
 
@@ -535,17 +556,18 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                                 entry.put(col.resultName, OffsetDateTime.ofInstant(stamp.toInstant(), ZoneId.systemDefault()));
                             } else {
                                 var o = rs.getObject(i);
+                                boolean isArray = false;
                                 if (o instanceof Array ar) {
-                                    entry.put(col.resultName, Arrays.asList((Object[])ar.getArray()));
-                                } else {
-                                    entry.put(col.resultName, o);
+                                    isArray = true;
+                                    o = Arrays.asList((Object[])ar.getArray());
                                 }
+                                entry.put(col.resultName, o);
 
                                 if (col.resultName.equals("id")) {
-                                    if (pagination.after() >= 0 && Objects.equals(o, pagination.after())) {
+                                    if (!pagination.after().isEmpty() && Objects.equals(isArray ? o : List.of(o), pagination.after())) {
                                         haveAfter = true;
                                     }
-                                    if (pagination.before() >= 0 && Objects.equals(o, pagination.before())) {
+                                    if (!pagination.before().isEmpty() && Objects.equals(isArray ? o : List.of(o), pagination.before())) {
                                         haveBefore = true;
                                     }
                                 }
@@ -614,8 +636,8 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                     pag.put("hasPreviousPage", hasPrevious);
                     pag.put("hasNextPage", hasNext);
                     if (!lst.isEmpty()) {
-                        pag.put("startCursor", Utils.base64(lst.getFirst().get("id")));
-                        pag.put("endCursor", Utils.base64(lst.getLast().get("id")));
+                        pag.put("startCursor", Utils.base64(Utils.joinList(lst.getFirst().get("id"))));
+                        pag.put("endCursor", Utils.base64(Utils.joinList(lst.getLast().get("id"))));
                     }
 
                     return Map.of(
@@ -626,7 +648,31 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 }));
     }
 
-    private record Pagination(int limit, boolean descending, int after, int before) {
+    private static SqlCondition buildWhereClause(List<Integer> cursorComponents, String[] paginateOn, boolean descending) {
+        return ctx -> {
+            List<String> clauses = new ArrayList<>();
+
+            for (int i = 0; i < cursorComponents.size(); i++) {
+                StringBuilder clause = new StringBuilder("(");
+                for (int j = 0; j < i; j++) {
+                    clause.append(paginateOn[j])
+                            .append(" = ")
+                            .append(cursorComponents.get(j))
+                            .append(" and ");
+                }
+
+                clause.append(paginateOn[i])
+                        .append(i == cursorComponents.size() - 1 ? (descending ? " <= " : " >= ") : (descending ? " < " : " > "))
+                        .append(cursorComponents.get(i))
+                        .append(")");
+                clauses.add(clause.toString());
+            }
+
+            return String.join(" or ", clauses);
+        };
+    }
+
+    private record Pagination(int limit, boolean descending, List<Integer> after, List<Integer> before) {
         private static Pagination parse(Map<String, Object> args) {
             int limit = MAX_ITEMS_PER_REQUEST;
             boolean isLast = false;
@@ -642,16 +688,18 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 isLast = true;
             }
 
-            int after = -1, before = -1;
+            List<Integer> after = List.of(), before = List.of();
 
             String aft = (String) args.get("after");
             if (aft != null) {
-                after = Integer.parseInt(new String(Base64.getDecoder().decode(aft), StandardCharsets.UTF_8));
+                after = Stream.of(new String(Base64.getDecoder().decode(aft), StandardCharsets.UTF_8).split(","))
+                        .map(Integer::valueOf).toList();
             }
 
             String bef = (String) args.get("before");
             if (bef != null) {
-                before = Integer.parseInt(new String(Base64.getDecoder().decode(bef), StandardCharsets.UTF_8));
+                before = Stream.of(new String(Base64.getDecoder().decode(bef), StandardCharsets.UTF_8).split(","))
+                        .map(Integer::valueOf).toList();
             }
 
             return new Pagination(limit, isLast, after, before);
