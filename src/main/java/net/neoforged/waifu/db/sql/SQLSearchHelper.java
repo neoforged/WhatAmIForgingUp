@@ -67,7 +67,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     private final DatabaseSchema schema;
 
-    private final DatabaseType mod, classes, class_defs, recipes;
+    private final DatabaseType recipes, enum_extensions, mod, classes, class_defs;
 
     @SuppressWarnings("unchecked")
     public SQLSearchHelper(Jdbi jdbi, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
@@ -93,7 +93,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
         schema.registerTwoWayJoin("mods", "recipes", SqlCondition.equals("mods.id", "recipes.mod"));
 
-        var enum_extensions = schema.registerType("enum_extensions", b -> b
+        enum_extensions = schema.registerType("enum_extensions", b -> b
                 .field("enum", "extension_enum.name")
                 .field("constructor", "extension_ctor.constant")
                 .field("name", "extension_name.constant")
@@ -481,6 +481,24 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
 
         return paginate(builder, Pagination.parse(env.getArguments()), "recipes.mod", "recipes.name");
+    }
+
+    @Override
+    public Object getEnumExtensions(DataFetchingEnvironment env) {
+        var builder = enum_extensions.createQuery();
+        builder.requestColumn("array[enum_extensions.mod, enum_extensions.enum, enum_extensions.name]", "id");
+
+        var extensions = env.getSelectionSet().getFields("edges/node");
+        if (!extensions.isEmpty()) {
+            this.enum_extensions.apply(builder, extensions.getFirst());
+        }
+
+        Map<String, Object> filter = env.getArgument("where");
+        if (filter != null) {
+            this.enum_extensions.applyFilter(builder, filter);
+        }
+
+        return paginate(builder, Pagination.parse(env.getArguments()), "enum_extensions.mod", "enum_extensions.enum", "enum_extensions.name");
     }
 
     private String columnAlias(SelectedField field) {

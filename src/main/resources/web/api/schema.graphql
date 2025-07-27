@@ -82,6 +82,12 @@ type GameVersion {
         "Optional filter applied to the query"
         where: RecipeFilePredicate
     ): RecipeFile @paginated
+
+    "Get the enum extensions known by this game version that optionally match the given predicate"
+    enumExtensions(
+        "Optional filter applied to the query"
+        where: EnumExtensionPredicate
+    ): EnumExtension @paginated
 }
 
 "Represents an object that is identifiable by an unique ID (within its category)"

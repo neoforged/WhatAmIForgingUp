@@ -70,7 +70,7 @@ import java.util.function.Supplier;
 
 public class GraphQLWebService {
     private record VersionKey(String ver, ModLoader loader) {}
-    private final Map<VersionKey, Optional<DatabaseSearchHelper>> helpers = new ConcurrentHashMap<>();
+    private final Map<VersionKey, Optional<Version>> versions = new ConcurrentHashMap<>();
 
     private final boolean anonymousAccess;
     @Nullable
@@ -284,12 +284,13 @@ public class GraphQLWebService {
                                 .dataFetcher("gameVersions", this::getVersions)
                 )
                 .type("GameVersion", builder ->
-                        builder.dataFetcher("mods", invoke(Version::getMods))
-                                .dataFetcher("modsById", invoke(Version::getModsById))
-                                .dataFetcher("classes", invoke(Version::getClasses))
-                                .dataFetcher("classDefinitions", invoke(Version::getClassDefinitions))
+                        builder.dataFetcher("mods", dbHelper(DatabaseSearchHelper::getMods))
+                                .dataFetcher("modsById", dbHelper(DatabaseSearchHelper::getModsById))
+                                .dataFetcher("classes", dbHelper(DatabaseSearchHelper::getClasses))
+                                .dataFetcher("classDefinitions", dbHelper(DatabaseSearchHelper::getClassDefinitions))
 
-                                .dataFetcher("recipes", invoke(Version::getRecipes))
+                                .dataFetcher("recipes", dbHelper(DatabaseSearchHelper::getRecipes))
+                                .dataFetcher("enumExtensions", dbHelper(DatabaseSearchHelper::getEnumExtensions))
 
                                 .dataFetcher("loader", get(Version::loaderAsGraphQLEnum))
                                 .dataFetcher("version", get(v -> v.version))
@@ -454,8 +455,7 @@ public class GraphQLWebService {
     private Object getVersion(DataFetchingEnvironment env) {
         String ver = env.getArgument("version");
         ModLoader loader = getLoader(env.getArgument("loader"));
-        var helper = getHelper(ver, loader);
-        return helper == null ? null : new Version(ver, loader);
+        return getVersion(ver, loader);
     }
 
     private Object getVersions(DataFetchingEnvironment env) {
@@ -466,7 +466,7 @@ public class GraphQLWebService {
             stream = stream.filter(v -> v.loader().equals(load));
         }
         return stream
-                .map(v -> new Version(v.gameVersion(), v.loader()))
+                .map(v -> getVersion(v.gameVersion(), v.loader()))
                 .toList();
     }
 
@@ -479,8 +479,8 @@ public class GraphQLWebService {
         };
     }
 
-    private DataFetcher<?> invoke(BiFunction<Version, DataFetchingEnvironment, ?> getter) {
-        return environment -> getter.apply(environment.getSource(), environment);
+    private DataFetcher<?> dbHelper(BiFunction<DatabaseSearchHelper, DataFetchingEnvironment, ?> getter) {
+        return environment -> getter.apply(((Version)environment.getSource()).helper(), environment);
     }
 
     private DataFetcher<?> get(Function<Version, ?> getter) {
@@ -488,46 +488,20 @@ public class GraphQLWebService {
     }
 
     @Nullable
-    private DatabaseSearchHelper getHelper(String version, ModLoader loader) {
-        return helpers.computeIfAbsent(new VersionKey(version, loader), ke -> Main.DB_MANAGER.exists(version, loader) ? Optional.of(Main.DB_MANAGER.search(version, loader, ivk -> cancellationInvokers.get().add(ivk))) : Optional.empty())
+    private Version getVersion(String version, ModLoader loader) {
+        return versions.computeIfAbsent(new VersionKey(version, loader), ke -> Main.DB_MANAGER.exists(version, loader) ?
+                        Optional.of(new Version(version, loader, Main.DB_MANAGER.search(version, loader, ivk -> cancellationInvokers.get().add(ivk)))) :
+                        Optional.empty())
                 .orElse(null);
     }
 
-    private class Version {
-        private final String version;
-        private final ModLoader loader;
-
-        private Version(String version, ModLoader loader) {
-            this.version = version;
-            this.loader = loader;
-        }
-
+    private record Version(String version, ModLoader loader, DatabaseSearchHelper helper) {
         public String loaderAsGraphQLEnum() {
             return switch (loader) {
                 case FABRIC -> "Fabric";
                 case NEOFORGE -> "NeoForge";
                 case FORGE -> "Forge";
             };
-        }
-
-        public Object getMods(DataFetchingEnvironment env) {
-            return getHelper(version, loader).getMods(env);
-        }
-
-        public Object getModsById(DataFetchingEnvironment env) {
-            return getHelper(version, loader).getModsById(env);
-        }
-
-        public Object getClasses(DataFetchingEnvironment env) {
-            return getHelper(version, loader).getClasses(env);
-        }
-
-        public Object getClassDefinitions(DataFetchingEnvironment env) {
-            return getHelper(version, loader).getClassDefinitions(env);
-        }
-
-        public Object getRecipes(DataFetchingEnvironment env) {
-            return getHelper(version, loader).getRecipes(env);
         }
     }
 
