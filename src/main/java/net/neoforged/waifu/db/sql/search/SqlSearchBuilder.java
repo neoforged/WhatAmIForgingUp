@@ -10,7 +10,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -64,6 +63,10 @@ public final class SqlSearchBuilder {
         return joins.containsKey(table);
     }
 
+    public String getRealName(String name) {
+        return lowercasedAliases.getOrDefault(name, name);
+    }
+
     public SqlSearchBuilder requestColumn(String col, @Nullable String alias) {
         columns.put(alias, col);
         if (alias != null) {
@@ -90,6 +93,11 @@ public final class SqlSearchBuilder {
 
     public SqlSearchBuilder where(SqlCondition clause) {
         where.add(clause);
+        return this;
+    }
+
+    public SqlSearchBuilder primaryWhere(SqlCondition clause) {
+        where.addFirst(clause);
         return this;
     }
 

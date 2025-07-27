@@ -14,6 +14,7 @@ schema {
     query: Query
 }
 
+"Represents the loaders WAIFU supports (the loaders it can index)"
 enum Loader {
     "The NeoForge loader (https://github.com/NeoForged)"
     NeoForge,
@@ -39,6 +40,7 @@ type Query {
     ): GameVersion
 }
 
+"Represents a version of the game on a loader, which WAIFU is indexing"
 type GameVersion {
     "The Minecraft version this game version indexes"
     version: String!
@@ -125,7 +127,7 @@ interface BaseMod @implement(interfaces: "Identifiable") {
 
 """
 A mod instance which has only basic properties available (properties that do not require joining on tables other than `mods`).
-These are returned by objects associated with a mod like class definitions.
+These are returned by objects associated with a mod (like class definitions).
 To "upgrade" a lightweight mod to a _Mod_ you can use `modsById`.
 """
 type LightweightMod @implement(interfaces: ["Identifiable", "BaseMod"]) {
@@ -180,6 +182,15 @@ type Mod @implement(interfaces: ["Identifiable", "BaseMod"]) {
     ): [EnumExtension!]!
 }
 
+"""
+Base interface for objects that are owned (have been added) by a specific mod.
+Examples of this include class definitions or recipes.
+"""
+interface ModOwned {
+    "The mod that owns this object"
+    mod: LightweightMod!
+}
+
 "Represents a manifest entry (section)"
 type ManifestEntry {
     "The name of this manifest section (the main section has this field blank)"
@@ -210,10 +221,7 @@ type TagFile {
 }
 
 "A Minecraft recipe file"
-type RecipeFile {
-    "The mod that defines this recipe file"
-    mod: LightweightMod!
-
+type RecipeFile @implement(interfaces: "ModOwned") {
     "The name of this recipe (e.g. `minecraft:composter`)"
     name: String!
     "The type of this recipe (e.g. `minecraft:crafting_shaped`)"
@@ -244,7 +252,7 @@ type DataMapEntry {
 }
 
 "A NeoForge enum extension entry"
-type EnumExtension {
+type EnumExtension @implement(interfaces: "ModOwned") {
     "The internal name of the enum this extension targets"
     enum: String!
     "The descriptor of the constructor this extension uses"
@@ -390,15 +398,12 @@ type Field @implement(interfaces: ["Identifiable", "Referenceable"]) {
 }
 
 "A concrete definition of a class"
-type ClassDefinition @implement(interfaces: "Annotatable") {
+type ClassDefinition @implement(interfaces: ["ModOwned", "Annotatable"]) {
     "The name of this class"
     name: String! @orderBy
 
     "Classes this class directly inherits from (both super classes and interfaces)"
     parents: [String!]
-
-    "The mod that defines this definition"
-    mod: LightweightMod!
 
     """
     The methods this class defines directly.

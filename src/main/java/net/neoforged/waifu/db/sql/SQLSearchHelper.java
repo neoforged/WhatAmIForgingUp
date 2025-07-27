@@ -1,9 +1,15 @@
-package net.neoforged.waifu.db.sql.search;
+package net.neoforged.waifu.db.sql;
 
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.SelectedField;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
+import net.neoforged.waifu.db.sql.search.DatabaseSchema;
+import net.neoforged.waifu.db.sql.search.DatabaseType;
+import net.neoforged.waifu.db.sql.search.FilterCriterion;
+import net.neoforged.waifu.db.sql.search.SqlCondition;
+import net.neoforged.waifu.db.sql.search.SqlFilter;
+import net.neoforged.waifu.db.sql.search.SqlSearchBuilder;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Utils;
@@ -38,7 +44,7 @@ import static net.neoforged.waifu.db.sql.search.DatabaseType.applyLimit;
 import static net.neoforged.waifu.db.sql.search.DatabaseType.applyOrder;
 
 @SuppressWarnings("FieldCanBeLocal")
-public class SqlSearchHelper implements DatabaseSearchHelper {
+public class SQLSearchHelper implements DatabaseSearchHelper {
     public static final Map<String, FilterCriterion> MANIFEST_CRITERIA = Map.of(
             "name", FilterCriterion.jsonExpression("mods.manifest", "$.*[*].key"),
             "value", FilterCriterion.jsonExpression("mods.manifest", "$.*[*].value")
@@ -64,7 +70,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
     private final DatabaseType mod, classes, class_defs, recipes;
 
     @SuppressWarnings("unchecked")
-    public SqlSearchHelper(Jdbi jdbi, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
+    public SQLSearchHelper(Jdbi jdbi, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
         this.jdbi = jdbi;
         this.cancellationInvoker = cancellationInvoker;
         jdbi.getConfig(SqlStatements.class).setSqlParser(new HashPrefixSqlParser());
@@ -75,6 +81,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .field("name", "recipe_name.constant")
                 .field("type", "recipe_type.constant")
                 .field("recipe", "recipes.value")
+
                 .field("mod", subTable("mods"))
 
                 .filterOnColumn("name", "recipe_name.constant")
@@ -85,6 +92,24 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         schema.registerIndependentJoin("recipes", "constants", "recipe_type", SqlCondition.equals("recipes.type", "recipe_type.id"));
 
         schema.registerTwoWayJoin("mods", "recipes", SqlCondition.equals("mods.id", "recipes.mod"));
+
+        var enum_extensions = schema.registerType("enum_extensions", b -> b
+                .field("enum", "extension_enum.name")
+                .field("constructor", "extension_ctor.constant")
+                .field("name", "extension_name.constant")
+                .directFields("parameters")
+
+                .field("mod", subTable("mods"))
+
+                .filterOnColumn("enum", "extension_enum.name")
+                .filterOnColumn("constructor", "extension_ctor.constant")
+                .filterOnColumn("name", "extension_name.constant")
+        );
+        schema.registerIndependentJoin("enum_extensions", "classes", "extension_enum", SqlCondition.equals("enum_extensions.enum", "extension_enum.id"));
+        schema.registerIndependentJoin("enum_extensions", "constants", "extension_name", SqlCondition.equals("enum_extensions.name", "extension_name.id"));
+        schema.registerIndependentJoin("enum_extensions", "constants", "extension_ctor", SqlCondition.equals("enum_extensions.constructor", "extension_ctor.id"));
+
+        schema.registerTwoWayJoin("mods", "enum_extensions", SqlCondition.equals("mods.id", "enum_extensions.mod"));
 
         mod = schema.registerType("mods", b -> b
                 .directFields("id", "name", "authors", "license", "version", "manifest")
@@ -120,7 +145,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
 
                 // Only for complete Mod instances (i.e. not LightweightMod)
                 .field("classes", listSubTable("class_defs"))
-                .field("enumExtensions", listSubTable("enum_extensions"))
+                .field("enumExtensions", listSubTable(enum_extensions))
                 .field("recipes", listSubTable(recipes))
 
                 // TODO - these are special because of the registry, figure out a way not to need to make them special
@@ -206,6 +231,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         var field_annotations = registerAnnotationType("field_annotations");
 
         var methods = schema.registerType("methods", b -> b
+                .directFields("id")
                 .field("name", "method_name.constant")
                 .field("descriptor", "method_desc.constant")
                 .field("definitions", listSubTable("method_defs"))
@@ -245,6 +271,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         schema.registerTwoWayJoin("class_defs", "method_references", SqlCondition.equals("class_defs.id", "method_references.owner"));
 
         var fields = schema.registerType("fields", b -> b
+                .directFields("id")
                 .field("name", "field_name.constant")
                 .field("type", "field_type.name")
                 .field("definitions", listSubTable("field_defs"))
@@ -352,22 +379,6 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                 .field("depth", directColumn("child_classes.depth"))
                 .filter("depth", FilterCriterion.column("child_classes.depth", SqlFilter.INT_FILTER))
         );
-
-        schema.registerType("enum_extensions", b -> b
-                .field("enum", "extension_enum.name")
-                .field("constructor", "extension_ctor.constant")
-                .field("name", "extension_name.constant")
-                .directFields("parameters")
-
-                .filterOnColumn("enum", "extension_enum.name")
-                .filterOnColumn("constructor", "extension_ctor.constant")
-                .filterOnColumn("name", "extension_name.constant")
-        );
-        schema.registerIndependentJoin("enum_extensions", "classes", "extension_enum", SqlCondition.equals("enum_extensions.enum", "extension_enum.id"));
-        schema.registerIndependentJoin("enum_extensions", "constants", "extension_name", SqlCondition.equals("enum_extensions.name", "extension_name.id"));
-        schema.registerIndependentJoin("enum_extensions", "constants", "extension_ctor", SqlCondition.equals("enum_extensions.constructor", "extension_ctor.id"));
-
-        schema.registerTwoWayJoin("mods", "enum_extensions", SqlCondition.equals("mods.id", "enum_extensions.mod"));
     }
 
     private DatabaseType registerAnnotationType(String annotationTable) {
@@ -492,11 +503,11 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
         int limit = pagination.limit() + 1;
 
         if (!pagination.after().isEmpty()) {
-            builder.where.addFirst(buildWhereClause(pagination.after(), paginateOn, false));
+            builder.primaryWhere(buildWhereClause(pagination.after(), paginateOn, false));
             limit++;
         }
         if (!pagination.before().isEmpty()) {
-            builder.where.addFirst(buildWhereClause(pagination.before(), paginateOn, true));
+            builder.primaryWhere(buildWhereClause(pagination.before(), paginateOn, true));
             limit++;
         }
 
@@ -537,7 +548,7 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                     ColInfo[] columns = new ColInfo[colCount + 1];
                     for (int i = 1; i <= colCount; i++) {
                         var colName = rs.getMetaData().getColumnName(i);
-                        columns[i] = new ColInfo(builder.lowercasedAliases.getOrDefault(colName, colName), rs.getMetaData().getColumnTypeName(i));
+                        columns[i] = new ColInfo(builder.getRealName(colName), rs.getMetaData().getColumnTypeName(i));
                     }
 
                     var lst = new ArrayList<Map<String, Object>>(expected);
@@ -636,8 +647,8 @@ public class SqlSearchHelper implements DatabaseSearchHelper {
                     pag.put("hasPreviousPage", hasPrevious);
                     pag.put("hasNextPage", hasNext);
                     if (!lst.isEmpty()) {
-                        pag.put("startCursor", Utils.base64(Utils.joinList(lst.getFirst().get("id"))));
-                        pag.put("endCursor", Utils.base64(Utils.joinList(lst.getLast().get("id"))));
+                        pag.put("startCursor", Utils.cursorEncode(lst.getFirst().get("id")));
+                        pag.put("endCursor", Utils.cursorEncode(lst.getLast().get("id")));
                     }
 
                     return Map.of(

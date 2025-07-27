@@ -153,7 +153,7 @@ public class DatabaseType {
 
         public Builder directFields(String... fields) {
             for (String field : fields) {
-                this.fields.put(field, QueryBuilder.column(tableName + "." + field));
+                this.fields.put(field, QueryBuilder.directColumn(tableName + "." + field));
             }
             return this;
         }

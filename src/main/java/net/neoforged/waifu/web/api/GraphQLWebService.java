@@ -301,7 +301,7 @@ public class GraphQLWebService {
                         .dataFetcher("cursor", environment -> {
                             Map<String, Object> obj = environment.getSource();
                             // noinspection DataFlowIssue
-                            return Utils.base64(Utils.joinList(obj.get("id")));
+                            return Utils.cursorEncode(obj.get("id"));
                         })
                         .dataFetcher("node", DataFetchingEnvironment::getSource));
             }
