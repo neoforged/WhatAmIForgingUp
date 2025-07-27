@@ -45,11 +45,6 @@ import static net.neoforged.waifu.db.sql.search.DatabaseType.applyOrder;
 
 @SuppressWarnings("FieldCanBeLocal")
 public class SQLSearchHelper implements DatabaseSearchHelper {
-    public static final Map<String, FilterCriterion> MANIFEST_CRITERIA = Map.of(
-            "name", FilterCriterion.jsonExpression("mods.manifest", "$.*[*].key"),
-            "value", FilterCriterion.jsonExpression("mods.manifest", "$.*[*].value")
-    );
-
     private static final Map<String, FilterCriterion> TAG_CRITERIA = Map.of(
             "name", FilterCriterion.column("tagname"),
             "replace", FilterCriterion.column("tags.replace"),
@@ -113,6 +108,8 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
         mod = schema.registerType("mods", b -> b
                 .directFields("id", "name", "authors", "license", "version", "manifest")
+                .field("modIds", directColumn("jsonb_path_query_array(mods.mod_metadata_json, '" + (loader == ModLoader.FABRIC ? "$.id" : "$.mods[*].modId") + "')"))
+
                 .field("curseforgeProjectId", "curseforge_project_id").field("modrinthProjectId", "modrinth_project_id")
                 .field("mavenCoordinates", "maven_coordinates")
                 .field("indexedOn", "index_date")
@@ -127,18 +124,22 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                     }
                 })
 
-                .filters(Map.of(
-                        "name", FilterCriterion.column("mods.name"),
-                        "authors", FilterCriterion.column("mods.authors"),
-                        "license", FilterCriterion.column("mods.license"),
+                .filterOnColumn("name", "mods.name")
+                .filterOnColumn("authors", "mods.authors")
+                .filterOnColumn("license", "mods.license")
+                .filterOnColumn("curseforgeProjectId", "mods.curseforgeProjectId")
+                .filterOnColumn("modrinthProjectId", "mods.modrinth_project_id")
+                .filter("inPack", new InPackCriterion("mods.curseforge_project_id", "mods.modrinth_project_id"))
 
-                        "inPack", new InPackCriterion("curseforge_project_id", "modrinth_project_id"),
-                        "curseforgeProjectId", FilterCriterion.column("curseforge_project_id"),
-                        "modrinthProjectId", FilterCriterion.column("modrinth_project_id"),
-
-                        "anyManifestAttribute", val -> SqlCondition.parseAsCriterion((Map<String, Object>) val, MANIFEST_CRITERIA)
+                .filterWithSubQuery("anyManifestAttribute", "json_table(mods.manifest, '$.*[*]' columns (key text path '$.key', value text path '$.value')) as man", Map.of(
+                        "name", FilterCriterion.column("man.key"),
+                        "value", FilterCriterion.column("man.value")
                 ))
-                .filterOnColumn("indexed", "index_date", SqlFilter.DATE_TIME_FILTER)
+                .filterWithSubQuery("anyNestedArtifact", "json_table(mods.nested_tree, '$[*].** ? (@.id != null)' columns (id text path '$.id', version text path '$.version')) as nested", Map.of(
+                        "id", FilterCriterion.column("nested.id"),
+                        "version", FilterCriterion.column("nested.version")
+                ))
+                .filterOnColumn("indexed", "mods.index_date", SqlFilter.DATE_TIME_FILTER)
                 .filter("modId", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.id" : "$.mods[*].modId"))
                 .filter("description", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.description" : "$.mods[*].description"))
                 .filterOnTable("anyClass", "class_defs")

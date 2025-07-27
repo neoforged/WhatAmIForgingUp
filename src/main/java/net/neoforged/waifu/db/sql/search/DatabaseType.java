@@ -1,10 +1,13 @@
 package net.neoforged.waifu.db.sql.search;
 
 import graphql.schema.SelectedField;
+import org.intellij.lang.annotations.Language;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 public class DatabaseType {
     private final DatabaseSchema schema;
@@ -200,6 +203,16 @@ public class DatabaseType {
                 }
 
                 return "exists (" + sub.requestColumn("*", null).where(SqlCondition.parseAsCriterion((Map<String, Object>) value, schema.getType(table).filters)).format() + ")";
+            });
+            return this;
+        }
+
+        @SuppressWarnings("unchecked")
+        public Builder filterWithSubQuery(String filterType, @Language("sql") String selector, Map<String, FilterCriterion> criteria) {
+            filters.put(filterType, value -> {
+                var condition = SqlCondition.parseAsCriterion((Map<String, Object>) value, criteria);
+                return ctx ->
+                        "exists (select 1 from " + selector + " where " + condition.build(ctx) + ")";
             });
             return this;
         }

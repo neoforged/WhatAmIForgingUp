@@ -108,6 +108,13 @@ interface BaseMod @implement(interfaces: "Identifiable") {
     "The license of this mod (derived from mod metadata)"
     license: String
 
+    """
+    The mod IDs of this mod.
+    Some loaders only allow a mod to have one ID (Fabric) while others may allow a mod file to have multiple mod IDs.
+    For non-mod files this will be null.
+    """
+    modIds: [String!]
+
     "The ID of the CurseForge project associated with this mod"
     curseforgeProjectId: Int
     "The ID of the Modrinth project associated with this mod"
@@ -594,6 +601,9 @@ input ModPredicate @predicateType @oneOf {
     "A mod will match if any of the manifest attributes its jar has matches the given filter"
     anyManifestAttribute: ManifestAttributePredicate
 
+    "A mod will match if any of the artifacts it nests (this check applies to the whole tree) matches the given predicate"
+    anyNestedArtifact: NestedArtifactPredicate
+
     "A mod will match if it is contained in the pack with the given ID"
     inPack: ProjectId
 
@@ -651,6 +661,14 @@ input ManifestAttributePredicate @predicateType @oneOf {
     name: StringPredicate
     "Filter based on the attribute value"
     value: StringPredicate
+}
+
+"Used to filter nested artifact coordinates based on their ID and/or version"
+input NestedArtifactPredicate @predicateType @oneOf {
+    "Filter based on the nested artifact ID"
+    id: StringPredicate
+    "Filter based on the nested artifact version"
+    version: StringPredicate
 }
 
 "Information about pagination in a connection."
