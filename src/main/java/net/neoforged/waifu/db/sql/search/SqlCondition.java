@@ -70,6 +70,11 @@ public interface SqlCondition {
             return SqlCondition.anyOf(anyOf.stream().map(f -> parseAsCriterion(f, criteria, appliedCriteria)).toList());
         }
 
+        var noneOf = (List<Map<String, Object>>) filter.get("noneOf");
+        if (noneOf != null) {
+            return SqlCondition.allOf(noneOf.stream().map(f -> not(parseAsCriterion(f, criteria, appliedCriteria))).toList());
+        }
+
         var not = (Map<String, Object>) filter.get("not");
         if (not != null) {
             return SqlCondition.not(parseAsCriterion(not, criteria, appliedCriteria));

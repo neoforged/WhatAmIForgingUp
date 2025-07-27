@@ -697,6 +697,9 @@ input StringPredicate @oneOf @predicateType {
     "The string being filtered must be equal to the given string."
     equals: String
 
+    "The string being filtered must be equal to at least one of the given strings."
+    isIn: [String!]
+
     "The string being filtered must match the given regex pattern."
     matches: String
 

@@ -117,6 +117,10 @@ public interface SqlFilter {
         return make((field, ctx) -> field + " = " + ctx.insert(value), lhs -> lhs + " == \"" + value + "\"");
     }
 
+    static SqlFilter isIn(Object value) {
+        return (field, ctx) -> field + " = any(" + ctx.insert(value) + ")";
+    }
+
     static SqlFilter matches(String regex) {
         return make((field, ctx) -> field + " ~ " + ctx.insert(regex), lhs -> lhs + " like_regex \"" + regex + "\"");
     }
@@ -212,12 +216,16 @@ public interface SqlFilter {
 
                 return switch ((String) filterEntry.getKey()) {
                     case "equals" -> SqlFilter.eq(filterEntry.getValue());
+                    case "isIn" -> SqlFilter.isIn(filterEntry.getValue());
                     case "not" -> SqlFilter.not(parse(filterEntry.getValue()));
 
                     case "allOf" -> SqlFilter.allOf(((List<Map<String, Object>>) filterEntry.getValue())
                             .stream().map(this::parse).toList());
                     case "anyOf" -> SqlFilter.anyOf(((List<Map<String, Object>>) filterEntry.getValue())
                             .stream().map(this::parse).toList());
+
+                    case "noneOf" -> SqlFilter.allOf(((List<Map<String, Object>>) filterEntry.getValue())
+                            .stream().map(v -> SqlFilter.not(this.parse(v))).toList());
 
                     case "isNull" -> ((Boolean) filterEntry.getValue()) ?
                             make((f, ctx) -> f + " is null", l -> l + " == null") :
