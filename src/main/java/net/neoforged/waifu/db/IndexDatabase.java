@@ -1,6 +1,5 @@
 package net.neoforged.waifu.db;
 
-import com.google.common.collect.Multimap;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModPlatform;
@@ -26,8 +25,6 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
     T getModByCoordinates(String coords);
 
     List<T> getModsByName(String name);
-
-    Multimap<String, T> getModsByNameAtLeast2();
 
     @Nullable
     T getModByFileHash(String fileSha1);

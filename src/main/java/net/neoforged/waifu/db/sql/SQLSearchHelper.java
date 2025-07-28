@@ -123,6 +123,8 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                         builder.requestColumn("case when jsonb_array_length(" + columnName + ") = 1 then " + columnName + " -> 0 when jsonb_array_length(" + columnName + ") = 0 then null else " + columnName + " end", fieldName);
                     }
                 })
+                .field("nestedArtifacts", "mods.nested_tree")
+                .field("nestedArtifactsFlat", directColumn("jsonb_path_query_array(mods.nested_tree, '$[*].** ? (@.id != null)')"))
 
                 .filterOnColumn("name", "mods.name")
                 .filterOnColumn("authors", "mods.authors")

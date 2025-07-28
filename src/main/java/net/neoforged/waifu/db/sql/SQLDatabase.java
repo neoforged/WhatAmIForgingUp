@@ -1,7 +1,5 @@
 package net.neoforged.waifu.db.sql;
 
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -167,22 +165,6 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                 handle.createQuery("select * from mods where name = ?")
                         .bind(0, name)
                         .execute(returningListOf(SqlMod::new)));
-    }
-
-    @Override
-    public Multimap<String, SqlMod> getModsByNameAtLeast2() {
-        return jdbi.withHandle(handle ->
-                handle.createQuery("""
-with bycount as (select count(mods.id), mods.name from mods group by mods.name order by count desc)
-select mods.* from bycount
-join mods on mods.name = bycount.name
-where bycount.count >= 2
-order by mods.name;""")
-                        .execute(map(returningListOf(SqlMod::new), sqlMods -> {
-                            var map = Multimaps.<String, SqlMod>newListMultimap(new HashMap<>(), () -> new ArrayList<>(2));
-                            sqlMods.forEach(mod -> map.put(mod.getName(), mod));
-                            return map;
-                        })));
     }
 
     @Override

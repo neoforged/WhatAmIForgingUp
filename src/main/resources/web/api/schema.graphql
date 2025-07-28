@@ -136,6 +136,18 @@ interface BaseMod @implement(interfaces: "Identifiable") {
     - `fabric.mod.json` for Fabric
     """
     metadata("Optional JSONPath to return the element(s) at a specific path from the metadata" path: String): JSON
+
+    """
+    The artifacts this mod file nests within itself, using a jar-in-jar system.
+    Note that this is returned as a tree, rather than a flat array containing sub-nested artifacts.
+    """
+    nestedArtifacts: [NestedArtifactNode!]
+
+    """
+    The artifacts this mod file nests within itself, using a jar-in-jar system.
+    Note that unlike `nestedArtifacts`, this is returned as a flat array, rather than a tree.
+    """
+    nestedArtifactsFlat: [NestedArtifact!]
 }
 
 """
@@ -274,6 +286,28 @@ type EnumExtension @implement(interfaces: "ModOwned") {
     name: String!
     "The source of the parameters"
     parameters: JSON!
+}
+
+"Represents an artifact nested within another one"
+interface BaseNestedArtifact {
+    "The ID of this artifact"
+    id: String!
+    "The version of this artifact"
+    version: String!
+}
+
+"Represents an artifact nested within another one, in a strictly flat structure."
+type NestedArtifact @implement(interfaces: "BaseNestedArtifact") {
+    _: String
+}
+
+"""
+Represents an artifact nested within another one, as a tree.
+This type provides access to children nested artifacts.
+"""
+type NestedArtifactNode @implement(interfaces: "BaseNestedArtifact") {
+    "The artifacts this artifact nests further within it"
+    nested: [NestedArtifactNode!]
 }
 
 "An annotation instance (the type and its value as a JSON object)"
