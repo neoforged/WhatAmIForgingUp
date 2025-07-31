@@ -83,6 +83,20 @@ type GameVersion {
         where: RecipeFilePredicate
     ): RecipeFile @paginated
 
+    """
+    Get the data files known by this game version for the given `location` that optionally match the given predicate.
+    Note that this will not return files already indexed through other means (i.e. tags, data maps and recipes). Use the dedicated fields to query those.
+    """
+    dataFiles(
+        """
+        The base path of the data files to return.
+        For instance, with a base path of `a/b`, data files with a path of `<namespace>/a/b/<path>.json` will be returned.
+        """
+        location: String,
+        "An optional filter applied to the returned data files"
+        where: DataFilePredicate,
+    ): DataFile @paginated
+
     "Get the enum extensions known by this game version that optionally match the given predicate"
     enumExtensions(
         "Optional filter applied to the query"
@@ -198,6 +212,22 @@ type Mod @implement(interfaces: ["Identifiable", "BaseMod"]) {
         limit: Int
     ): [RecipeFile!]!
 
+    """
+    Get the data files this mod defines for the given `location`.
+    Note that this will not return files already indexed through other means (i.e. tags, data maps and recipes). Use the dedicated fields to query those.
+    """
+    dataFiles(
+        """
+        The base path of the data files to return.
+        For instance, with a base path of `a/b`, data files with a path of `<namespace>/a/b/<path>.json` will be returned.
+        """
+        location: String,
+        "An optional filter applied to the returned data files"
+        where: DataFilePredicate,
+        "Limit the amount of data files returned"
+        limit: Int
+    ): [DataFile!]!
+
     "Get the enum extensions this mod defines"
     enumExtensions(
         "An optional filter applied to the returned entries"
@@ -253,6 +283,14 @@ type RecipeFile @implement(interfaces: "ModOwned") {
     type: String!
     "The contents of the recipe file, in JSON format. This object does not include the `type`."
     recipe: JSON!
+}
+
+"An arbitrary JSON data file"
+type DataFile @implement(interfaces: "ModOwned") {
+    "The name of this file (e.g. `mymod:my/file` for a file at `data/mymod/somepath/my/file.json`, with the base path of the query being `somepath`)"
+    name: String!
+    "The contents of the data file."
+    value: JSON!
 }
 
 "A NeoForge data map file"
@@ -362,7 +400,10 @@ interface BaseClass @implement(interfaces: "Identifiable") {
     ): [Field!]!
 
     "Returns all known concrete definitions of the class"
-    definitions: [ClassDefinition!]!
+    definitions(
+        "Optional filter applied to the query"
+        where: ClassDefinitionPredicate
+    ): [ClassDefinition!]!
 }
 
 """
@@ -595,6 +636,14 @@ input RecipeFilePredicate @predicateType @oneOf {
     "Filter based on the recipe type"
     type: StringPredicate
     "Filter based on the recipe JSON (the object given to this predicate does not include the type)"
+    recipe: JSONPredicate
+}
+
+"Used to filter data files based on different criteria"
+input DataFilePredicate @predicateType @oneOf {
+    "Filter based on the data file name"
+    name: StringPredicate
+    "Filter based on the data file JSON contents"
     recipe: JSONPredicate
 }
 

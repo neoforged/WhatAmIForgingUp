@@ -26,7 +26,7 @@ public interface SqlCondition {
         return ctx -> "not (" + ops.build(ctx) + ")";
     }
 
-    static SqlCondition columnFilter(SqlFilter op, String col) {
+    static SqlCondition columnFilter(String col, SqlFilter op) {
         return ctx -> op.buildSql(col, ctx);
     }
 

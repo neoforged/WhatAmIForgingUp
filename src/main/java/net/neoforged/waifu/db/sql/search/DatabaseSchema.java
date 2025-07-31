@@ -43,6 +43,23 @@ public class DatabaseSchema {
         registerForwardJoin(from, alias, new IndependentJoinCondition(to, joinCondition));
     }
 
+    public interface JoinChain {
+        JoinChain to(String table, String alias, SqlCondition condition);
+    }
+
+    public JoinChain joinChain(String from) {
+        return new JoinChain() {
+            String last = from;
+
+            @Override
+            public JoinChain to(String table, String alias, SqlCondition condition) {
+                registerIndependentJoin(last, table, alias, condition);
+                last = alias;
+                return this;
+            }
+        };
+    }
+
     public void join(SqlSearchBuilder builder, String from, String to) {
         var rule = getJoinRule(from, to);
         if (rule instanceof IndependentJoinCondition(var real, var cond)) {

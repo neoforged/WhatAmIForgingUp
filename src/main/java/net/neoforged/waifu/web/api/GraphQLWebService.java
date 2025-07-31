@@ -293,6 +293,7 @@ public class GraphQLWebService {
                                 .dataFetcher("classDefinitions", dbHelper(DatabaseSearchHelper::getClassDefinitions))
 
                                 .dataFetcher("recipes", dbHelper(DatabaseSearchHelper::getRecipes))
+                                .dataFetcher("dataFiles", dbHelper(DatabaseSearchHelper::getDataFiles))
                                 .dataFetcher("enumExtensions", dbHelper(DatabaseSearchHelper::getEnumExtensions))
 
                                 .dataFetcher("loader", get(Version::loaderAsGraphQLEnum))

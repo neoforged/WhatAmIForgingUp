@@ -1,12 +1,16 @@
 package net.neoforged.waifu.db.sql.search;
 
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import graphql.schema.SelectedField;
 import org.intellij.lang.annotations.Language;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 public class DatabaseType {
@@ -17,13 +21,15 @@ public class DatabaseType {
 
     private final Map<String, QueryBuilder> fields;
     private final Map<String, FilterCriterion> filters;
+    private final Map<String, Collection<PassThroughArgument>> arguments;
 
-    public DatabaseType(DatabaseSchema schema, String tableName, String groupBy, Map<String, QueryBuilder> fields, Map<String, FilterCriterion> filters) {
+    public DatabaseType(DatabaseSchema schema, String tableName, String groupBy, Map<String, QueryBuilder> fields, Map<String, FilterCriterion> filters, Map<String, Collection<PassThroughArgument>> arguments) {
         this.schema = schema;
         this.tableName = tableName;
         this.groupBy = groupBy;
         this.fields = fields;
         this.filters = filters;
+        this.arguments = arguments;
     }
 
     public SqlSearchBuilder createQuery() {
@@ -46,6 +52,21 @@ public class DatabaseType {
         var filter = (Map<String, Object>) selectedField.getArguments().get("where");
         if (filter != null) {
             applyFilter(builder, filter);
+        }
+    }
+
+    public void applyQueryArguments(SqlSearchBuilder builder, SelectedField selectedField) {
+        applyQueryArguments(builder, selectedField.getArguments());
+    }
+
+    public void applyQueryArguments(SqlSearchBuilder builder, Map<String, Object> args) {
+        for (var entry : arguments.entrySet()) {
+            var value = args.get(entry.getKey());
+            if (value != null) {
+                for (PassThroughArgument arg : entry.getValue()) {
+                    builder.addQueryVariable(arg.alias(), arg.transformer().apply(value));
+                }
+            }
         }
     }
 
@@ -73,6 +94,7 @@ public class DatabaseType {
                 builder.columnSubQuery(schema.tableName, fieldName, sub -> {
                     sub.where(topLevel.schema.getJoinRule(builder.table, schema.tableName));
                     schema.apply(sub, selection);
+                    schema.applyQueryArguments(sub, selection);
                     sub.requestAsJson();
                 });
             };
@@ -88,6 +110,7 @@ public class DatabaseType {
                 builder.arrayAggregateSubQuery(type.tableName, fieldName, sub -> {
                     sub.where(topLevel.schema.getJoinRule(builder.table, typeName));
                     type.apply(sub, selection);
+                    type.applyQueryArguments(sub, selection);
                     applyLimit(sub, selection);
                     DatabaseType.applyOrder(type, sub, selection);
                 });
@@ -147,7 +170,7 @@ public class DatabaseType {
         private String groupBy;
         private final Map<String, QueryBuilder> fields = new HashMap<>();
         private final Map<String, FilterCriterion> filters = new HashMap<>();
-
+        private final Multimap<String, PassThroughArgument> arguments = Multimaps.newListMultimap(new HashMap<>(), ArrayList::new);
 
         public Builder field(String field, QueryBuilder query) {
             fields.put(field, query);
@@ -227,8 +250,24 @@ public class DatabaseType {
             return this;
         }
 
+        @SuppressWarnings("unchecked")
+        public <T> Builder passArgument(String argument, String alias, UnaryOperator<T> transformer) {
+            arguments.put(argument, new PassThroughArgument(alias, (UnaryOperator<Object>) transformer));
+            return this;
+        }
+
+        public Builder independentJoin(String onTable, String as, SqlCondition condition) {
+            schema.registerIndependentJoin(tableName, onTable, as, condition);
+            return this;
+        }
+
+        public Builder twoWayJoin(String onTable, SqlCondition condition) {
+            schema.registerTwoWayJoin(tableName, onTable, condition);
+            return this;
+        }
+
         public DatabaseType build() {
-            return new DatabaseType(schema, tableName, groupBy, Collections.unmodifiableMap(fields), Collections.unmodifiableMap(filters));
+            return new DatabaseType(schema, tableName, groupBy, Collections.unmodifiableMap(fields), Collections.unmodifiableMap(filters), Collections.unmodifiableMap(arguments.asMap()));
         }
     }
 
@@ -248,4 +287,6 @@ public class DatabaseType {
             type.fields.get(field).applyOrder(type, builder, orderEntry.getValue());
         }
     }
+
+    private record PassThroughArgument(String alias, UnaryOperator<Object> transformer) {}
 }

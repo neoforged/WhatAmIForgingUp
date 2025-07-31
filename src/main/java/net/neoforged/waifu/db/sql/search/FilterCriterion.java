@@ -11,7 +11,7 @@ public interface FilterCriterion {
     }
 
     static FilterCriterion column(String col, SqlFilter.FilterType type) {
-        return value -> SqlCondition.columnFilter(type.parse(value), col);
+        return value -> SqlCondition.columnFilter(col, type.parse(value));
     }
 
     static FilterCriterion jsonExpression(String column, String expression) {

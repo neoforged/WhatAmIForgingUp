@@ -62,7 +62,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     private final DatabaseSchema schema;
 
-    private final DatabaseType recipes, enum_extensions, mod, classes, class_defs;
+    private final DatabaseType recipes, enum_extensions, data_files, mod, classes, class_defs;
 
     @SuppressWarnings("unchecked")
     public SQLSearchHelper(Jdbi jdbi, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
@@ -105,6 +105,34 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         schema.registerIndependentJoin("enum_extensions", "constants", "extension_ctor", SqlCondition.equals("enum_extensions.constructor", "extension_ctor.id"));
 
         schema.registerTwoWayJoin("mods", "enum_extensions", SqlCondition.equals("mods.id", "enum_extensions.mod"));
+
+        data_files = schema.registerType("data_files", b -> b
+                .<String>passArgument(
+                        "location",
+                        "data_file_base_path",
+                        path -> "/" + path.replace(':', '/').replace("minecraft/", "") + "/"
+                )
+                .<String>passArgument(
+                        "location",
+                        "data_file_path_regex",
+                        path -> "^\\w+/" + path.replace(':', '/').replace("minecraft/", "") + "/.+"
+                )
+
+                .directFields("value")
+                .field("name", "data_file_name.data_file_name")
+                .field("mod",  subTable("mods"))
+
+                .filterOnColumn("name", "data_file_name.data_file_name")
+                .filterOnColumn("value", "data_files.value",  SqlFilter.JSON_FILTER)
+
+                .twoWayJoin("mods", SqlCondition.equals("data_files.mod", "mods.id")));
+
+        schema.joinChain("data_files")
+                .to("constants", "data_file_path", SqlCondition.allOf(List.of(
+                        SqlCondition.equals("data_file_path.id", "data_files.path"),
+                        SqlCondition.condition("data_file_path.constant ~ ${data_file_path_regex}")
+                )))
+                .to("replace(data_file_path.constant, ${data_file_base_path}, ':')", "data_file_name", SqlCondition.TRUE);
 
         mod = schema.registerType("mods", b -> b
                 .directFields("id", "name", "authors", "license", "version", "manifest")
@@ -150,6 +178,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 .field("classes", listSubTable("class_defs"))
                 .field("enumExtensions", listSubTable(enum_extensions))
                 .field("recipes", listSubTable(recipes))
+                .field("dataFiles", listSubTable(data_files))
 
                 // TODO - these are special because of the registry, figure out a way not to need to make them special
                 .field("tags", (type, builder, fieldName, field) -> builder.arrayAggregateSubQuery("tags", columnAlias(field), sub -> {
@@ -400,7 +429,6 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     @Override
     public Object getModsById(DataFetchingEnvironment env) {
         var builder = mod.createQuery();
-        builder.requestColumn("mods.id", "id");
 
         var mods = env.getSelectionSet().getFields("edges/node");
         if (!mods.isEmpty()) {
@@ -417,7 +445,6 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     @Override
     public Object getMods(DataFetchingEnvironment env) {
         var builder = mod.createQuery();
-        builder.requestColumn("mods.id", "id");
 
         var mods = env.getSelectionSet().getFields("edges/node");
         if (!mods.isEmpty()) {
@@ -435,7 +462,6 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     @Override
     public Object getClasses(DataFetchingEnvironment env) {
         var builder = classes.createQuery();
-        builder.requestColumn("classes.id", "id");
 
         var classes = env.getSelectionSet().getFields("edges/node");
         if (!classes.isEmpty()) {
@@ -453,7 +479,6 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     @Override
     public Object getClassDefinitions(DataFetchingEnvironment env) {
         var builder = class_defs.createQuery();
-        builder.requestColumn("class_defs.id", "id");
 
         var classes = env.getSelectionSet().getFields("edges/node");
         if (!classes.isEmpty()) {
@@ -471,7 +496,6 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     @Override
     public Object getRecipes(DataFetchingEnvironment env) {
         var builder = recipes.createQuery();
-        builder.requestColumn("array[recipes.mod, recipes.name]", "id");
 
         var recipes = env.getSelectionSet().getFields("edges/node");
         if (!recipes.isEmpty()) {
@@ -487,9 +511,26 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     }
 
     @Override
+    public Object getDataFiles(DataFetchingEnvironment env) {
+        var builder = data_files.createQuery();
+        this.data_files.applyQueryArguments(builder, env.getArguments());
+
+        var dataFiles = env.getSelectionSet().getFields("edges/node");
+        if (!dataFiles.isEmpty()) {
+            this.data_files.apply(builder, dataFiles.getFirst());
+        }
+
+        Map<String, Object> filter = env.getArgument("where");
+        if (filter != null) {
+            this.data_files.applyFilter(builder, filter);
+        }
+
+        return paginate(builder, Pagination.parse(env.getArguments()), "data_files.mod", "data_files.path");
+    }
+
+    @Override
     public Object getEnumExtensions(DataFetchingEnvironment env) {
         var builder = enum_extensions.createQuery();
-        builder.requestColumn("array[enum_extensions.mod, enum_extensions.enum, enum_extensions.name]", "id");
 
         var extensions = env.getSelectionSet().getFields("edges/node");
         if (!extensions.isEmpty()) {
@@ -512,6 +553,8 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     }
 
     private Object paginate(SqlSearchBuilder builder, Pagination pagination, String... paginateOn) {
+        builder.requestColumn(paginateOn.length == 1 ? paginateOn[0] : ("array[" + String.join(", ", paginateOn) + "]"), "id");
+
         for (String pag : paginateOn) {
             if (pagination.descending()) {
                 builder.orderBy(pag + " desc");

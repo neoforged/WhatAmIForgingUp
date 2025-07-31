@@ -31,6 +31,7 @@ public final class SqlSearchBuilder {
     private final List<SqlCondition> having = new ArrayList<>();
     private final SqlArgumentContext ctx;
     private final Multimap<String, SqlCondition> joins = Multimaps.newListMultimap(new LinkedHashMap<>(), ArrayList::new);
+    private final Map<String, Object> variables = new HashMap<>();
 
     private boolean requestAsJson;
 
@@ -67,6 +68,10 @@ public final class SqlSearchBuilder {
         return lowercasedAliases.getOrDefault(name, name);
     }
 
+    public void addQueryVariable(String name, Object value) {
+        variables.put(name, value);
+    }
+
     public SqlSearchBuilder requestColumn(String col, @Nullable String alias) {
         columns.put(alias, col);
         if (alias != null) {
@@ -82,7 +87,7 @@ public final class SqlSearchBuilder {
     }
 
     public SqlSearchBuilder where(String column, SqlFilter filter) {
-        where.add(SqlCondition.columnFilter(filter, column));
+        where.add(SqlCondition.columnFilter(column, filter));
         return this;
     }
 
@@ -196,7 +201,20 @@ public final class SqlSearchBuilder {
         if (limit > 0) {
             builder.append(" limit ").append(limit);
         }
-        return builder.toString();
+
+        return replaceVariables(builder.toString());
+    }
+
+    private String replaceVariables(String value) {
+        for (var entry : variables.entrySet()) {
+            value = value.replace("${" + entry.getKey() + "}", insert(entry.getValue()));
+        }
+
+        if (parent != null) {
+            value = parent.replaceVariables(value);
+        }
+
+        return value;
     }
 
     public Query build(Handle handle) {
