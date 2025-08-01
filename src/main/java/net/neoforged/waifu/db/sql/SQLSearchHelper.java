@@ -158,6 +158,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 .filterOnColumn("name", "mods.name")
                 .filterOnColumn("authors", "mods.authors")
                 .filterOnColumn("license", "mods.license")
+                .filterOnColumn("mavenCoordinates", "mods.maven_coordinates")
                 .filterOnColumn("curseforgeProjectId", "mods.curseforgeProjectId")
                 .filterOnColumn("modrinthProjectId", "mods.modrinth_project_id")
                 .filter("inPack", new InPackCriterion("mods.curseforge_project_id", "mods.modrinth_project_id"))
