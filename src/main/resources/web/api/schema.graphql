@@ -71,6 +71,15 @@ type GameVersion {
         where: ClassPredicate
     ): Class @paginated
 
+    """
+    Get the class with the given `name`. If no such class exists in this game version, this will return `null`.
+    In contrast to `GameVersion.classes`, this can only query one class by an exact name match, being easier to use and slightly more efficient.
+    """
+    class(
+        "The name of the class to query"
+        name: String
+    ): Class
+
     "Get the class definitions known by this game version that optionally match the given predicate"
     classDefinitions(
         "Optional filter applied to the query"

@@ -56,12 +56,8 @@ public class DatabaseType {
     }
 
     public void applyQueryArguments(SqlSearchBuilder builder, SelectedField selectedField) {
-        applyQueryArguments(builder, selectedField.getArguments());
-    }
-
-    public void applyQueryArguments(SqlSearchBuilder builder, Map<String, Object> args) {
         for (var entry : arguments.entrySet()) {
-            var value = args.get(entry.getKey());
+            var value = selectedField.getArguments().get(entry.getKey());
             if (value != null) {
                 for (PassThroughArgument arg : entry.getValue()) {
                     builder.addQueryVariable(arg.alias(), arg.transformer().apply(value));

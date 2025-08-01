@@ -22,6 +22,7 @@ import org.jdbi.v3.core.statement.StatementCustomizer;
 import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -477,6 +478,28 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     }
 
     @Override
+    public Object getClass(DataFetchingEnvironment env) {
+        var builder = classes.createQuery()
+                .where(ctx -> "classes.name = " + ctx.insert(env.getArgument("name")));
+        classes.apply(builder, getEnvSelection(env));
+
+        return executeQuery(builder, (rs, ctx, columns) -> {
+            if (!rs.next()) {
+                return null;
+            }
+
+            var map = HashMap.<String, Object>newHashMap(rs.getMetaData().getColumnCount());
+
+            for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+                var col = columns[i];
+                map.put(col.resultName(), col.read(rs, i));
+            }
+
+            return map;
+        });
+    }
+
+    @Override
     public Object getClassDefinitions(DataFetchingEnvironment env) {
         var builder = class_defs.createQuery();
 
@@ -513,7 +536,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     @Override
     public Object getDataFiles(DataFetchingEnvironment env) {
         var builder = data_files.createQuery();
-        this.data_files.applyQueryArguments(builder, env.getArguments());
+        this.data_files.applyQueryArguments(builder, getEnvSelection(env));
 
         var dataFiles = env.getSelectionSet().getFields("edges/node");
         if (!dataFiles.isEmpty()) {
@@ -545,11 +568,76 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         return paginate(builder, Pagination.parse(env.getArguments()), "enum_extensions.mod", "enum_extensions.enum", "enum_extensions.name");
     }
 
+    private static SelectedField getEnvSelection(DataFetchingEnvironment env) {
+        return env.getSelectionSet().getImmediateFields().getFirst().getParentField();
+    }
+
     private String columnAlias(SelectedField field) {
         if (field.getAlias() == null) {
             return field.getName();
         }
         return "$" + field.getAlias();
+    }
+
+    private record ColInfo(String resultName, String type) {
+        public Object read(ResultSet rs, int index) throws SQLException {
+            if (type.startsWith("json")) {
+                var json = rs.getString(index);
+                return Utils.GSON.fromJson(json, Object.class);
+            } else if (type.equals("timestamptz")) {
+                var stamp = rs.getTimestamp(index);
+                return OffsetDateTime.ofInstant(stamp.toInstant(), ZoneId.systemDefault());
+            } else {
+                var o = rs.getObject(index);
+                if (o instanceof Array ar) {
+                    return Arrays.asList((Object[]) ar.getArray());
+                }
+                return o;
+            }
+        }
+    }
+    private interface DBResultProducer<R> {
+        R produce(ResultSet rs, StatementContext ctx, ColInfo[] columns) throws SQLException;
+    }
+
+    private <T> T executeQuery(SqlSearchBuilder builder, DBResultProducer<T> producer) {
+        return jdbi.withHandle(handle -> builder.build(handle)
+                .addCustomizer(new StatementCustomizer() {
+                    PreparedStatement stmt;
+                    {
+                        cancellationInvoker.accept(() -> {
+                            if (stmt != null) {
+                                try {
+                                    stmt.cancel();
+                                } catch (SQLException ignored) {
+                                }
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void beforeExecution(PreparedStatement stmt, StatementContext ctx) throws SQLException {
+                        this.stmt = stmt;
+                    }
+
+                    @Override
+                    public void afterExecution(PreparedStatement stmt, StatementContext ctx) throws SQLException {
+                        this.stmt = null;
+                    }
+                })
+                .execute((statementSupplier, ctx) -> {
+                    var rs = statementSupplier.get().getResultSet();
+
+                    int colCount = rs.getMetaData().getColumnCount();
+
+                    ColInfo[] columns = new ColInfo[colCount + 1];
+                    for (int i = 1; i <= colCount; i++) {
+                        var colName = rs.getMetaData().getColumnName(i);
+                        columns[i] = new ColInfo(builder.getRealName(colName), rs.getMetaData().getColumnTypeName(i));
+                    }
+
+                    return producer.produce(rs, ctx, columns);
+                }));
     }
 
     private Object paginate(SqlSearchBuilder builder, Pagination pagination, String... paginateOn) {
@@ -579,148 +667,102 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
         var expected = limit;
 
-        return jdbi.withHandle(handle -> builder.build(handle)
-                .addCustomizer(new StatementCustomizer() {
-                    PreparedStatement stmt;
-                    {
-                        cancellationInvoker.accept(() -> {
-                            if (stmt != null) {
-                                try {
-                                    stmt.cancel();
-                                } catch (SQLException ignored) {
-                                }
-                            }
-                        });
-                    }
+        return executeQuery(builder, (rs, ctx, columns) -> {
+            int colCount = rs.getMetaData().getColumnCount();
+            var lst = new ArrayList<Map<String, Object>>(expected);
 
-                    @Override
-                    public void beforeExecution(PreparedStatement stmt, StatementContext ctx) throws SQLException {
-                        this.stmt = stmt;
-                    }
+            boolean haveAfter = false, haveBefore = false;
 
-                    @Override
-                    public void afterExecution(PreparedStatement stmt, StatementContext ctx) throws SQLException {
-                        this.stmt = null;
-                    }
-                })
-                .execute((statementSupplier, ctx) -> {
-                    var rs = statementSupplier.get().getResultSet();
-                    record ColInfo(String resultName, String type) {}
+            while (rs.next()) {
+                var entry = HashMap.<String, Object>newHashMap(colCount);
+                for (int i = 1; i <= colCount; i++) {
+                    var col = columns[i];
+                    var object = col.read(rs, i);
 
-                    int colCount = rs.getMetaData().getColumnCount();
+                    entry.put(col.resultName(), object);
 
-                    ColInfo[] columns = new ColInfo[colCount + 1];
-                    for (int i = 1; i <= colCount; i++) {
-                        var colName = rs.getMetaData().getColumnName(i);
-                        columns[i] = new ColInfo(builder.getRealName(colName), rs.getMetaData().getColumnTypeName(i));
-                    }
-
-                    var lst = new ArrayList<Map<String, Object>>(expected);
-
-                    boolean haveAfter = false, haveBefore = false;
-
-                    while (rs.next()) {
-                        var entry = HashMap.<String, Object>newHashMap(colCount);
-                        for (int i = 1; i <= colCount; i++) {
-                            var col = columns[i];
-                            if (col.type.startsWith("json")) {
-                                var json = rs.getString(i);
-                                entry.put(col.resultName, Utils.GSON.fromJson(json, Object.class));
-                            } else if (col.type.equals("timestamptz")) {
-                                var stamp = rs.getTimestamp(i);
-                                entry.put(col.resultName, OffsetDateTime.ofInstant(stamp.toInstant(), ZoneId.systemDefault()));
-                            } else {
-                                var o = rs.getObject(i);
-                                boolean isArray = false;
-                                if (o instanceof Array ar) {
-                                    isArray = true;
-                                    o = Arrays.asList((Object[])ar.getArray());
-                                }
-                                entry.put(col.resultName, o);
-
-                                if (col.resultName.equals("id")) {
-                                    if (!pagination.after().isEmpty() && Objects.equals(isArray ? o : List.of(o), pagination.after())) {
-                                        haveAfter = true;
-                                    }
-                                    if (!pagination.before().isEmpty() && Objects.equals(isArray ? o : List.of(o), pagination.before())) {
-                                        haveBefore = true;
-                                    }
-                                }
-                            }
+                    if (col.resultName().equals("id")) {
+                        if (!pagination.after().isEmpty() && !haveAfter && Objects.equals(object instanceof List<?> ? object : List.of(object), pagination.after())) {
+                            haveAfter = true;
                         }
-                        lst.add(entry);
-                    }
-
-                    class SwappedPointers<T> {
-                        boolean normal = true;
-                        final List<T> list;
-
-                        SwappedPointers(List<T> list) {
-                            this.list = list;
-                        }
-
-                        public void removeLast() {
-                            if (normal) {
-                                list.removeLast();
-                            } else {
-                                list.removeFirst();
-                            }
-                        }
-
-                        public void removeFirst() {
-                            if (normal) {
-                                list.removeFirst();
-                            } else {
-                                list.removeLast();
-                            }
-                        }
-
-                        public void swap() {
-                            normal = !normal;
+                        if (!pagination.before().isEmpty() && !haveBefore && Objects.equals(object instanceof List<?> ? object : List.of(object), pagination.before())) {
+                            haveBefore = true;
                         }
                     }
+                }
+                lst.add(entry);
+            }
 
-                    var pointers = new SwappedPointers<>(lst);
-                    if (pagination.descending()) {
-                        pointers.swap();
+            class SwappedPointers<T> {
+                boolean normal = true;
+                final List<T> list;
+
+                SwappedPointers(List<T> list) {
+                    this.list = list;
+                }
+
+                public void removeLast() {
+                    if (normal) {
+                        list.removeLast();
+                    } else {
+                        list.removeFirst();
                     }
+                }
 
-                    if (haveAfter) {
-                        pointers.removeFirst();
+                public void removeFirst() {
+                    if (normal) {
+                        list.removeFirst();
+                    } else {
+                        list.removeLast();
                     }
-                    if (haveBefore) {
-                        pointers.removeLast();
-                    }
+                }
 
-                    boolean hasPrevious = haveAfter, hasNext = haveBefore;
+                public void swap() {
+                    normal = !normal;
+                }
+            }
 
-                    while (lst.size() > pagination.limit()) {
-                        if (pagination.descending()) {
-                            hasPrevious = true;
-                        } else {
-                            hasNext = true;
-                        }
-                        lst.removeLast();
-                    }
+            var pointers = new SwappedPointers<>(lst);
+            if (pagination.descending()) {
+                pointers.swap();
+            }
 
-                    if (pagination.descending()) {
-                        Collections.reverse(lst);
-                    }
+            if (haveAfter) {
+                pointers.removeFirst();
+            }
+            if (haveBefore) {
+                pointers.removeLast();
+            }
 
-                    var pag = HashMap.newHashMap(4);
-                    pag.put("hasPreviousPage", hasPrevious);
-                    pag.put("hasNextPage", hasNext);
-                    if (!lst.isEmpty()) {
-                        pag.put("startCursor", Utils.cursorEncode(lst.getFirst().get("id")));
-                        pag.put("endCursor", Utils.cursorEncode(lst.getLast().get("id")));
-                    }
+            boolean hasPrevious = haveAfter, hasNext = haveBefore;
 
-                    return Map.of(
-                            "edges", lst,
-                            "pageInfo", pag,
-                            "count", lst.size()
-                    );
-                }));
+            while (lst.size() > pagination.limit()) {
+                if (pagination.descending()) {
+                    hasPrevious = true;
+                } else {
+                    hasNext = true;
+                }
+                lst.removeLast();
+            }
+
+            if (pagination.descending()) {
+                Collections.reverse(lst);
+            }
+
+            var pag = HashMap.newHashMap(4);
+            pag.put("hasPreviousPage", hasPrevious);
+            pag.put("hasNextPage", hasNext);
+            if (!lst.isEmpty()) {
+                pag.put("startCursor", Utils.cursorEncode(lst.getFirst().get("id")));
+                pag.put("endCursor", Utils.cursorEncode(lst.getLast().get("id")));
+            }
+
+            return Map.of(
+                    "edges", lst,
+                    "pageInfo", pag,
+                    "count", lst.size()
+            );
+        });
     }
 
     private static SqlCondition buildWhereClause(List<Integer> cursorComponents, String[] paginateOn, boolean descending) {

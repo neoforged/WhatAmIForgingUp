@@ -290,6 +290,7 @@ public class GraphQLWebService {
                         builder.dataFetcher("mods", dbHelper(DatabaseSearchHelper::getMods))
                                 .dataFetcher("modsById", dbHelper(DatabaseSearchHelper::getModsById))
                                 .dataFetcher("classes", dbHelper(DatabaseSearchHelper::getClasses))
+                                .dataFetcher("class", dbHelper(DatabaseSearchHelper::getClass))
                                 .dataFetcher("classDefinitions", dbHelper(DatabaseSearchHelper::getClassDefinitions))
 
                                 .dataFetcher("recipes", dbHelper(DatabaseSearchHelper::getRecipes))
