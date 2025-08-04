@@ -161,7 +161,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 .filterOnColumn("mavenCoordinates", "mods.maven_coordinates")
                 .filterOnColumn("curseforgeProjectId", "mods.curseforgeProjectId")
                 .filterOnColumn("modrinthProjectId", "mods.modrinth_project_id")
-                .filter("inPack", new InPackCriterion("mods.curseforge_project_id", "mods.modrinth_project_id"))
+                .filter("inPack", new InPackCriterion("mods.curseforge_project_id", "mods.modrinth_project_id", "mods.maven_coordinates"))
 
                 .filterWithSubQuery("anyManifestAttribute", "json_table(mods.manifest, '$.*[*]' columns (key text path '$.key', value text path '$.value')) as man", Map.of(
                         "name", FilterCriterion.column("man.key"),
@@ -824,17 +824,27 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
     }
 
-    private record InPackCriterion(String curseforgeColumn, String modrinthColumn) implements FilterCriterion.MapOnly {
+    private record InPackCriterion(String curseforgeColumn, String modrinthColumn, String mavenCoordinatesColumn) implements FilterCriterion.MapOnly {
+        private static final String BASE_JIJ_QUERY = "select array_agg(distinct(artifacts->>'id')) from mods join jsonb_path_query(mods.nested_tree, '$[*].** ? (@.id != null)') artifacts on true where mods.nested_tree is not null and ";
+
         @Override
         public SqlCondition apply(Map<String, Object> value) {
             var cf = value.get("curseforge");
             if (cf != null) {
                 var file = Main.CURSE_FORGE_PLATFORM.getModById(cf).getAllFiles().next();
-                return ctx -> curseforgeColumn + " = any(" + ctx.insert(ids(file)) + "::int[])";
+                return ctx -> {
+                    var testExpression = " = any(" + ctx.insert(ids(file)) + "::int[])";
+                    var jijQuery = BASE_JIJ_QUERY + curseforgeColumn + testExpression;
+                    return "(" + curseforgeColumn + testExpression + " or " + mavenCoordinatesColumn + " = any((" + jijQuery + ")::text[]))";
+                };
             }
             var mr = value.get("modrinth");
             var file = Main.MODRINTH_PLATFORM.getModById(mr).getAllFiles().next();
-            return ctx -> modrinthColumn + " = any(" + ctx.insert(ids(file)) + "::text[])";
+            return ctx -> {
+                var testExpression = " = any(" + ctx.insert(ids(file)) + "::text[])";
+                var jijQuery = BASE_JIJ_QUERY + modrinthColumn + testExpression;
+                return "(" + modrinthColumn + testExpression + " or " + mavenCoordinatesColumn + " = any((" + jijQuery + ")::text[]))";
+            };
         }
 
         private Object[] ids(PlatformModFile file) {
