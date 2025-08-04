@@ -132,7 +132,14 @@ public class ModrinthPlatform implements ModPlatform {
 
     @Override
     public List<PlatformModFile> getModsInPack(PlatformModFile pack) {
-        throw new RuntimeException("unsupported");
+        if (!(pack instanceof MRModFile)) {
+            pack = getFiles(List.of(pack.getId())).getFirst();
+        }
+
+        return getFiles(((MRModFile) pack).getDependencies().stream()
+                .filter(dep -> dep.dependency_type == Version.DependencyType.embedded && dep.version_id() != null)
+                .<Object>map(Version.Dependency::version_id)
+                .toList());
     }
 
     @Override
@@ -273,7 +280,7 @@ public class ModrinthPlatform implements ModPlatform {
     private PlatformModFile createModFile(@Nullable PlatformMod inMod, Version version) {
         var downloadFile = version.files.size() == 1 ? version.files.get(0) : version.files.stream().filter(Version.File::primary).findFirst().orElse(null);
         if (downloadFile == null) return null;
-        return new PlatformModFile() {
+        return new MRModFile() {
             private PlatformMod mod = inMod;
 
             @Override
@@ -284,6 +291,11 @@ public class ModrinthPlatform implements ModPlatform {
             @Override
             public Object getId() {
                 return version.id();
+            }
+
+            @Override
+            public List<Version.Dependency> getDependencies() {
+                return version.dependencies;
             }
 
             @Override
@@ -404,12 +416,22 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     private record ProjectResponse(String id, String slug, long downloads, Instant published, String title, String description, String icon_url) {}
-    private record Version(String id, String project_id, List<String> game_versions, List<String> loaders, Instant date_published, List<File> files) {
+    private record Version(String id, String project_id, List<Dependency> dependencies, List<String> game_versions, List<String> loaders, Instant date_published, List<File> files) {
 
         private record File(Hashes hashes, String url, boolean primary, long size) {
 
         }
 
         private record Hashes(String sha1) {}
+
+        private record Dependency(@Nullable String version_id, DependencyType dependency_type) {}
+
+        private enum DependencyType {
+            required, optional, incompatible, embedded
+        }
+    }
+
+    private interface MRModFile extends PlatformModFile {
+        List<Version.Dependency> getDependencies();
     }
 }
