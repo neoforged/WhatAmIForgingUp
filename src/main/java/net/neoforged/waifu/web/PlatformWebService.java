@@ -2,6 +2,7 @@ package net.neoforged.waifu.web;
 
 import io.javalin.Javalin;
 import net.neoforged.waifu.Main;
+import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 
@@ -16,7 +17,7 @@ public class PlatformWebService {
                 var pid = Integer.valueOf(ctx.pathParam("pid"));
                 mod = plat.getModById(pid);
             } catch (NumberFormatException nr) {
-                mod = plat.getModBySlug(ctx.pathParam("pid"));
+                mod = plat.getModBySlug(ctx.pathParam("pid"), ModPlatform.ProjectType.MOD);
             }
 
             PlatformModFile file;

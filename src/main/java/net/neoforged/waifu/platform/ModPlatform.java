@@ -16,7 +16,8 @@ public interface ModPlatform {
 
     PlatformMod getModById(Object id);
 
-    PlatformMod getModBySlug(String slug);
+    @Nullable
+    PlatformMod getModBySlug(String slug, ProjectType type);
 
     Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField field);
 
@@ -35,5 +36,10 @@ public interface ModPlatform {
     enum SearchSortField {
         LAST_UPDATED,
         NEWEST_RELEASED
+    }
+
+    enum ProjectType {
+        MOD,
+        MODPACK
     }
 }

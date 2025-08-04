@@ -702,7 +702,7 @@ input ModPredicate @predicateType @oneOf {
     anyNestedArtifact: NestedArtifactPredicate
 
     "A mod will match if it is contained in the pack with the given ID"
-    inPack: ProjectId
+    inPack: PlatformProjectIdentifier
 
     "A mod will match if it is associated with the CurseForge project with the given ID"
     curseforgeProjectId: IntPredicate
@@ -713,12 +713,17 @@ input ModPredicate @predicateType @oneOf {
     indexed: DatePredicate
 }
 
-"Represents the ID of a project on CurseForge or Modrinth"
-input ProjectId @oneOf {
+"Represents the ID/slug of a project on CurseForge or Modrinth"
+input PlatformProjectIdentifier @oneOf {
     "The ID of the project on CurseForge"
     curseforge: Int
+    "The slug of the project on CurseForge"
+    curseforgeSlug: Int
+
     "The ID of the project on Modrinth"
     modrinth: String
+    "The slug of the project on Modrinth"
+    modrinthSlug: String
 }
 
 "Used to filter classes based on different criteria"

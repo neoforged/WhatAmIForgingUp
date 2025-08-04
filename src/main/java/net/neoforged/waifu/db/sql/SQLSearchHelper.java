@@ -11,6 +11,8 @@ import net.neoforged.waifu.db.sql.search.SqlCondition;
 import net.neoforged.waifu.db.sql.search.SqlFilter;
 import net.neoforged.waifu.db.sql.search.SqlSearchBuilder;
 import net.neoforged.waifu.platform.ModLoader;
+import net.neoforged.waifu.platform.ModPlatform;
+import net.neoforged.waifu.platform.PlatformMod;
 import net.neoforged.waifu.platform.PlatformModFile;
 import net.neoforged.waifu.util.Utils;
 import org.jdbi.v3.core.Jdbi;
@@ -828,18 +830,30 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         private static final String BASE_JIJ_QUERY = "select array_agg(distinct(artifacts->>'id')) from mods join jsonb_path_query(mods.nested_tree, '$[*].** ? (@.id != null)') artifacts on true where mods.nested_tree is not null and ";
 
         @Override
-        public SqlCondition apply(Map<String, Object> value) {
-            var cf = value.get("curseforge");
-            if (cf != null) {
-                var file = Main.CURSE_FORGE_PLATFORM.getModById(cf).getAllFiles().next();
-                return ctx -> {
-                    var testExpression = " = any(" + ctx.insert(ids(file)) + "::int[])";
-                    var jijQuery = BASE_JIJ_QUERY + curseforgeColumn + testExpression;
-                    return "(" + curseforgeColumn + testExpression + " or " + mavenCoordinatesColumn + " = any((" + jijQuery + ")::text[]))";
-                };
-            }
-            var mr = value.get("modrinth");
-            var file = Main.MODRINTH_PLATFORM.getModById(mr).getAllFiles().next();
+        public SqlCondition apply(Map<String, Object> in) {
+            var entry = in.entrySet().stream().findFirst().orElseThrow();
+            var value = entry.getValue();
+            return switch (entry.getKey()) {
+                case "curseforge" -> applyCurseforge(Objects.requireNonNull(Main.CURSE_FORGE_PLATFORM.getModById(value), () -> "Unknown CurseForge modpack with ID " + value));
+                case "curseforgeSlug" -> applyCurseforge(Objects.requireNonNull(Main.CURSE_FORGE_PLATFORM.getModBySlug((String) value, ModPlatform.ProjectType.MODPACK), () -> "Unknown CurseForge modpack with slug " + value));
+
+                case "modrinth" -> applyModrinth(Objects.requireNonNull(Main.MODRINTH_PLATFORM.getModById(value), () -> "Unknown Modrinth modpack with ID " + value));
+                case "modrinthSlug" -> applyModrinth(Objects.requireNonNull(Main.MODRINTH_PLATFORM.getModBySlug((String) value, ModPlatform.ProjectType.MODPACK), () -> "Unknown Modrinth modpack with slug " + value));
+                default -> throw new IllegalArgumentException();
+            };
+        }
+
+        private SqlCondition applyCurseforge(PlatformMod mod) {
+            var file = mod.getAllFiles().next();
+            return ctx -> {
+                var testExpression = " = any(" + ctx.insert(ids(file)) + "::int[])";
+                var jijQuery = BASE_JIJ_QUERY + curseforgeColumn + testExpression;
+                return "(" + curseforgeColumn + testExpression + " or " + mavenCoordinatesColumn + " = any((" + jijQuery + ")::text[]))";
+            };
+        }
+
+        private SqlCondition applyModrinth(PlatformMod mod) {
+            var file = mod.getAllFiles().next();
             return ctx -> {
                 var testExpression = " = any(" + ctx.insert(ids(file)) + "::text[])";
                 var jijQuery = BASE_JIJ_QUERY + modrinthColumn + testExpression;

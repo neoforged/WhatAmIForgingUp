@@ -62,8 +62,8 @@ public class ModrinthPlatform implements ModPlatform {
         return res == null ? null : createMod(res.id(), res.slug(), res);
     }
 
-    @Override
-    public PlatformMod getModBySlug(String slug) {
+    @Override // We ignore the project type because as it would seem Modrinth doesn't differentiate between slugs of different project types
+    public PlatformMod getModBySlug(String slug, ProjectType projectType) {
         var res = sendRequest("/project/" + slug, new TypeToken<ProjectResponse>() {});
         return res == null ? null : createMod(res.id(), res.slug(), res);
     }
@@ -384,6 +384,8 @@ public class ModrinthPlatform implements ModPlatform {
                 throw new RuntimeException(e);
             }
         }
+
+        if (res.statusCode() == 404) return null;
 
         try {
             return Utils.GSON.fromJson(res.body(), type);

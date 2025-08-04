@@ -70,12 +70,14 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public PlatformMod getModBySlug(String slug) {
+    public PlatformMod getModBySlug(String slug, ProjectType projectType) {
         try {
-            return createMod(api.getHelper().searchMods(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
-                            .slug(slug))
-                    .orElseThrow()
-                    .get(0));
+            var response = api.getHelper().searchMods(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
+                            .slug(slug)
+                            .classId(projectType == ProjectType.MOD ? 6 : 4471)) // 6 is mods, 4471 is modpacks
+                    .orElseThrow();
+            if (response.isEmpty()) return null;
+            return createMod(response.getFirst());
         } catch (CurseForgeException e) {
             throw new RuntimeException(e);
         }
