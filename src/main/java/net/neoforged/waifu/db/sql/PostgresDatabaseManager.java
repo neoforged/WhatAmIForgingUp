@@ -69,7 +69,7 @@ public class PostgresDatabaseManager implements DatabaseManager {
         var props = copy();
         props.put("readOnly", "true");
         props.put("currentSchema", schema(gameVersion, loader));
-        return new SQLSearchHelper(jdbi(props), loader, cancellationInvoker);
+        return new SQLSearchHelper(jdbi(props), gameVersion, loader, cancellationInvoker);
     }
 
     @Override

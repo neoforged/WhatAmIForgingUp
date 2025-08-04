@@ -68,7 +68,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     private final DatabaseType recipes, enum_extensions, data_files, mod, classes, class_defs;
 
     @SuppressWarnings("unchecked")
-    public SQLSearchHelper(Jdbi jdbi, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
+    public SQLSearchHelper(Jdbi jdbi, String gameVersion, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
         this.jdbi = jdbi;
         this.cancellationInvoker = cancellationInvoker;
         jdbi.getConfig(SqlStatements.class).setSqlParser(new HashPrefixSqlParser());
@@ -163,7 +163,10 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 .filterOnColumn("mavenCoordinates", "mods.maven_coordinates")
                 .filterOnColumn("curseforgeProjectId", "mods.curseforgeProjectId")
                 .filterOnColumn("modrinthProjectId", "mods.modrinth_project_id")
-                .filter("inPack", new InPackCriterion("mods.curseforge_project_id", "mods.modrinth_project_id", "mods.maven_coordinates"))
+                .filter("inPack", new InPackCriterion(
+                        "mods.curseforge_project_id", "mods.modrinth_project_id", "mods.maven_coordinates",
+                        gameVersion, loader
+                ))
 
                 .filterWithSubQuery("anyManifestAttribute", "json_table(mods.manifest, '$.*[*]' columns (key text path '$.key', value text path '$.value')) as man", Map.of(
                         "name", FilterCriterion.column("man.key"),
@@ -826,7 +829,10 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
     }
 
-    private record InPackCriterion(String curseforgeColumn, String modrinthColumn, String mavenCoordinatesColumn) implements FilterCriterion.MapOnly {
+    private record InPackCriterion(
+            String curseforgeColumn, String modrinthColumn, String mavenCoordinatesColumn,
+            String gameVersion, ModLoader loader
+    ) implements FilterCriterion.MapOnly {
         private static final String BASE_JIJ_QUERY = "select array_agg(distinct(artifacts->>'id')) from mods join jsonb_path_query(mods.nested_tree, '$[*].** ? (@.id != null)') artifacts on true where mods.nested_tree is not null and ";
 
         @Override
@@ -844,7 +850,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
 
         private SqlCondition applyCurseforge(PlatformMod mod) {
-            var file = mod.getAllFiles().next();
+            var file = mod.getFilesForVersion(gameVersion, loader).next();
             return ctx -> {
                 var testExpression = " = any(" + ctx.insert(ids(file)) + "::int[])";
                 var jijQuery = BASE_JIJ_QUERY + curseforgeColumn + testExpression;
@@ -853,7 +859,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
 
         private SqlCondition applyModrinth(PlatformMod mod) {
-            var file = mod.getAllFiles().next();
+            var file = mod.getFilesForVersion(gameVersion, loader).next();
             return ctx -> {
                 var testExpression = " = any(" + ctx.insert(ids(file)) + "::text[])";
                 var jijQuery = BASE_JIJ_QUERY + modrinthColumn + testExpression;
