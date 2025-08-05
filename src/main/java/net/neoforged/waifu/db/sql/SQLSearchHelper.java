@@ -65,7 +65,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     private final DatabaseSchema schema;
 
-    private final DatabaseType recipes, data_maps, data_files, enum_extensions, mod, classes, class_defs;
+    private final DatabaseType recipes, data_maps, data_files, enum_extensions, mods, classes, class_defs;
 
     @SuppressWarnings("unchecked")
     public SQLSearchHelper(Jdbi jdbi, String gameVersion, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
@@ -162,7 +162,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
         schema.registerTwoWayJoin("mods", "enum_extensions", SqlCondition.equals("mods.id", "enum_extensions.mod"));
 
-        mod = schema.registerType("mods", b -> b
+        mods = schema.registerType("mods", b -> b
                 .directFields("id", "name", "authors", "license", "version", "manifest")
                 .field("modIds", directColumn("jsonb_path_query_array(mods.mod_metadata_json, '" + (loader == ModLoader.FABRIC ? "$.id" : "$.mods[*].modId") + "')"))
 
@@ -381,7 +381,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                                 .joinOn("classes parent", "parent.id = class_parents.parent")
                                 .where("class_parents.cls = class_defs.id")
                                 .requestColumn("array_agg(parent.name)", null)))
-                .field("mod", subTable(mod))
+                .field("mod", subTable(mods))
                 .field("annotations", listSubTable(class_annotations))
 
                 .field("methods", listSubTable(method_defs))
@@ -390,7 +390,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 .field("referencedFields", listSubTable(field_references))
 
                 .filterOnColumn("name", "classes.name")
-                .filterOnTable("mod", mod)
+                .filterOnTable("mod", mods)
                 .filterOnTable("anyMethod", "method_defs")
                 .filterOnTable("anyField", "field_defs")
                 .filterOnTable("anyAnnotation", class_annotations)
@@ -460,11 +460,11 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     @Override
     public Object getModsById(DataFetchingEnvironment env) {
-        var builder = mod.createQuery();
+        var builder = mods.createQuery();
 
         var mods = env.getSelectionSet().getFields("edges/node");
         if (!mods.isEmpty()) {
-            mod.apply(builder, mods.getFirst());
+            this.mods.apply(builder, mods.getFirst());
         }
 
         var ids = new ArrayList<>(env.<List<Integer>>getArgument("ids"));
@@ -476,36 +476,12 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     @Override
     public Object getMods(DataFetchingEnvironment env) {
-        var builder = mod.createQuery();
-
-        var mods = env.getSelectionSet().getFields("edges/node");
-        if (!mods.isEmpty()) {
-            mod.apply(builder, mods.getFirst());
-        }
-
-        Map<String, Object> filter = env.getArgument("where");
-        if (filter != null) {
-            mod.applyFilter(builder, filter);
-        }
-
-        return paginate(builder, Pagination.parse(env.getArguments()), "mods.id");
+        return executePaginatedRequest(mods, env, "mods.id");
     }
 
     @Override
     public Object getClasses(DataFetchingEnvironment env) {
-        var builder = classes.createQuery();
-
-        var classes = env.getSelectionSet().getFields("edges/node");
-        if (!classes.isEmpty()) {
-            this.classes.apply(builder, classes.getFirst());
-        }
-
-        Map<String, Object> filter = env.getArgument("where");
-        if (filter != null) {
-            this.classes.applyFilter(builder, filter);
-        }
-
-        return paginate(builder, Pagination.parse(env.getArguments()), "classes.id");
+        return executePaginatedRequest(classes, env, "classes.id");
     }
 
     @Override
@@ -532,36 +508,12 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     @Override
     public Object getClassDefinitions(DataFetchingEnvironment env) {
-        var builder = class_defs.createQuery();
-
-        var classes = env.getSelectionSet().getFields("edges/node");
-        if (!classes.isEmpty()) {
-            this.class_defs.apply(builder, classes.getFirst());
-        }
-
-        Map<String, Object> filter = env.getArgument("where");
-        if (filter != null) {
-            this.class_defs.applyFilter(builder, filter);
-        }
-
-        return paginate(builder, Pagination.parse(env.getArguments()), "class_defs.id");
+        return executePaginatedRequest(class_defs, env, "class_defs.id");
     }
 
     @Override
     public Object getRecipes(DataFetchingEnvironment env) {
-        var builder = recipes.createQuery();
-
-        var recipes = env.getSelectionSet().getFields("edges/node");
-        if (!recipes.isEmpty()) {
-            this.recipes.apply(builder, recipes.getFirst());
-        }
-
-        Map<String, Object> filter = env.getArgument("where");
-        if (filter != null) {
-            this.recipes.applyFilter(builder, filter);
-        }
-
-        return paginate(builder, Pagination.parse(env.getArguments()), "recipes.mod", "recipes.name");
+        return executePaginatedRequest(recipes, env, "recipes.mod", "recipes.name");
     }
 
     @Override
@@ -612,19 +564,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     @Override
     public Object getEnumExtensions(DataFetchingEnvironment env) {
-        var builder = enum_extensions.createQuery();
-
-        var extensions = env.getSelectionSet().getFields("edges/node");
-        if (!extensions.isEmpty()) {
-            this.enum_extensions.apply(builder, extensions.getFirst());
-        }
-
-        Map<String, Object> filter = env.getArgument("where");
-        if (filter != null) {
-            this.enum_extensions.applyFilter(builder, filter);
-        }
-
-        return paginate(builder, Pagination.parse(env.getArguments()), "enum_extensions.mod", "enum_extensions.enum", "enum_extensions.name");
+        return executePaginatedRequest(enum_extensions, env, "enum_extensions.mod", "enum_extensions.enum", "enum_extensions.name");
     }
 
     private static Consumer<DatabaseType.Builder> locationArgument(String argument, String baseName, String nameColumn) {
@@ -678,6 +618,22 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     }
     private interface DBResultProducer<R> {
         R produce(ResultSet rs, StatementContext ctx, ColInfo[] columns) throws SQLException;
+    }
+
+    private Object executePaginatedRequest(DatabaseType type, DataFetchingEnvironment env, String... paginateOn) {
+        var builder = type.createQuery();
+
+        var selection = env.getSelectionSet().getFields("edges/node");
+        if (!selection.isEmpty()) {
+            type.apply(builder, selection.getFirst());
+        }
+
+        Map<String, Object> filter = env.getArgument("where");
+        if (filter != null) {
+            type.applyFilter(builder, filter);
+        }
+
+        return paginate(builder, Pagination.parse(env.getArguments()), paginateOn);
     }
 
     private <T> T executeQuery(SqlSearchBuilder builder, DBResultProducer<T> producer) {
