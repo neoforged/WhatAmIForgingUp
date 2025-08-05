@@ -93,6 +93,22 @@ type GameVersion {
     ): RecipeFile @paginated
 
     """
+    Get the data maps known by this game version that optionally match the given predicate.
+    This returns a different data structure compared to `Mod.dataMaps`, allowing you to query each value assigned to each object
+    and the mod that does so.
+    """
+    dataMaps(
+        """
+        The registry to get data maps for.
+        The format is namespace:registry (e.g. `minecraft:item` or `minecraft:worldgen/biome`)
+        """
+        registry: String!,
+
+        "Optional filter applied to the query"
+        where: DataMapPredicate
+    ): DataMap @paginated
+
+    """
     Get the data files known by this game version for the given `location` that optionally match the given predicate.
     Note that this will not return files already indexed through other means (i.e. tags, data maps and recipes). Use the dedicated fields to query those.
     """
@@ -310,11 +326,11 @@ type DataMapFile {
     "The name of this data map (e.g. `neoforge:compostables`)"
     name: String!
     "The entries in this file"
-    entries: [DataMapEntry!]!
+    entries: [DataMapFileEntry!]!
 }
 
 "An entry in a NeoForge data map file"
-type DataMapEntry {
+type DataMapFileEntry {
     "The key of this entry. Can either be the location of a registry object (e.g. `minecraft:coal_block`) or a tag, denoted by a # at the start (e.g. `#minecraft:logs`)"
     key: String!
     "The value of this entry - i.e. the object attached to the entry with the `key` ID or to entries within the tag, if the `key` is a tag"
@@ -324,6 +340,28 @@ type DataMapEntry {
     Corresponds to the "replace" field at either the top of the data map file or within individual entries.
     """
     replace: Boolean!
+}
+
+"A NeoForge data map"
+type DataMap {
+    "The name of this data map (e.g. `neoforge:compostables`)"
+    name: String!
+    "The entries in this file"
+    entries: [DataMapEntry!]!
+}
+
+"An entry in a NeoForge data map"
+type DataMapEntry {
+    "The key of this entry. Can either be the location of a registry object (e.g. `minecraft:coal_block`) or a tag, denoted by a # at the start (e.g. `#minecraft:logs`)"
+    key: String!
+    "The values assigned to this entry by different mods."
+    values: [DataMapValue!]!
+}
+
+"A value within a NeoForge data map, associated with an entry"
+type DataMapValue @implement(interfaces: "ModOwned") {
+    "The value of this entry - i.e. the object attached to the entry with the `key` ID or to entries within the tag, if the `key` is a tag"
+    value: JSON!
 }
 
 "A NeoForge enum extension entry"
@@ -661,6 +699,12 @@ input DataFilePredicate @predicateType @oneOf {
 
 "Used to filter data map files based on different criteria"
 input DataMapFilePredicate @predicateType @oneOf {
+    "Filter based on the data map name"
+    name: StringPredicate
+}
+
+"Used to filter data maps based on different criteria"
+input DataMapPredicate @predicateType @oneOf {
     "Filter based on the data map name"
     name: StringPredicate
 }

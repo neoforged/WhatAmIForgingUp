@@ -45,6 +45,10 @@ public class DatabaseSchema {
 
     public interface JoinChain {
         JoinChain to(String table, String alias, SqlCondition condition);
+
+        default JoinChain to(String table, String alias) {
+            return to(table, alias, SqlCondition.TRUE);
+        }
     }
 
     public JoinChain joinChain(String from) {

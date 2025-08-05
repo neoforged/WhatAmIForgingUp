@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 public class DatabaseType {
@@ -259,6 +260,16 @@ public class DatabaseType {
 
         public Builder twoWayJoin(String onTable, SqlCondition condition) {
             schema.registerTwoWayJoin(tableName, onTable, condition);
+            return this;
+        }
+
+        public Builder joinChain(Consumer<DatabaseSchema.JoinChain> cons) {
+            cons.accept(schema.joinChain(tableName));
+            return this;
+        }
+
+        public Builder apply(Consumer<Builder> cons) {
+            cons.accept(this);
             return this;
         }
 

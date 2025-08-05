@@ -61,7 +61,10 @@ public final class SqlSearchBuilder {
     }
 
     public boolean isJoined(String table) {
-        return joins.containsKey(table);
+        return joins.keySet()
+                .stream().map(s -> s.split(" "))
+                .map(s -> s[s.length - 1])
+                .anyMatch(table::equals);
     }
 
     public String getRealName(String name) {
@@ -243,12 +246,10 @@ public final class SqlSearchBuilder {
         return this;
     }
 
-    public SqlSearchBuilder jsonSubQuery(String alias, Consumer<Map<String, String>> creator) {
-        var map = new LinkedHashMap<String, String>();
-        creator.accept(map);
-        return requestColumn("jsonb_build_object(" + map.entrySet().stream()
+    public String mapToJson(Map<String, String> map) {
+        return "jsonb_build_object(" + map.entrySet().stream()
                 .map(e -> insert(e.getKey()) + ", " + e.getValue())
-                .collect(Collectors.joining(", ")) + ")", alias);
+                .collect(Collectors.joining(", ")) + ")";
     }
 
     public SqlSearchBuilder arrayAggregateSubQuery(String column, String alias, Consumer<SqlSearchBuilder> sub) {

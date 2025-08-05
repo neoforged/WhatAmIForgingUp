@@ -65,7 +65,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     private final DatabaseSchema schema;
 
-    private final DatabaseType recipes, enum_extensions, data_files, mod, classes, class_defs;
+    private final DatabaseType recipes, data_maps, data_files, enum_extensions, mod, classes, class_defs;
 
     @SuppressWarnings("unchecked")
     public SQLSearchHelper(Jdbi jdbi, String gameVersion, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
@@ -91,6 +91,59 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
         schema.registerTwoWayJoin("mods", "recipes", SqlCondition.equals("mods.id", "recipes.mod"));
 
+        data_maps = schema.registerType("data_maps", b -> b
+                .apply(locationArgument("registry", "data_map", "data_maps.data_map"))
+
+                .field("name", "data_map_name.data_map_name")
+                .field("entries", (type, builder, fieldName, selection) -> {
+                    builder.arrayAggregateSubQuery("data_maps dmap_entries", fieldName, sub -> {
+                        sub.where("data_maps.data_map = dmap_entries.data_map")
+                                .groupBy("dmap_entries.key");
+
+                        for (var immediateField : selection.getSelectionSet().getImmediateFields()) {
+                            switch (immediateField.getName()) {
+                                case "key" -> sub
+                                        .joinOn("constants key_name", "dmap_entries.key = key_name.id")
+                                        .requestColumn("key_name.constant", columnAlias(immediateField))
+                                        .groupBy("key_name.constant");
+                                case "values" -> {
+                                    var map = new HashMap<String, String>();
+                                    for (var valueField : immediateField.getSelectionSet().getImmediateFields()) {
+                                        switch (valueField.getName()) {
+                                            case "value" -> {
+                                                sub.joinOn("json_constants entry_value", "dmap_entries.value = entry_value.id");
+                                                map.put(columnAlias(valueField), "entry_value.constant");
+                                            }
+                                            case "mod" -> {
+                                                var subQuery = sub.subBuilder("mods")
+                                                        .where("dmap_entries.mod = mods.id");
+                                                schema.getType("mods").apply(subQuery, valueField);
+                                                map.put(columnAlias(valueField), "(" + subQuery.requestAsJson().format() + ")");
+                                            }
+                                        }
+                                    }
+                                    sub.requestColumn("jsonb_agg(" + sub.mapToJson(map) + ")", columnAlias(immediateField));
+                                }
+                            }
+                        }
+                    });
+                })
+
+                .filterOnColumn("name", "data_map_name.data_map_name")
+        );
+
+        data_files = schema.registerType("data_files", b -> b
+                .apply(locationArgument("location", "data_file", "data_files.path"))
+
+                .directFields("value")
+                .field("name", "data_file_name.data_file_name")
+                .field("mod",  subTable("mods"))
+
+                .filterOnColumn("name", "data_file_name.data_file_name")
+                .filterOnColumn("value", "data_files.value",  SqlFilter.JSON_FILTER)
+
+                .twoWayJoin("mods", SqlCondition.equals("data_files.mod", "mods.id")));
+
         enum_extensions = schema.registerType("enum_extensions", b -> b
                 .field("enum", "extension_enum.name")
                 .field("constructor", "extension_ctor.constant")
@@ -108,34 +161,6 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         schema.registerIndependentJoin("enum_extensions", "constants", "extension_ctor", SqlCondition.equals("enum_extensions.constructor", "extension_ctor.id"));
 
         schema.registerTwoWayJoin("mods", "enum_extensions", SqlCondition.equals("mods.id", "enum_extensions.mod"));
-
-        data_files = schema.registerType("data_files", b -> b
-                .<String>passArgument(
-                        "location",
-                        "data_file_base_path",
-                        path -> "/" + path.replace(':', '/').replace("minecraft/", "") + "/"
-                )
-                .<String>passArgument(
-                        "location",
-                        "data_file_path_regex",
-                        path -> "^\\w+/" + path.replace(':', '/').replace("minecraft/", "") + "/.+"
-                )
-
-                .directFields("value")
-                .field("name", "data_file_name.data_file_name")
-                .field("mod",  subTable("mods"))
-
-                .filterOnColumn("name", "data_file_name.data_file_name")
-                .filterOnColumn("value", "data_files.value",  SqlFilter.JSON_FILTER)
-
-                .twoWayJoin("mods", SqlCondition.equals("data_files.mod", "mods.id")));
-
-        schema.joinChain("data_files")
-                .to("constants", "data_file_path", SqlCondition.allOf(List.of(
-                        SqlCondition.equals("data_file_path.id", "data_files.path"),
-                        SqlCondition.condition("data_file_path.constant ~ ${data_file_path_regex}")
-                )))
-                .to("replace(data_file_path.constant, ${data_file_base_path}, ':')", "data_file_name", SqlCondition.TRUE);
 
         mod = schema.registerType("mods", b -> b
                 .directFields("id", "name", "authors", "license", "version", "manifest")
@@ -540,9 +565,37 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     }
 
     @Override
+    public Object getDataMaps(DataFetchingEnvironment env) {
+        var builder = data_maps.createQuery()
+                .groupBy("data_maps.data_map");
+        this.data_maps.applyQueryArguments(builder, getEnvSelection(env));
+        // We always need this join so that the registry filter is applied
+        schema.join(builder, "data_maps", "data_map_path");
+
+        var dataMaps = env.getSelectionSet().getFields("edges/node");
+        if (!dataMaps.isEmpty()) {
+            this.data_maps.apply(builder, dataMaps.getFirst());
+        }
+
+        Map<String, Object> filter = env.getArgument("where");
+        if (filter != null) {
+            this.data_maps.applyFilter(builder, filter);
+        }
+
+        // If the name is queried make sure to group by it too
+        if (builder.isJoined("data_map_name")) {
+            builder.groupBy("data_map_name.data_map_name");
+        }
+
+        return paginate(builder, Pagination.parse(env.getArguments()), "data_maps.data_map");
+    }
+
+    @Override
     public Object getDataFiles(DataFetchingEnvironment env) {
         var builder = data_files.createQuery();
         this.data_files.applyQueryArguments(builder, getEnvSelection(env));
+        // We always need this join so that the location filter is applied
+        schema.join(builder, "data_files", "data_file_path");
 
         var dataFiles = env.getSelectionSet().getFields("edges/node");
         if (!dataFiles.isEmpty()) {
@@ -574,11 +627,32 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         return paginate(builder, Pagination.parse(env.getArguments()), "enum_extensions.mod", "enum_extensions.enum", "enum_extensions.name");
     }
 
+    private static Consumer<DatabaseType.Builder> locationArgument(String argument, String baseName, String nameColumn) {
+        return builder -> builder
+                .<String>passArgument(
+                        argument,
+                        baseName + "_base_path",
+                        path -> "/" + path.replace(':', '/').replace("minecraft/", "") + "/"
+                )
+                .<String>passArgument(
+                        argument,
+                        baseName + "_path_regex",
+                        path -> "^\\w+/" + path.replace(':', '/').replace("minecraft/", "") + "/.+"
+                )
+
+                .joinChain(c -> c
+                        .to("constants", baseName + "_path", SqlCondition.allOf(List.of(
+                                SqlCondition.equals(baseName + "_path.id", nameColumn),
+                                SqlCondition.condition(baseName + "_path.constant ~ ${" + baseName + "_path_regex}")
+                        )))
+                        .to("replace(" + baseName + "_path.constant, ${" + baseName + "_base_path}, ':')", baseName + "_name"));
+    }
+
     private static SelectedField getEnvSelection(DataFetchingEnvironment env) {
         return env.getSelectionSet().getImmediateFields().getFirst().getParentField();
     }
 
-    private String columnAlias(SelectedField field) {
+    private static String columnAlias(SelectedField field) {
         if (field.getAlias() == null) {
             return field.getName();
         }
