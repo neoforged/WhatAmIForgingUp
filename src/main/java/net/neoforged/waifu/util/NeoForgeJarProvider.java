@@ -1,10 +1,5 @@
 package net.neoforged.waifu.util;
 
-import net.neoforged.art.api.IdentifierFixerConfig;
-import net.neoforged.art.api.Renamer;
-import net.neoforged.art.api.SourceFixerConfig;
-import net.neoforged.art.api.Transformer;
-import net.neoforged.binarypatcher.Patcher;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFilePath;
@@ -15,10 +10,14 @@ import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
@@ -26,112 +25,66 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class NeoForgeJarProvider {
-    private static final URI NFRT_JAR = URI.create("https://maven.neoforged.net/releases/net/neoforged/neoform-runtime/1.0.19/neoform-runtime-1.0.19-all.jar");
     private static final String LATEST_VERSION_URL = "https://maven.neoforged.net/api/maven/latest/version/releases/net/neoforged/neoforge?filter=%s&type=json";
     private static final String DOWNLOAD_URL = "https://maven.neoforged.net/releases/net/neoforged/neoforge/${version}/neoforge-${version}-${type}.jar";
 
     public static String getLatestVersion(String mcVersion) {
         var split = mcVersion.split("\\.");
         var neoPrefix = split[1] + "." + (split.length == 2 ? "0" : split[2]);
-        record Response(String version) {}
+        record Response(String version) {
+        }
         return Utils.getJson(URI.create(LATEST_VERSION_URL.formatted(neoPrefix)), Response.class).version();
     }
 
     public static List<ModFileInfo> provide(String neoVersion) throws IOException {
-        var path = Main.CACHE.resolve("loader/neoforge-" + neoVersion + ".jar");
-        var neoSplit = neoVersion.split("\\.");
-        var mcVersion = "1." + neoSplit[0] + (neoSplit[1].equals("0") ? "" : ("." + neoSplit[1]));
-        var patched = Main.CACHE.resolve("loader/neoforge-patched-mc-" + neoVersion + ".jar");
-        if (!Files.exists(path)) {
-            var installer = Main.CACHE.resolve("loader/neoforge-" + neoVersion + "-installer.jar");
-            Utils.download(URI.create(DOWNLOAD_URL.replace("${version}", neoVersion).replace("${type}", "installer")), installer);
+        var mcVersion = getMcVersion(neoVersion);
 
-            InstallProfile installProfile;
-            try (var installerFs = FileSystems.newFileSystem(installer);
-                var is = Files.newBufferedReader(installerFs.getPath("install_profile.json"))) {
-                installProfile = Utils.GSON.fromJson(is, InstallProfile.class);
-            }
+        var installationFolder = Main.CACHE.resolve("loader/neoforge").toAbsolutePath();
+        Files.createDirectories(installationFolder);
 
-            var neoFormVersion = installProfile.data().get("MAPPINGS").client().replace("[net.neoforged:neoform:", "")
-                    .replace(":mappings@txt]", "");
-
-            var neoformMcJar = Main.CACHE.resolve("minecraft/" + neoFormVersion + ".jar");
-
-            if (!Files.exists(neoformMcJar)) {
-                var nfrt = Utils.download(NFRT_JAR, Main.CACHE.resolve("tools/nfrt.jar"));
-
-                var mcJarSlim = Main.CACHE.resolve("minecraft/" + mcVersion + "-" + neoFormVersion + "-slim.jar");
-
-                var stripClientJar = Main.CACHE.resolve("minecraft/" + neoFormVersion + "-strip.jar");
-                var rawJar = Main.CACHE.resolve("minecraft/" + neoFormVersion + "-raw.jar");
-                var mappings = Main.CACHE.resolve("minecraft/" + neoFormVersion + "-mappings.txt");
-
-                Files.createDirectories(mappings.getParent());
-
-                execJar(nfrt,
-                        "run", "--neoform",
-                        "net.neoforged:neoform:" + neoFormVersion + "@zip",
-                        "--dist", "joined",
-                        "--write-result=node.mergeMappings.output.output:" + mappings.toAbsolutePath(),
-                        "--write-result=node.stripClient.output.output:" + stripClientJar.toAbsolutePath(),
-                        "--write-result=node.downloadClient.output.output:" + rawJar.toAbsolutePath());
-
-                var renamer = Renamer.builder()
-                        .logger(s -> {})
-                        .map(mappings.toFile())
-                        .add(Transformer.parameterAnnotationFixerFactory());
-
-                renamer = renamer
-                        .add(Transformer.recordFixerFactory())
-                        .add(Transformer.identifierFixerFactory(IdentifierFixerConfig.ALL))
-                        .add(Transformer.sourceFixerFactory(SourceFixerConfig.JAVA));
-
-                renamer.build()
-                        .run(stripClientJar.toFile(), mcJarSlim.toFile());
-
-                merge(neoformMcJar, rawJar, mcJarSlim, mcVersion);
-            }
-
-            Utils.download(URI.create(DOWNLOAD_URL.replace("${version}", neoVersion).replace("${type}", "universal")), path);
-
-            var lzma = Main.CACHE.resolve("loader/neoforge-" + neoVersion + ".lzma");
-
-            try (var is = new ZipInputStream(URI.create(DOWNLOAD_URL.replace("${version}", neoVersion).replace("${type}", "installer")).toURL().openStream());
-                var os = Files.newOutputStream(lzma)) {
-                ZipEntry entry;
-                while ((entry = is.getNextEntry()) != null) {
-                    if (entry.getName().equals("data/client.lzma")) {
-                        is.transferTo(os);
-                        break;
-                    }
-                }
-            }
-
-            Patcher patcher = new Patcher(neoformMcJar.toFile(), patched.toFile())
-                    .keepData(true)
-                    .includeUnpatched(true)
-                    .pack200(false)
-                    .legacy(false);
-
-            patcher.loadPatches(lzma.toFile(), null);
-
-            patcher.process();
-
-            Files.delete(lzma);
-            Files.delete(installer);
+        var launcherProfilePath = installationFolder.resolve("launcher_profiles.json");
+        if (Files.notExists(launcherProfilePath)) {
+            Files.writeString(launcherProfilePath, "{}");
         }
 
-        var neoMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(path, path), "net.neoforged:neoforge", neoVersion));
-        var mcMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(patched, patched), "net.minecraft:minecraft", mcVersion));
+        var installer = installationFolder.resolve(neoVersion + "-installer.jar");
+        Utils.download(URI.create(DOWNLOAD_URL.replace("${version}", neoVersion).replace("${type}", "installer")), installer);
+
+        InstallProfile installProfile;
+        try (var installerFs = FileSystems.newFileSystem(installer);
+             var is = Files.newBufferedReader(installerFs.getPath("install_profile.json"))) {
+            installProfile = Utils.GSON.fromJson(is, InstallProfile.class);
+        }
+
+        // [net.neoforged:neoform:<version>:mappings@txt]
+        var neoFormVersion = installProfile.data().get("MAPPINGS").client().split(":")[2];
+
+        execJar(installer, installationFolder,
+                "--install-client", installationFolder);
+
+        var neoJar = installationFolder.resolve("libraries/net/neoforged/neoforge/" + neoVersion + "/neoforge-" + neoVersion + "-universal.jar");
+
+        var clientJar = installationFolder.resolve("libraries/net/neoforged/neoforge/" + neoVersion + "/neoforge-" + neoVersion + "-client.jar");
+        var srgJar = installationFolder.resolve("libraries/net/minecraft/client/" + neoFormVersion + "/client-" + neoFormVersion + "-srg.jar");
+        var assetsJar = installationFolder.resolve("libraries/net/minecraft/client/" + neoFormVersion + "/client-" + neoFormVersion + "-extra.jar");
+
+        var mcJarOut = installationFolder.resolve(neoVersion + "-mc.jar");
+        merge(mcJarOut, assetsJar, mcVersion, clientJar, srgJar);
+
+        Files.deleteIfExists(clientJar);
+
+        var neoMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(neoJar, neoJar), "net.neoforged:neoforge", neoVersion));
+        var mcMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(mcJarOut, mcJarOut), "net.minecraft:minecraft", mcVersion));
 
         return List.of(neoMod, mcMod);
     }
 
-    private record InstallProfile(Map<String, Data> data) {
-        private record Data(String client) {}
+    private static String getMcVersion(String neoVersion) {
+        var neoSplit = neoVersion.split("\\.");
+        return "1." + neoSplit[0] + (neoSplit[1].equals("0") ? "" : ("." + neoSplit[1]));
     }
 
-    private static int execJar(Path jar, Object... args) throws IOException {
+    private static int execJar(Path jar, Path workingDir, Object... args) throws IOException {
         var execPath = ProcessHandle.current()
                 .info()
                 .command()
@@ -144,14 +97,11 @@ public class NeoForgeJarProvider {
             command.add(arg.toString());
         }
 
-        var workingDir = Files.createTempDirectory("nfrt_invoke");
-        Files.createDirectories(workingDir.getParent());
-
         var proc = new ProcessBuilder()
                 .directory(workingDir.toFile())
                 .command(command)
                 .redirectErrorStream(true)
-                .redirectOutput(workingDir.resolve("log").toFile())
+                .redirectOutput(workingDir.resolve(DateTimeFormatter.ISO_INSTANT.format(Instant.now()).replace(":", "-") + ".log").toFile())
                 .start();
 
         try {
@@ -162,7 +112,12 @@ public class NeoForgeJarProvider {
         }
     }
 
-    public static void merge(Path out, Path mcAssets, Path patchedMc, String mcVersion) throws IOException {
+    private record InstallProfile(Map<String, Data> data) {
+        private record Data(String client) {
+        }
+    }
+
+    private static void merge(Path out, Path mcAssets, String mcVersion, Path... classJars) throws IOException {
         var man = new Manifest();
 
         var ma = man.getMainAttributes();
@@ -171,8 +126,7 @@ public class NeoForgeJarProvider {
         ma.put(Attributes.Name.IMPLEMENTATION_VERSION, mcVersion);
 
         try (var zout = new JarOutputStream(Files.newOutputStream(out), man);
-             var assetsIn = new ZipInputStream(Files.newInputStream(mcAssets));
-             var patchedIn = new ZipInputStream(Files.newInputStream(patchedMc))) {
+             var assetsIn = new ZipInputStream(Files.newInputStream(mcAssets))) {
 
             ZipEntry entry;
             while ((entry = assetsIn.getNextEntry()) != null) {
@@ -183,11 +137,17 @@ public class NeoForgeJarProvider {
                 }
             }
 
-            while ((entry = patchedIn.getNextEntry()) != null) {
-                if (entry.getName().endsWith(".class")) {
-                    zout.putNextEntry(Utils.copyEntry(entry));
-                    patchedIn.transferTo(zout);
-                    zout.closeEntry();
+            Set<String> knownClasses = new LinkedHashSet<>();
+
+            for (Path classJar : classJars) {
+                try (var classesIn = new ZipInputStream(Files.newInputStream(classJar))) {
+                    while ((entry = classesIn.getNextEntry()) != null) {
+                        if (entry.getName().endsWith(".class") && knownClasses.add(entry.getName())) {
+                            zout.putNextEntry(Utils.copyEntry(entry));
+                            classesIn.transferTo(zout);
+                            zout.closeEntry();
+                        }
+                    }
                 }
             }
         }
