@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public interface ModFileReader {
@@ -235,8 +236,9 @@ public interface ModFileReader {
                         }
 
                         if (json.has("authors")) {
-                            var auth = json.get("authors").getAsJsonArray();
-                            mod.set("authors", StreamSupport.stream(auth.spliterator(), false)
+                            var auth = json.get("authors");
+                            Stream<JsonElement> stream = auth.isJsonArray() ? StreamSupport.stream(auth.getAsJsonArray().spliterator(), false) : Stream.of(auth);
+                            mod.set("authors", stream
                                     .map(e -> e.isJsonObject() ? e.getAsJsonObject().get("name").getAsString() : e.getAsString())
                                     .collect(Collectors.joining(", ")));
                         }
