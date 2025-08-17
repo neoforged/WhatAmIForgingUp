@@ -45,7 +45,7 @@ public class WebService {
             }
         }
 
-        var defaultTimeout = Integer.parseInt(System.getenv().getOrDefault("GRAPHQL_DEFAULT_TIMEOUT", "30"));
+        var defaultTimeout = getDefaultTimeout();
 
         this.graphQl = new GraphQLWebService(javalin, db, tokens, anonAccess, anonRateLimit, defaultTimeout);
     }
@@ -55,5 +55,9 @@ public class WebService {
         if (webApiPort != null) {
             javalin.start(Integer.parseInt(webApiPort));
         }
+    }
+
+    public static int getDefaultTimeout() {
+        return Integer.parseInt(System.getenv().getOrDefault("GRAPHQL_DEFAULT_TIMEOUT", "30"));
     }
 }

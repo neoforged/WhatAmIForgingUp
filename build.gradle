@@ -28,6 +28,7 @@ repositories {
     maven {
         url = 'https://m2.chew.pro/releases'
     }
+    maven { url 'https://www.jitpack.io' }
 }
 
 application {
@@ -45,8 +46,11 @@ dependencies {
     implementation 'com.google.guava:guava:33.4.0-jre'
     implementation 'org.apache.maven:maven-artifact:3.9.9'
 
-    implementation "net.dv8tion:JDA:5.2.3"
-    implementation 'pw.chew:jda-chewtils:2.0'
+    implementation 'net.dv8tion:JDA:6.0.0-rc.2'
+
+    // TODO - switch back to the normal maven one once https://github.com/Chew/JDA-Chewtils/pull/93 is merged
+    // implementation 'pw.chew:jda-chewtils:2.0'
+    implementation 'com.github.Chew:JDA-Chewtils:39a83bd8357b6dd0ea94f7b20bd4f611d84beaa9'
 
     // we can't bump this because of https://github.com/neoforged/AutoRenamingTool/pull/13
     implementation 'net.neoforged:AutoRenamingTool:2.0.3'

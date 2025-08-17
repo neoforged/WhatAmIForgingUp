@@ -86,7 +86,7 @@ public class GraphQLWebService {
 
     private final ThreadLocal<List<Runnable>> cancellationInvokers = ThreadLocal.withInitial(ArrayList::new);
 
-    record TokenInfo(int executionTimeout, Optional<TokenRateLimit> rateLimit) {}
+    record TokenInfo(boolean active, int executionTimeout, Optional<TokenRateLimit> rateLimit) {}
     private final Map<String, TokenInfo> tokens = new ConcurrentHashMap<>();
     private final ScheduledExecutorService rateLimitService;
 
@@ -397,6 +397,10 @@ public class GraphQLWebService {
                     ctx.status(HttpStatus.UNAUTHORIZED).json(Map.of("error", "Access token is invalid"));
                     return;
                 }
+                if (!tokenInfo.active()) {
+                    ctx.status(HttpStatus.BAD_REQUEST).json(Map.of("error", "Access token is inactive"));
+                    return;
+                }
 
                 executionTimeout = tokenInfo.executionTimeout();
 
@@ -430,7 +434,7 @@ public class GraphQLWebService {
             });
             try {
                 ExecutionResult executionResult;
-                if (executionTimeout < 0) {
+                if (executionTimeout <= 0) {
                     executionResult = future.get();
                 } else {
                     executionResult = future.get(executionTimeout, TimeUnit.SECONDS);
@@ -451,7 +455,10 @@ public class GraphQLWebService {
     }
 
     private void addToken(TokenManager.Token token) {
+        if (token.token() == null) return;
+
         tokens.put(token.token(), new TokenInfo(
+                token.active(),
                 token.executionTimeout() == null ? defaultTimeout : token.executionTimeout(),
                 Optional.ofNullable(token.limit())
                         .map(l -> new TokenRateLimit(l.requests(), l.per(), new AtomicInteger((int) l.per().getSeconds()), new AtomicInteger(l.requests())))

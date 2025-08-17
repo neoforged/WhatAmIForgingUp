@@ -58,6 +58,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             .toList();
 
     private final JDA jda;
+    private final ComponentManager components;
     private final long channelId;
     private final ScheduledExecutorService messageUpdateService;
     private final MainDatabase database;
@@ -68,6 +69,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
         this.tokens = tokens;
 
         this.jda = JDABuilder.createLight(token)
+                .addEventListeners(components = new ComponentManager())
                 .addEventListeners(new FilteredCommandClient((EventListener) createCommandClient()))
                 .build();
         jda.awaitReady();
@@ -103,7 +105,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
         builder.setOwnerId("0");
         builder.setActivity(Activity.of(Activity.ActivityType.WATCHING, "naughty modders"));
 
-        builder.addSlashCommand(new TokensCommand(tokens));
+        builder.addSlashCommand(new TokensCommand(tokens, components));
 
         var trackVersionCommand = new SlashCommand() {
             {
