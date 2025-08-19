@@ -36,6 +36,7 @@ public interface SqlFilter {
 
     FilterType JSON_FILTER = builder()
             .filter("pathExists", SqlFilter::jsonpath_exists)
+            .filter("extract", SqlFilter::jsonpath_extract)
             .build();
 
     FilterType DATE_TIME_FILTER = builder()
@@ -155,6 +156,19 @@ public interface SqlFilter {
                 (field, ctx) -> "jsonb_path_exists(" + field + ", " + ctx.insert(path) + "::jsonpath)",
                 lhs -> lhs + " ? (" + path + ")"
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    static SqlFilter jsonpath_extract(Map<String, Object> config) {
+        var cast = ((Map<String, Object>) config.get("as")).entrySet().stream().findFirst().orElseThrow();
+        return (field, ctx) -> {
+            String where = switch (cast.getKey()) {
+                case "string" -> STRING_FILTER.parse(cast.getValue()).buildSql("left(right(elem::text, -1), -1)", ctx);
+                case "int" -> INT_FILTER.parse(cast.getValue()).buildSql("elem::int", ctx);
+                default -> throw new IllegalArgumentException("Unknown type " + cast.getKey());
+            };
+            return "exists (select 0 from jsonb_path_query(" + field + ", " + ctx.insert(config.get("path")) + "::jsonpath) as elem where " + where + ")";
+        };
     }
 
     static SqlFilter make(BiFunction<String, SqlSearchBuilder, String> sql, Function<String, String> json) {
