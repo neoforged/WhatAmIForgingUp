@@ -734,6 +734,10 @@ input ModPredicate @predicateType @oneOf {
     On Neo/Forge only one of the IDs of a multi mod jar needs to match the filter.
     """
     modId: StringPredicate
+
+    "Filter based on the mod's metadata (sourced from the platform's metadata file)"
+    metadata: JSONPredicate
+
     "Filter based on the mod's maven coordinates (only non-`null` if the mod was JiJ'd by another mod)"
     mavenCoordinates: StringPredicate
 

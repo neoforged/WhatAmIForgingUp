@@ -185,6 +185,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 .filterOnColumn("name", "mods.name")
                 .filterOnColumn("authors", "mods.authors")
                 .filterOnColumn("license", "mods.license")
+                .filterOnColumn("metadata", "mods.mod_metadata_json", SqlFilter.JSON_FILTER)
                 .filterOnColumn("mavenCoordinates", "mods.maven_coordinates")
                 .filterOnColumn("curseforgeProjectId", "mods.curseforgeProjectId")
                 .filterOnColumn("modrinthProjectId", "mods.modrinth_project_id")
