@@ -21,14 +21,14 @@ import java.util.Map;
 import java.util.function.Function;
 
 public enum ModLoader {
-    NEOFORGE("https://github.com/neoforged.png", new VersionProvider(
+    NEOFORGE("NeoForge", "https://github.com/neoforged.png", new VersionProvider(
             "net.neoforged:neoforge",
             NeoForgeJarProvider::getLatestVersion,
             NeoForgeJarProvider::provide
     ), ModFileReader.NEOFORGE),
 
     // TODO - forge jar provider. Will be a bit of a pain because of tool mismatches
-    FORGE("https://github.com/minecraftforge.png", null, ModFileReader.FORGE) {
+    FORGE("Forge", "https://github.com/minecraftforge.png", null, ModFileReader.FORGE) {
         private static final ArtifactVersion MC_1_20_6 = new DefaultArtifactVersion("1.20.6");
         private static final String MCP_CONFIG_URL =
                 "https://maven.neoforged.net/releases/de/oceanlabs/mcp/mcp_config/%s/mcp_config-%<s.zip";
@@ -75,7 +75,7 @@ public enum ModLoader {
         }
     },
 
-    FABRIC("https://github.com/fabricmc.png", new VersionProvider(
+    FABRIC("Fabric", "https://github.com/fabricmc.png", new VersionProvider(
             "net.minecraft:minecraft",
             Function.identity(), // Fabric only needs to process vanilla Minecraft
             MinecraftJarProvider::provide
@@ -116,15 +116,21 @@ public enum ModLoader {
         }
     };
 
+    private final String name;
     private final String logo;
     @Nullable
     private final VersionProvider versionProvider;
     private final ModFileReader reader;
 
-    ModLoader(String logo, @Nullable VersionProvider versionProvider, ModFileReader reader) {
+    ModLoader(String name, String logo, @Nullable VersionProvider versionProvider, ModFileReader reader) {
+        this.name = name;
         this.logo = logo;
         this.versionProvider = versionProvider;
         this.reader = reader;
+    }
+
+    public String getDisplayName() {
+        return name;
     }
 
     public String getLogoUrl() {

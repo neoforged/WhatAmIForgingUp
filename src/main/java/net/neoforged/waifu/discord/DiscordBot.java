@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.Command;
@@ -22,7 +23,6 @@ import net.neoforged.waifu.Main;
 import net.neoforged.waifu.MainDatabase;
 import net.neoforged.waifu.ModIndexer;
 import net.neoforged.waifu.db.IndexDatabase;
-import net.neoforged.waifu.index.Remapper;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
@@ -33,7 +33,6 @@ import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import net.neoforged.waifu.web.api.TokenManager;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
-import org.codehaus.plexus.util.StringUtils;
 
 import java.awt.Color;
 import java.io.IOException;
@@ -46,6 +45,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.Spliterators;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,10 +53,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public class DiscordBot implements GameVersionIndexService.ListenerFactory {
     private static final List<Command.Choice> LOADERS = Arrays.stream(ModLoader.values())
-            .map(l -> new Command.Choice(StringUtils.capitalise(l.name().toLowerCase(Locale.ROOT)), l.name()))
+            .map(l -> new Command.Choice(l.getDisplayName(), l.name()))
             .toList();
     private static final List<Command.Choice> PLATFORMS = Main.PLATFORMS.stream()
             .map(p -> new Command.Choice(p.getName(), p.getName()))
@@ -214,6 +215,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
             }
         });
+
         builder.addSlashCommand(new IndexCommand() {
             {
                 name = "index-files";
@@ -243,7 +245,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
                 int skip = 0;
 
-                var itr = platform.searchMods(gameVersion, loader, ModPlatform.SearchSortField.LAST_UPDATED);
+                var itr = platform.searchProjects(gameVersion, loader, ModPlatform.ProjectType.MOD, ModPlatform.SearchSortField.LAST_UPDATED);
                 while (itr.hasNext()) {
                     var next = itr.next();
                     if (!next.isAvailable()) continue;
@@ -265,6 +267,45 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 }
             }
         });
+        builder.addSlashCommand(new IndexCommand() {
+            {
+                name = "index-modpack";
+                help = "Force the mods contained in a modpack to be indexed";
+                options.add(new OptionData(OptionType.STRING, "modpack", "The slug of the modpack to index", true)
+                        .setAutoComplete(true));
+            }
+
+            @Override
+            protected void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformModFile> fileConsumer) {
+                var modpack = platform.getModBySlug(event.optString("modpack"), ModPlatform.ProjectType.MODPACK);
+                if (modpack == null) {
+                    throw new IllegalArgumentException("Unknown modpack with slug `" + event.optString("modpack") + "`!");
+                }
+
+                var file = modpack.getFilesForVersion(gameVersion, loader).next();
+                platform.getModsInPack(file).forEach(fileConsumer);
+            }
+
+            @Override
+            public void onAutoComplete(CommandAutoCompleteInteractionEvent event) {
+                var platform = Main.getPlatform(event.getOption("platform", OptionMapping::getAsString));
+                var gameVersion = event.getOption("version", OptionMapping::getAsString);
+                var loader = event.getOption("loader", o -> ModLoader.valueOf(o.getAsString()));
+                if (platform == null || gameVersion == null || loader == null) {
+                    event.replyChoices().queue();
+                    return;
+                }
+
+                var query = event.getFocusedOption().getValue();
+                var options = StreamSupport.stream(Spliterators.spliteratorUnknownSize(platform.searchProjects(gameVersion, loader, ModPlatform.ProjectType.MODPACK, ModPlatform.SearchSortField.POPULARITY, query), 0), false)
+                        .limit(OptionData.MAX_CHOICES)
+                        .map(m -> new Command.Choice(m.getTitle(), m.getSlug()))
+                        .toList();
+
+                event.replyChoices(options).queue();
+            }
+        });
+
         builder.addSlashCommand(new SlashCommand() {
             {
                 this.name = "merge-mods";
@@ -529,7 +570,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 task.cancel(true);
 
                 editMessage(embed -> embed.setDescription("Fatal failure, check console for more details: **" + exception.getMessage() + "**"));
-                message.pin().queue(); // Pin failures for visibility
+                // Pin failures for visibility
+                message.pin().queue(null, err -> Main.LOGGER.warn("Failed to pin failure message because the bot is missing required permissions"));
             }
 
             private void editMessage(Consumer<EmbedBuilder> consumer) {
@@ -574,46 +616,44 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                     .flatMap(InteractionHook::retrieveOriginal)
                     .complete();
 
-            Remapper remapper;
-            try {
-                remapper = loader.createRemapper(gameVersion);
-            } catch (Exception exception) {
-                response.reply("Failed creating remapper: " + exception).queue();
-                Main.LOGGER.error("Failed creating remapper for loader {}, game version {}", loader, gameVersion);
-                return;
-            }
-
             var listener = createIndexingListener(response, gameVersion, loader, platform);
 
-            var files = new ArrayList<PlatformModFile>();
-            var counter = listener.startPlatformScan();
+            try {
+                var remapper = loader.createRemapper(gameVersion);
 
-            findFiles(event, platform, gameVersion, loader, file -> {
-                files.add(file);
-                counter.add(file);
-            });
+                var files = new ArrayList<PlatformModFile>();
+                var counter = listener.startPlatformScan();
 
-            platform.bulkFillData(files);
+                findFiles(event, platform, gameVersion, loader, file -> {
+                    files.add(file);
+                    counter.add(file);
+                });
 
-            var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gameVersion, loader), gameVersion, loader, remapper, ModIndexer.DEFAULT_INDEXERS);
-            try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0)
-                    .uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory())) {
-                indexer.downloadAndConsiderConcurrently(files, exec, listener.startDownload());
-            }
+                platform.bulkFillData(files);
 
-            var scanned = indexer.index(platform, GameVersionIndexService.VIRTUAL_THREAD_EXECUTOR, GameVersionIndexService.CONCURRENCY, listener.startIndex(), Main.SANITIZER);
-
-            for (ModIndexer.IndexCandidate indexCandidate : scanned) {
-                try {
-                    indexCandidate.file().close();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gameVersion, loader), gameVersion, loader, remapper, ModIndexer.DEFAULT_INDEXERS);
+                try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0)
+                        .uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory())) {
+                    indexer.downloadAndConsiderConcurrently(files, exec, listener.startDownload());
                 }
+
+                var scanned = indexer.index(platform, GameVersionIndexService.VIRTUAL_THREAD_EXECUTOR, GameVersionIndexService.CONCURRENCY, listener.startIndex(), Main.SANITIZER);
+
+                for (ModIndexer.IndexCandidate indexCandidate : scanned) {
+                    try {
+                        indexCandidate.file().close();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                listener.markFinish(scanned.size());
+
+                event.getHook().editOriginal("Index completed. Indexed " + scanned.size() + " mods!").complete();
+            } catch (Exception exception) {
+                listener.raiseFatalException(exception);
+                Main.LOGGER.error("Failed manual scan using /{} for loader {}, game version {}", event.getFullCommandName(), loader, gameVersion);
             }
-
-            listener.markFinish(scanned.size());
-
-            event.getHook().editOriginal("Index completed. Indexed " + scanned.size() + " mods!").complete();
         }
 
         protected abstract void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformModFile> fileConsumer);

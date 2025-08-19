@@ -69,14 +69,16 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     @Override
-    public Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField field) {
+    public Iterator<PlatformMod> searchProjects(String version, ModLoader loader, ProjectType projectType, SearchSortField field, @Nullable String query) {
         record Project(String project_id, String slug) {}
         record SearchProjects(int total_hits, List<Project> hits) {}
         var indexType = switch (field) {
             case LAST_UPDATED -> "updated";
             case NEWEST_RELEASED -> "newest";
+            case POPULARITY -> "relevance";
         };
-        Function<Integer, SearchProjects> collector = i -> sendRequest("/search?limit=100&index=" + indexType + "&offset=" + i + "&facets=" + URLEncoder.encode("[[\"categories:" + loader(loader) + "\"],[\"versions:" + version + "\"],[\"project_type:mod\"]]", StandardCharsets.UTF_8), new TypeToken<SearchProjects>() {});
+        Function<Integer, SearchProjects> collector = i -> sendRequest("/search?limit=100&index=" + indexType + "&offset=" + i + "&facets=" + URLEncoder.encode("[[\"categories:" + loader(loader) + "\"],[\"versions:" + version
+                + "\"],[\"project_type:" + (projectType == ProjectType.MOD ? "mod" : "modpack") + "\"]]", StandardCharsets.UTF_8) + (query == null ? "" : ("&query=" + query)), new TypeToken<SearchProjects>() {});
         return new Iterator<>() {
             private final AtomicInteger currentIndex = new AtomicInteger(-1);
             private final AtomicInteger size = new AtomicInteger();

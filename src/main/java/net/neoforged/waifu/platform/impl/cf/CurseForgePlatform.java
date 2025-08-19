@@ -69,12 +69,17 @@ public class CurseForgePlatform implements ModPlatform {
         }
     }
 
+    private int classId(ProjectType projectType) {
+        // 6 is mods, 4471 is modpacks
+        return projectType == ProjectType.MOD ? 6 : 4471;
+    }
+
     @Override
     public PlatformMod getModBySlug(String slug, ProjectType projectType) {
         try {
             var response = api.getHelper().searchMods(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
                             .slug(slug)
-                            .classId(projectType == ProjectType.MOD ? 6 : 4471)) // 6 is mods, 4471 is modpacks
+                            .classId(classId(projectType)))
                     .orElseThrow();
             if (response.isEmpty()) return null;
             return createMod(response.getFirst());
@@ -84,14 +89,16 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField sortField) {
+    public Iterator<PlatformMod> searchProjects(String version, ModLoader loader, ProjectType projectType, SearchSortField sortField, @Nullable String query) {
         try {
             Supplier<ModSearchQuery> baseQuery = () -> ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
-                            .gameVersion(version).classId(6) // 6 is mods
+                            .gameVersion(version).classId(classId(projectType))
                             .sortField(switch (sortField) {
                                 case LAST_UPDATED -> ModSearchQuery.SortField.LAST_UPDATED;
                                 case NEWEST_RELEASED -> ModSearchQuery.SortField.RELEASED_DATE;
+                                case POPULARITY -> ModSearchQuery.SortField.POPULARITY;
                             })
+                            .searchFilter(query)
                             .modLoaderType(loader(loader));
 
             var itr = new MappingIterator<>(api.getHelper().paginated(q -> Requests.searchModsPaginated(baseQuery.get()

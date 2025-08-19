@@ -99,7 +99,7 @@ public class GameVersionIndexService implements Runnable {
                 var modIds = new HashSet<>();
 
                 var files = new ArrayList<PlatformModFile>();
-                var itr = platform.searchMods(version, loader, ModPlatform.SearchSortField.LAST_UPDATED);
+                var itr = platform.searchProjects(version, loader, ModPlatform.ProjectType.MOD, ModPlatform.SearchSortField.LAST_UPDATED);
                 while (itr.hasNext()) {
                     var next = itr.next();
                     if (!next.isAvailable()) continue;
@@ -128,7 +128,7 @@ public class GameVersionIndexService implements Runnable {
                 // get the latest file for each project - after all if the file is new it would have already been indexed by the normal search anyway
                 var latestReleasedMod = new ArrayList<PlatformMod>();
                 int latestAmount = 0;
-                var latestItr = platform.searchMods(version, loader, ModPlatform.SearchSortField.NEWEST_RELEASED);
+                var latestItr = platform.searchProjects(version, loader, ModPlatform.ProjectType.MOD, ModPlatform.SearchSortField.NEWEST_RELEASED);
                 while (latestItr.hasNext() && latestAmount < platform.pageLimit()) {
                     var next = latestItr.next();
                     latestAmount++;

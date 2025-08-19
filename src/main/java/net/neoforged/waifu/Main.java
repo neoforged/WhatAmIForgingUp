@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -108,5 +109,9 @@ public class Main {
 
     public static IndexDatabase<?> createDatabase(String version, ModLoader loader) {
         return DB_MANAGER.getDatabase(version, loader);
+    }
+
+    public static ModPlatform getPlatform(String id) {
+        return Main.PLATFORMS.stream().filter(p -> Objects.equals(p.getName(), id)).findFirst().orElse(null);
     }
 }

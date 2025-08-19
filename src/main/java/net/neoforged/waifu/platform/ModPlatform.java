@@ -19,7 +19,18 @@ public interface ModPlatform {
     @Nullable
     PlatformMod getModBySlug(String slug, ProjectType type);
 
-    Iterator<PlatformMod> searchMods(String version, ModLoader loader, SearchSortField field);
+    default Iterator<PlatformMod> searchProjects(
+            String version, ModLoader loader,
+            ProjectType type, SearchSortField sort
+    ) {
+        return searchProjects(version, loader, type, sort, null);
+    }
+
+    Iterator<PlatformMod> searchProjects(
+            String version, ModLoader loader,
+            ProjectType type, SearchSortField sort,
+            @Nullable String searchQuery
+    );
 
     List<PlatformModFile> getFiles(List<Object> fileIds);
 
@@ -35,7 +46,8 @@ public interface ModPlatform {
 
     enum SearchSortField {
         LAST_UPDATED,
-        NEWEST_RELEASED
+        NEWEST_RELEASED,
+        POPULARITY
     }
 
     enum ProjectType {
