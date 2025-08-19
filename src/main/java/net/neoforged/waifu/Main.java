@@ -29,6 +29,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class Main {
     public static final Path CACHE = Path.of(".cache");
@@ -42,10 +44,11 @@ public class Main {
     );
     public static final long DEFAULT_INTERVAL_SEC = DateUtils.getDurationFromInput(System.getenv().getOrDefault("DEFAULT_INDEX_INTERVAL", "1h")).getSeconds();
 
-    public static final CurseForgeAPI CF_API;
+    public static final CurseForgeAPI CURSE_FORGE_API;
     public static final CurseForgePlatform CURSE_FORGE_PLATFORM;
     public static final ModrinthPlatform MODRINTH_PLATFORM;
     public static final List<ModPlatform> PLATFORMS;
+    private static final Map<String, ModPlatform> PLATFORMS_BY_NAME;
 
     public static final DatabaseManager DB_MANAGER = new PostgresDatabaseManager(
             "jdbc:postgresql://" + System.getenv("POSTGRES_DB_URL"),
@@ -56,12 +59,13 @@ public class Main {
 
     static {
         try {
-            CF_API = CurseForgeAPI.builder().apiKey(System.getenv("CF_API_KEY")).build();
-            CURSE_FORGE_PLATFORM = new CurseForgePlatform(CF_API);
+            CURSE_FORGE_API = CurseForgeAPI.builder().apiKey(System.getenv("CF_API_KEY")).build();
+            CURSE_FORGE_PLATFORM = new CurseForgePlatform(CURSE_FORGE_API);
 
             MODRINTH_PLATFORM = new ModrinthPlatform(System.getenv("MODRINTH_API_TOKEN"));
 
             PLATFORMS = List.of(CURSE_FORGE_PLATFORM, MODRINTH_PLATFORM);
+            PLATFORMS_BY_NAME = PLATFORMS.stream().collect(Collectors.toMap(ModPlatform::getName, Function.identity()));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -112,6 +116,6 @@ public class Main {
     }
 
     public static ModPlatform getPlatform(String id) {
-        return Main.PLATFORMS.stream().filter(p -> Objects.equals(p.getName(), id)).findFirst().orElse(null);
+        return PLATFORMS_BY_NAME.get(id);
     }
 }

@@ -14,33 +14,33 @@ public interface ModPlatform {
 
     String getLogoUrl();
 
-    PlatformMod getModById(Object id);
+    PlatformProject getProjectById(Object id);
 
     @Nullable
-    PlatformMod getModBySlug(String slug, ProjectType type);
+    PlatformProject getProjectBySlug(String slug, ProjectType type);
 
-    default Iterator<PlatformMod> searchProjects(
+    default Iterator<PlatformProject> searchProjects(
             String version, ModLoader loader,
             ProjectType type, SearchSortField sort
     ) {
         return searchProjects(version, loader, type, sort, null);
     }
 
-    Iterator<PlatformMod> searchProjects(
+    Iterator<PlatformProject> searchProjects(
             String version, ModLoader loader,
             ProjectType type, SearchSortField sort,
             @Nullable String searchQuery
     );
 
-    List<PlatformModFile> getFiles(List<Object> fileIds);
+    List<PlatformProjectFile> getFiles(List<Object> fileIds);
 
-    List<PlatformModFile> getModsInPack(PlatformModFile pack);
+    List<PlatformProjectFile> getModsInPack(PlatformProjectFile pack);
 
-    List<@Nullable PlatformModFile> getFilesByFingerprint(List<ModFileInfo> files);
+    List<@Nullable PlatformProjectFile> getFilesByFingerprint(List<ModFileInfo> files);
 
     int pageLimit();
 
-    default void bulkFillData(List<PlatformModFile> files) {
+    default void bulkFillFiles(List<PlatformProjectFile> files) {
 
     }
 

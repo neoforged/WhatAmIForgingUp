@@ -3,24 +3,24 @@ package net.neoforged.waifu.web;
 import io.javalin.Javalin;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformMod;
-import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.platform.PlatformProject;
+import net.neoforged.waifu.platform.PlatformProjectFile;
 
 import java.util.List;
 
 public class PlatformWebService {
     public PlatformWebService(Javalin javalin) {
         javalin.get("/platform/<platform>/pack/<pid>", ctx -> {
-            var plat = Main.PLATFORMS.stream().filter(p -> p.getName().equals(ctx.pathParam("platform"))).findFirst().orElseThrow();
-            PlatformMod mod;
+            var plat = Main.getPlatform(ctx.pathParam("platform"));
+            PlatformProject mod;
             try {
                 var pid = Integer.valueOf(ctx.pathParam("pid"));
-                mod = plat.getModById(pid);
+                mod = plat.getProjectById(pid);
             } catch (NumberFormatException nr) {
-                mod = plat.getModBySlug(ctx.pathParam("pid"), ModPlatform.ProjectType.MOD);
+                mod = plat.getProjectBySlug(ctx.pathParam("pid"), ModPlatform.ProjectType.MOD);
             }
 
-            PlatformModFile file;
+            PlatformProjectFile file;
 
             var versionFilter = ctx.queryParam("mc-version");
             if (versionFilter != null) {
@@ -37,7 +37,7 @@ public class PlatformWebService {
             ) {}
 
             ctx.json(new Response(mods.stream()
-                    .map(m -> new FileRef(m.getModId(), m.getId())).toList()));
+                    .map(m -> new FileRef(m.getProjectId(), m.getId())).toList()));
         });
     }
 }

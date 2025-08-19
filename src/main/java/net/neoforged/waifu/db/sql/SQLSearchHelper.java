@@ -12,8 +12,8 @@ import net.neoforged.waifu.db.sql.search.SqlFilter;
 import net.neoforged.waifu.db.sql.search.SqlSearchBuilder;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformMod;
-import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.platform.PlatformProject;
+import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.Utils;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.statement.HashPrefixSqlParser;
@@ -870,16 +870,16 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
             var entry = in.entrySet().stream().findFirst().orElseThrow();
             var value = entry.getValue();
             return switch (entry.getKey()) {
-                case "curseforge" -> applyCurseforge(Objects.requireNonNull(Main.CURSE_FORGE_PLATFORM.getModById(value), () -> "Unknown CurseForge modpack with ID " + value));
-                case "curseforgeSlug" -> applyCurseforge(Objects.requireNonNull(Main.CURSE_FORGE_PLATFORM.getModBySlug((String) value, ModPlatform.ProjectType.MODPACK), () -> "Unknown CurseForge modpack with slug " + value));
+                case "curseforge" -> applyCurseforge(Objects.requireNonNull(Main.CURSE_FORGE_PLATFORM.getProjectById(value), () -> "Unknown CurseForge modpack with ID " + value));
+                case "curseforgeSlug" -> applyCurseforge(Objects.requireNonNull(Main.CURSE_FORGE_PLATFORM.getProjectBySlug((String) value, ModPlatform.ProjectType.MODPACK), () -> "Unknown CurseForge modpack with slug " + value));
 
-                case "modrinth" -> applyModrinth(Objects.requireNonNull(Main.MODRINTH_PLATFORM.getModById(value), () -> "Unknown Modrinth modpack with ID " + value));
-                case "modrinthSlug" -> applyModrinth(Objects.requireNonNull(Main.MODRINTH_PLATFORM.getModBySlug((String) value, ModPlatform.ProjectType.MODPACK), () -> "Unknown Modrinth modpack with slug " + value));
+                case "modrinth" -> applyModrinth(Objects.requireNonNull(Main.MODRINTH_PLATFORM.getProjectById(value), () -> "Unknown Modrinth modpack with ID " + value));
+                case "modrinthSlug" -> applyModrinth(Objects.requireNonNull(Main.MODRINTH_PLATFORM.getProjectBySlug((String) value, ModPlatform.ProjectType.MODPACK), () -> "Unknown Modrinth modpack with slug " + value));
                 default -> throw new IllegalArgumentException();
             };
         }
 
-        private SqlCondition applyCurseforge(PlatformMod mod) {
+        private SqlCondition applyCurseforge(PlatformProject mod) {
             var file = mod.getFilesForVersion(gameVersion, loader).next();
             return ctx -> {
                 var testExpression = " = any(" + ctx.insert(ids(file)) + "::int[])";
@@ -888,7 +888,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
             };
         }
 
-        private SqlCondition applyModrinth(PlatformMod mod) {
+        private SqlCondition applyModrinth(PlatformProject mod) {
             var file = mod.getFilesForVersion(gameVersion, loader).next();
             return ctx -> {
                 var testExpression = " = any(" + ctx.insert(ids(file)) + "::text[])";
@@ -897,9 +897,9 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
             };
         }
 
-        private Object[] ids(PlatformModFile file) {
+        private Object[] ids(PlatformProjectFile file) {
             return file.getPlatform().getModsInPack(file)
-                    .stream().map(PlatformModFile::getModId)
+                    .stream().map(PlatformProjectFile::getProjectId)
                     .toArray();
         }
     }

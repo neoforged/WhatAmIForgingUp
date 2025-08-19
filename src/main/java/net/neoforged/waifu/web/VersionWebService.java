@@ -4,7 +4,7 @@ import io.javalin.Javalin;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.platform.ModLoader;
-import net.neoforged.waifu.platform.PlatformMod;
+import net.neoforged.waifu.platform.PlatformProject;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
@@ -27,20 +27,20 @@ public class VersionWebService {
             Map<String, PlatformModResponse> platformMods = new HashMap<>(2);
             IndexDatabase.DatabaseMod<?> mod;
             if (isInt(modId)) {
-                var cf = Main.CURSE_FORGE_PLATFORM.getModById(Integer.valueOf(modId));
+                var cf = Main.CURSE_FORGE_PLATFORM.getProjectById(Integer.valueOf(modId));
                 platformMods.put("curseforge", new PlatformModResponse(cf));
                 mod = db.getMod(cf);
 
                 if (mod != null && mod.getModrinthProjectId() != null) {
-                    platformMods.put("modrinth", new PlatformModResponse(Main.MODRINTH_PLATFORM.getModById(mod.getModrinthProjectId())));
+                    platformMods.put("modrinth", new PlatformModResponse(Main.MODRINTH_PLATFORM.getProjectById(mod.getModrinthProjectId())));
                 }
             } else {
-                var mr = Main.MODRINTH_PLATFORM.getModById(modId);
+                var mr = Main.MODRINTH_PLATFORM.getProjectById(modId);
                 platformMods.put("modrinth", new PlatformModResponse(mr));
                 mod = db.getMod(mr);
 
                 if (mod != null && mod.getCurseForgeProjectId() != null) {
-                    platformMods.put("curseforge", new PlatformModResponse(Main.CURSE_FORGE_PLATFORM.getModById(mod.getCurseForgeProjectId())));
+                    platformMods.put("curseforge", new PlatformModResponse(Main.CURSE_FORGE_PLATFORM.getProjectById(mod.getCurseForgeProjectId())));
                 }
             }
 
@@ -69,7 +69,7 @@ public class VersionWebService {
             String title, String description, String icon,
             long downloads, Instant date, String url
     ) {
-        public PlatformModResponse(PlatformMod mod) {
+        public PlatformModResponse(PlatformProject mod) {
             this(mod.getTitle(), mod.getDescription(), mod.getIconUrl(), mod.getDownloads(), mod.getReleasedDate(), mod.getUrl());
         }
     }

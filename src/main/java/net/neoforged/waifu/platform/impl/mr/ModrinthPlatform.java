@@ -7,8 +7,8 @@ import com.google.gson.reflect.TypeToken;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformMod;
-import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.platform.PlatformProject;
+import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.MappingIterator;
 import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
@@ -57,19 +57,19 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     @Override
-    public PlatformMod getModById(Object id) {
+    public PlatformProject getProjectById(Object id) {
         var res = sendRequest("/project/" + id, new TypeToken<ProjectResponse>() {});
         return res == null ? null : createMod(res.id(), res.slug(), res);
     }
 
     @Override // We ignore the project type because as it would seem Modrinth doesn't differentiate between slugs of different project types
-    public PlatformMod getModBySlug(String slug, ProjectType projectType) {
+    public PlatformProject getProjectBySlug(String slug, ProjectType projectType) {
         var res = sendRequest("/project/" + slug, new TypeToken<ProjectResponse>() {});
         return res == null ? null : createMod(res.id(), res.slug(), res);
     }
 
     @Override
-    public Iterator<PlatformMod> searchProjects(String version, ModLoader loader, ProjectType projectType, SearchSortField field, @Nullable String query) {
+    public Iterator<PlatformProject> searchProjects(String version, ModLoader loader, ProjectType projectType, SearchSortField field, @Nullable String query) {
         record Project(String project_id, String slug) {}
         record SearchProjects(int total_hits, List<Project> hits) {}
         var indexType = switch (field) {
@@ -82,7 +82,7 @@ public class ModrinthPlatform implements ModPlatform {
         return new Iterator<>() {
             private final AtomicInteger currentIndex = new AtomicInteger(-1);
             private final AtomicInteger size = new AtomicInteger();
-            private volatile List<PlatformMod> currentResponse;
+            private volatile List<PlatformProject> currentResponse;
             private final AtomicInteger currentListIndex = new AtomicInteger(-1);
 
             {
@@ -99,7 +99,7 @@ public class ModrinthPlatform implements ModPlatform {
             }
 
             @Override
-            public PlatformMod next() {
+            public PlatformProject next() {
                 if (!hasNext()) {
                     throw new NoSuchElementException("No more elements left");
                 }
@@ -123,7 +123,7 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     @Override
-    public List<PlatformModFile> getFiles(List<Object> fileIds) {
+    public List<PlatformProjectFile> getFiles(List<Object> fileIds) {
         var array = new JsonArray();
         for (Object fileId : fileIds) {
             array.add(fileId.toString());
@@ -133,7 +133,7 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     @Override
-    public List<PlatformModFile> getModsInPack(PlatformModFile pack) {
+    public List<PlatformProjectFile> getModsInPack(PlatformProjectFile pack) {
         if (!(pack instanceof MRModFile)) {
             pack = getFiles(List.of(pack.getId())).getFirst();
         }
@@ -145,8 +145,8 @@ public class ModrinthPlatform implements ModPlatform {
     }
 
     @Override
-    public List<@Nullable PlatformModFile> getFilesByFingerprint(List<ModFileInfo> files) {
-        var mods = new ArrayList<PlatformModFile>(files.size());
+    public List<@Nullable PlatformProjectFile> getFilesByFingerprint(List<ModFileInfo> files) {
+        var mods = new ArrayList<PlatformProjectFile>(files.size());
         for (int i = 0; i < files.size(); i++) mods.add(null);
 
         var hashes = new JsonArray();
@@ -180,8 +180,8 @@ public class ModrinthPlatform implements ModPlatform {
         return 100;
     }
 
-    private PlatformMod createMod(String id, String slug, @Nullable ProjectResponse projectResponse) {
-        return new PlatformMod() {
+    private PlatformProject createMod(String id, String slug, @Nullable ProjectResponse projectResponse) {
+        return new PlatformProject() {
             ProjectResponse proj = projectResponse;
 
             @Override
@@ -232,7 +232,7 @@ public class ModrinthPlatform implements ModPlatform {
             private volatile List<Version> versions;
 
             @Override
-            public PlatformModFile getLatestFile(String gameVersion, @Nullable ModLoader loader) {
+            public PlatformProjectFile getLatestFile(String gameVersion, @Nullable ModLoader loader) {
                 var ld = loader == null ? null : loader(loader);
                 var file = getVersions().stream()
                         .filter(v -> (ld == null || v.loaders.contains(ld)) && v.game_versions.contains(gameVersion))
@@ -242,12 +242,12 @@ public class ModrinthPlatform implements ModPlatform {
             }
 
             @Override
-            public Iterator<PlatformModFile> getAllFiles() {
+            public Iterator<PlatformProjectFile> getAllFiles() {
                 return new MappingIterator<>(getVersions().iterator(), version -> createModFile(this, version));
             }
 
             @Override
-            public Iterator<PlatformModFile> getFilesForVersion(String gameVersion, ModLoader loader) {
+            public Iterator<PlatformProjectFile> getFilesForVersion(String gameVersion, ModLoader loader) {
                 var ld = loader(loader);
                 return getVersions().stream()
                         .filter(v -> v.loaders.contains(ld) && v.game_versions.contains(gameVersion))
@@ -279,14 +279,14 @@ public class ModrinthPlatform implements ModPlatform {
         };
     }
 
-    private PlatformModFile createModFile(@Nullable PlatformMod inMod, Version version) {
+    private PlatformProjectFile createModFile(@Nullable PlatformProject inMod, Version version) {
         var downloadFile = version.files.size() == 1 ? version.files.get(0) : version.files.stream().filter(Version.File::primary).findFirst().orElse(null);
         if (downloadFile == null) return null;
         return new MRModFile() {
-            private PlatformMod mod = inMod;
+            private PlatformProject mod = inMod;
 
             @Override
-            public Object getModId() {
+            public Object getProjectId() {
                 return version.project_id;
             }
 
@@ -301,7 +301,7 @@ public class ModrinthPlatform implements ModPlatform {
             }
 
             @Override
-            public synchronized PlatformMod getMod() {
+            public synchronized PlatformProject getMod() {
                 if (mod == null) {
                     mod = createMod(version.project_id, version.project_id, null);
                 }
@@ -330,7 +330,7 @@ public class ModrinthPlatform implements ModPlatform {
 
             @Override
             public String getUrl() {
-                return "https://modrinth.com/mod/" + getModId() + "/version/" + getId();
+                return "https://modrinth.com/mod/" + getProjectId() + "/version/" + getId();
             }
 
             @Override
@@ -433,7 +433,7 @@ public class ModrinthPlatform implements ModPlatform {
         }
     }
 
-    private interface MRModFile extends PlatformModFile {
+    private interface MRModFile extends PlatformProjectFile {
         List<Version.Dependency> getDependencies();
     }
 }

@@ -5,7 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import java.time.Instant;
 import java.util.Iterator;
 
-public interface PlatformMod {
+public interface PlatformProject {
     ModPlatform getPlatform();
 
     Object getId();
@@ -25,11 +25,11 @@ public interface PlatformMod {
     String getUrl();
 
     @Nullable
-    PlatformModFile getLatestFile(String gameVersion, @Nullable ModLoader loader);
+    PlatformProjectFile getLatestFile(String gameVersion, @Nullable ModLoader loader);
 
-    Iterator<PlatformModFile> getAllFiles();
+    Iterator<PlatformProjectFile> getAllFiles();
 
-    Iterator<PlatformModFile> getFilesForVersion(String version, ModLoader loader);
+    Iterator<PlatformProjectFile> getFilesForVersion(String version, ModLoader loader);
 
     @Nullable
     Instant getLatestReleaseDate();

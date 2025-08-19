@@ -3,12 +3,12 @@ package net.neoforged.waifu.platform;
 import java.io.IOException;
 import java.io.InputStream;
 
-public interface PlatformModFile {
-    Object getModId();
+public interface PlatformProjectFile {
+    Object getProjectId();
 
     Object getId();
 
-    PlatformMod getMod();
+    PlatformProject getMod();
 
     String getHash();
 

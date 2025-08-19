@@ -25,8 +25,8 @@ import net.neoforged.waifu.ModIndexer;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformMod;
-import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.platform.PlatformProject;
+import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.DateUtils;
 import net.neoforged.waifu.util.ProgressMonitor;
@@ -224,7 +224,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             }
 
             @Override
-            protected void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformModFile> fileConsumer) {
+            protected void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformProjectFile> fileConsumer) {
                 var fileIds = Arrays.stream(event.optString("files", "").split(","))
                         .map(s -> (Object) s.trim()).toList();
                 platform.getFiles(fileIds).forEach(fileConsumer);
@@ -238,7 +238,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             }
 
             @Override
-            protected void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformModFile> fileConsumer) {
+            protected void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformProjectFile> fileConsumer) {
                 var random = new Random();
 
                 var modCount = event.optLong("mods");
@@ -276,8 +276,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             }
 
             @Override
-            protected void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformModFile> fileConsumer) {
-                var modpack = platform.getModBySlug(event.optString("modpack"), ModPlatform.ProjectType.MODPACK);
+            protected void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformProjectFile> fileConsumer) {
+                var modpack = platform.getProjectBySlug(event.optString("modpack"), ModPlatform.ProjectType.MODPACK);
                 if (modpack == null) {
                     throw new IllegalArgumentException("Unknown modpack with slug `" + event.optString("modpack") + "`!");
                 }
@@ -328,8 +328,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
             private <T extends IndexDatabase.DatabaseMod<T>> void execute(SlashCommandEvent event, ModLoader loader, IndexDatabase<T> db) {
                 var gameVersion = event.optString("version");
-                var cfMod = Main.CURSE_FORGE_PLATFORM.getModById(event.getOption("curseforge", OptionMapping::getAsInt)).getLatestFile(gameVersion, loader);
-                var mrMod = Main.MODRINTH_PLATFORM.getModById(event.optString("modrinth")).getLatestFile(gameVersion, loader);
+                var cfMod = Main.CURSE_FORGE_PLATFORM.getProjectById(event.getOption("curseforge", OptionMapping::getAsInt)).getLatestFile(gameVersion, loader);
+                var mrMod = Main.MODRINTH_PLATFORM.getProjectById(event.optString("modrinth")).getLatestFile(gameVersion, loader);
 
                 var cfDb = db.getMod(cfMod);
                 var mrDb = db.getMod(mrMod);
@@ -361,11 +361,11 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             protected void execute(SlashCommandEvent event) {
                 event.deferReply().complete();
 
-                PlatformMod mod;
+                PlatformProject mod;
                 if (event.hasOption("curseforge")) {
-                    mod = Main.CURSE_FORGE_PLATFORM.getModById(event.getOption("curseforge", OptionMapping::getAsInt));
+                    mod = Main.CURSE_FORGE_PLATFORM.getProjectById(event.getOption("curseforge", OptionMapping::getAsInt));
                 } else {
-                    mod = Main.MODRINTH_PLATFORM.getModById(event.optString("modrinth"));
+                    mod = Main.MODRINTH_PLATFORM.getProjectById(event.optString("modrinth"));
                 }
                 if (mod == null) {
                     event.getHook().sendMessage("Cannot find a mod with the given ID!").queue();
@@ -462,7 +462,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         embed.addField("Downloaded mods", downloadCounter.getAmount() + "/" + searchCounter.getAmount() + " mods currently downloaded", false);
 
                         embed.appendDescription("Last 5 downloaded mods:\n");
-                        for (PlatformModFile element : downloadCounter.getElements()) {
+                        for (PlatformProjectFile element : downloadCounter.getElements()) {
                             if (element != null) {
                                 embed.appendDescription("- " + element.getUrl() + "\n");
                             }
@@ -472,7 +472,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         embed.addField("Found mods", searchCounter.getAmount() + " mods currently found", false);
 
                         embed.appendDescription("Last 5 found mods:\n");
-                        for (PlatformModFile element : searchCounter.getElements()) {
+                        for (PlatformProjectFile element : searchCounter.getElements()) {
                             if (element != null) {
                                 embed.appendDescription("- " + element.getUrl() + "\n");
                             }
@@ -497,8 +497,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 }
             }
 
-            private volatile Counter<PlatformModFile> searchCounter;
-            private volatile Counter<PlatformModFile> downloadCounter;
+            private volatile Counter<PlatformProjectFile> searchCounter;
+            private volatile Counter<PlatformProjectFile> downloadCounter;
 
             private volatile boolean startedIndex, success;
 
@@ -548,13 +548,13 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             }
 
             @Override
-            public Counter<PlatformModFile> startPlatformScan() {
-                return searchCounter = new Counter<>(new AtomicInteger(0), new PlatformModFile[5]);
+            public Counter<PlatformProjectFile> startPlatformScan() {
+                return searchCounter = new Counter<>(new AtomicInteger(0), new PlatformProjectFile[5]);
             }
 
             @Override
-            public Counter<PlatformModFile> startDownload() {
-                return downloadCounter = new Counter<>(new AtomicInteger(0), new PlatformModFile[5]);
+            public Counter<PlatformProjectFile> startDownload() {
+                return downloadCounter = new Counter<>(new AtomicInteger(0), new PlatformProjectFile[5]);
             }
 
             @Override
@@ -608,9 +608,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             var gameVersion = event.optString("version");
             var loader = ModLoader.valueOf(event.optString("loader"));
 
-            ModPlatform platform = Main.PLATFORMS.stream()
-                    .filter(p -> p.getName().equals(event.optString("platform")))
-                    .findFirst().orElseThrow();
+            ModPlatform platform = Main.getPlatform(event.optString("platform"));
 
             var response = event.reply("Started index...")
                     .flatMap(InteractionHook::retrieveOriginal)
@@ -621,7 +619,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             try {
                 var remapper = loader.createRemapper(gameVersion);
 
-                var files = new ArrayList<PlatformModFile>();
+                var files = new ArrayList<PlatformProjectFile>();
                 var counter = listener.startPlatformScan();
 
                 findFiles(event, platform, gameVersion, loader, file -> {
@@ -629,7 +627,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                     counter.add(file);
                 });
 
-                platform.bulkFillData(files);
+                platform.bulkFillFiles(files);
 
                 var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gameVersion, loader), gameVersion, loader, remapper, ModIndexer.DEFAULT_INDEXERS);
                 try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0)
@@ -656,6 +654,6 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             }
         }
 
-        protected abstract void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformModFile> fileConsumer);
+        protected abstract void findFiles(SlashCommandEvent event, ModPlatform platform, String gameVersion, ModLoader loader, Consumer<PlatformProjectFile> fileConsumer);
     }
 }

@@ -8,8 +8,8 @@ import net.neoforged.waifu.index.data.TagCollector;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformMod;
-import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.platform.PlatformProject;
+import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
@@ -98,7 +98,7 @@ public class GameVersionIndexService implements Runnable {
 
                 var modIds = new HashSet<>();
 
-                var files = new ArrayList<PlatformModFile>();
+                var files = new ArrayList<PlatformProjectFile>();
                 var itr = platform.searchProjects(version, loader, ModPlatform.ProjectType.MOD, ModPlatform.SearchSortField.LAST_UPDATED);
                 while (itr.hasNext()) {
                     var next = itr.next();
@@ -117,7 +117,7 @@ public class GameVersionIndexService implements Runnable {
                     }
 
                     // A mod might be updated just as we're paginating the list, which would shift all entries to the right and cause some entries to be duplicated
-                    if (modIds.add(file.getModId())) {
+                    if (modIds.add(file.getProjectId())) {
                         files.add(file);
                         counter.add(file);
                     }
@@ -126,7 +126,7 @@ public class GameVersionIndexService implements Runnable {
                 // To make sure that we index all mods we get a page of the mods sorted by newest
                 // Note - this is based on project IDs rather than file IDs to avoid needing to make 100 more queries (in the case of Modrinth) to
                 // get the latest file for each project - after all if the file is new it would have already been indexed by the normal search anyway
-                var latestReleasedMod = new ArrayList<PlatformMod>();
+                var latestReleasedMod = new ArrayList<PlatformProject>();
                 int latestAmount = 0;
                 var latestItr = platform.searchProjects(version, loader, ModPlatform.ProjectType.MOD, ModPlatform.SearchSortField.NEWEST_RELEASED);
                 while (latestItr.hasNext() && latestAmount < platform.pageLimit()) {
@@ -141,10 +141,10 @@ public class GameVersionIndexService implements Runnable {
                 // If we found at least one newest released mod that isn't about to be indexed
                 if (!latestReleasedMod.isEmpty()) {
                     // ...try to get the mods of those newest released which we have NOT indexed yet
-                    var knownModIds = db.getMods(platform, latestReleasedMod.stream().map(PlatformMod::getId).toList())
+                    var knownModIds = db.getMods(platform, latestReleasedMod.stream().map(PlatformProject::getId).toList())
                             .stream().map(m -> m.getProjectId(platform))
                             .filter(Objects::nonNull).collect(Collectors.toSet());
-                    for (PlatformMod mod : latestReleasedMod) {
+                    for (PlatformProject mod : latestReleasedMod) {
                         if (!knownModIds.contains(mod.getId())) {
                             // ...and queue them for indexing
                             var file = mod.getLatestFile(version, loader);
@@ -155,7 +155,7 @@ public class GameVersionIndexService implements Runnable {
                     }
                 }
 
-                platform.bulkFillData(files);
+                platform.bulkFillFiles(files);
 
                 // Reverse the order of the files so we index older ones first
                 Collections.reverse(files);
@@ -227,9 +227,9 @@ public class GameVersionIndexService implements Runnable {
     public interface Listener {
         ProgressMonitor<ModIndexer.IndexCandidate> startIndex();
 
-        Counter<PlatformModFile> startPlatformScan();
+        Counter<PlatformProjectFile> startPlatformScan();
 
-        Counter<PlatformModFile> startDownload();
+        Counter<PlatformProjectFile> startDownload();
 
         void markFinish(int scanned);
 

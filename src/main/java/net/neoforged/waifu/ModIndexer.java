@@ -17,8 +17,8 @@ import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFilePath;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformMod;
-import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.platform.PlatformProject;
+import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
@@ -159,7 +159,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
         cfs.clear();
     }
 
-    public static <T extends IndexDatabase.DatabaseMod<T>> void merge(IndexDatabase<T> db, T linkTo, PlatformModFile platformFile) {
+    public static <T extends IndexDatabase.DatabaseMod<T>> void merge(IndexDatabase<T> db, T linkTo, PlatformProjectFile platformFile) {
         var platformMod = db.getMod(platformFile);
 
         // If we previously linked this file to a project and now we know this file is also part of a different project on a different platform
@@ -195,15 +195,15 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                     var isCurseForge = file.platformFile.getPlatform() == Main.CURSE_FORGE_PLATFORM;
 
                     var ownHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(file.platformFile.getMod().getFilesForVersion(gameVersion, loader), Spliterator.ORDERED), false)
-                            .map(PlatformModFile::getHash)
+                            .map(PlatformProjectFile::getHash)
                             .collect(Collectors.toSet());
 
                     for (T candidateMod : sameName) {
-                        PlatformMod otherMod = null;
+                        PlatformProject otherMod = null;
                         if (candidateMod.getCurseForgeProjectId() == null && isCurseForge && candidateMod.getModrinthProjectId() != null) {
-                            otherMod = Main.MODRINTH_PLATFORM.getModById(candidateMod.getModrinthProjectId());
+                            otherMod = Main.MODRINTH_PLATFORM.getProjectById(candidateMod.getModrinthProjectId());
                         } else if (candidateMod.getModrinthProjectId() == null && !isCurseForge && candidateMod.getCurseForgeProjectId() != null) {
-                            otherMod = Main.CURSE_FORGE_PLATFORM.getModById(candidateMod.getCurseForgeProjectId());
+                            otherMod = Main.CURSE_FORGE_PLATFORM.getProjectById(candidateMod.getCurseForgeProjectId());
                         }
 
                         if (otherMod == null) continue;
@@ -225,7 +225,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
                         }
 
                         var candidateHashes = StreamSupport.stream(Spliterators.spliteratorUnknownSize(otherMod.getFilesForVersion(gameVersion, loader), Spliterator.ORDERED), false)
-                                .map(PlatformModFile::getHash)
+                                .map(PlatformProjectFile::getHash)
                                 .collect(Collectors.toSet());
 
                         // If the two mods have at least one file in common for the same game version merge them
@@ -265,7 +265,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
         return indexAndPrepareUpload(file.platformFile(), file.file(), mod, true, sanitizer);
     }
 
-    private Runnable indexAndPrepareUpload(@Nullable PlatformModFile platform, ModFileInfo file, T mod, boolean refs, DataSanitizer sanitizer) throws IOException {
+    private Runnable indexAndPrepareUpload(@Nullable PlatformProjectFile platform, ModFileInfo file, T mod, boolean refs, DataSanitizer sanitizer) throws IOException {
         var walker = FileTreeWalker.from(file.getRootDirectory());
 
         List<ClassData> classes = IndexingClassVisitor.collect(file.getRootDirectory(), refs, refs, remapper); // TODO - do we want a separate parameter?
@@ -305,24 +305,24 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
         };
     }
 
-    public record ExpansionResult(List<IndexCandidate> candidates, Map<PlatformModFile, String> additionalMavenCoordinates) {}
+    public record ExpansionResult(List<IndexCandidate> candidates, Map<PlatformProjectFile, String> additionalMavenCoordinates) {}
 
     public ExpansionResult getExpandedMods(ModPlatform platform) {
         Map<String, ModFileInfo.NestedJar> contained = new LinkedHashMap<>();
 
-        Map<Object, PlatformModFile> projectsBeingIndexed = new HashMap<>();
+        Map<Object, PlatformProjectFile> projectsBeingIndexed = new HashMap<>();
 
         for (IndexCandidate platformMod : candidateMods) {
             addNestedMods(contained, platformMod.file);
 
             if (platformMod.platformFile() != null) {
-                projectsBeingIndexed.put(platformMod.platformFile().getModId(), platformMod.platformFile());
+                projectsBeingIndexed.put(platformMod.platformFile().getProjectId(), platformMod.platformFile());
             }
         }
 
         var candidateHashes = candidateMods.stream().collect(Collectors.toMap(k -> k.file().getFileHash(), Function.identity()));
 
-        var additionalCoordinates = new HashMap<PlatformModFile, String>();
+        var additionalCoordinates = new HashMap<PlatformProjectFile, String>();
 
         contained.entrySet().removeIf(e -> {
             var linked = candidateHashes.get(e.getValue().info().getFileHash());
@@ -349,11 +349,11 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
 
                 contained.remove(file.getMavenCoordinates());
 
-                var alreadyIndexed = projectsBeingIndexed.get(fingerprinted.getModId());
+                var alreadyIndexed = projectsBeingIndexed.get(fingerprinted.getProjectId());
 
                 if (alreadyIndexed == null) {
                     additionalCoordinates.put(fingerprinted, file.getMavenCoordinates());
-                    projectsBeingIndexed.put(fingerprinted.getModId(), fingerprinted);
+                    projectsBeingIndexed.put(fingerprinted.getProjectId(), fingerprinted);
                     finalList.add(new IndexCandidate(fingerprinted, file));
                 } else {
                     additionalCoordinates.put(alreadyIndexed, file.getMavenCoordinates());
@@ -384,10 +384,10 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
         }
     }
 
-    public synchronized void downloadAndConsiderConcurrently(List<PlatformModFile> files, ExecutorService executor, Counter<PlatformModFile> downloadCounter) {
+    public synchronized void downloadAndConsiderConcurrently(List<PlatformProjectFile> files, ExecutorService executor, Counter<PlatformProjectFile> downloadCounter) {
         Main.LOGGER.info("Downloading {} files concurrently", files.size());
         var cfs = new ArrayList<CompletableFuture<IndexCandidate>>();
-        for (PlatformModFile file : files) {
+        for (PlatformProjectFile file : files) {
             var cf = new CompletableFuture<IndexCandidate>();
             executor.submit(() -> {
                 try {
@@ -431,7 +431,7 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
         Main.LOGGER.info("Finished downloading files");
     }
 
-    private Path download(PlatformModFile file) throws IOException {
+    private Path download(PlatformProjectFile file) throws IOException {
         var path = baseCacheFolder.resolve(file.getPlatform().getName()).resolve(file.getId() + ".jar");
 
         try {
@@ -450,5 +450,5 @@ public class ModIndexer<T extends IndexDatabase.DatabaseMod<T>> {
         return path;
     }
 
-    public record IndexCandidate(@Nullable PlatformModFile platformFile, ModFileInfo file) {}
+    public record IndexCandidate(@Nullable PlatformProjectFile platformFile, ModFileInfo file) {}
 }

@@ -22,7 +22,7 @@ public class WebService {
             var proj = ctx.pathParam("project");
             try {
                 var idInt = Integer.parseInt(proj);
-                var mod = Main.CF_API.getHelper().getMod(idInt).orElseThrow();
+                var mod = Main.CURSE_FORGE_API.getHelper().getMod(idInt).orElseThrow();
                 ctx.redirect(mod.links().websiteUrl());
             } catch (NumberFormatException ignored) {
                 ctx.redirect("https://modrinth.com/mod/" + proj, HttpStatus.TEMPORARY_REDIRECT);

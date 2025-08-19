@@ -17,8 +17,8 @@ import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformMod;
-import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.platform.PlatformProject;
+import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.MappingIterator;
 import net.neoforged.waifu.util.Utils;
 
@@ -61,7 +61,7 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public PlatformMod getModById(Object id) {
+    public PlatformProject getProjectById(Object id) {
         try {
             return createMod(api.getHelper().getMod((int) id).orElseThrow());
         } catch (CurseForgeException e) {
@@ -75,7 +75,7 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public PlatformMod getModBySlug(String slug, ProjectType projectType) {
+    public PlatformProject getProjectBySlug(String slug, ProjectType projectType) {
         try {
             var response = api.getHelper().searchMods(ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
                             .slug(slug)
@@ -89,7 +89,7 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public Iterator<PlatformMod> searchProjects(String version, ModLoader loader, ProjectType projectType, SearchSortField sortField, @Nullable String query) {
+    public Iterator<PlatformProject> searchProjects(String version, ModLoader loader, ProjectType projectType, SearchSortField sortField, @Nullable String query) {
         try {
             Supplier<ModSearchQuery> baseQuery = () -> ModSearchQuery.of(Constants.GameIDs.MINECRAFT)
                             .gameVersion(version).classId(classId(projectType))
@@ -108,7 +108,7 @@ public class CurseForgePlatform implements ModPlatform {
             return new Iterator<>() {
                 final Set<Object> known = new HashSet<>();
                 int knownAmount = 0;
-                Iterator<PlatformMod> delegate;
+                Iterator<PlatformProject> delegate;
 
                 @Override
                 public boolean hasNext() {
@@ -119,7 +119,7 @@ public class CurseForgePlatform implements ModPlatform {
                 }
 
                 @Override
-                public PlatformMod next() {
+                public PlatformProject next() {
                     if (delegate != null) return delegate.next();
 
                     if (!itr.hasNext() && knownAmount == 10_000) {
@@ -129,7 +129,7 @@ public class CurseForgePlatform implements ModPlatform {
                                             .paginated(q)), Function.identity())
                                     .orElseThrow(), CurseForgePlatform.this::createMod);
 
-                            var items = new ArrayList<PlatformMod>();
+                            var items = new ArrayList<PlatformProject>();
                             while (oppositeDir.hasNext()) {
                                 var next = oppositeDir.next();
                                 if (known.contains(next.getId())) {
@@ -160,7 +160,7 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public List<PlatformModFile> getFiles(List<Object> fileIds) {
+    public List<PlatformProjectFile> getFiles(List<Object> fileIds) {
         try {
             return api.getHelper().getFiles(fileIds.stream().mapToInt(i -> {
                         if (i instanceof Integer) {
@@ -176,7 +176,7 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public List<PlatformModFile> getModsInPack(PlatformModFile pack) {
+    public List<PlatformProjectFile> getModsInPack(PlatformProjectFile pack) {
         record FilePointer(int projectID, int fileID) {}
         record Manifest(List<FilePointer> files) {}
 
@@ -199,9 +199,9 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public List<@org.jetbrains.annotations.Nullable PlatformModFile> getFilesByFingerprint(List<ModFileInfo> files) {
+    public List<@org.jetbrains.annotations.Nullable PlatformProjectFile> getFilesByFingerprint(List<ModFileInfo> files) {
         try {
-            var mods = new ArrayList<PlatformModFile>(files.size());
+            var mods = new ArrayList<PlatformProjectFile>(files.size());
             for (int i = 0; i < files.size(); i++) mods.add(null);
             var murmurHashes = new ArrayList<Long>();
             for (ModFileInfo file : files) {
@@ -226,7 +226,7 @@ public class CurseForgePlatform implements ModPlatform {
     }
 
     @Override
-    public void bulkFillData(List<PlatformModFile> files) {
+    public void bulkFillFiles(List<PlatformProjectFile> files) {
         var castFiles = (List<CFModFile>) (List) new ArrayList<>(files);
         castFiles.removeIf(f -> f.getCachedFile() != null);
         if (castFiles.isEmpty()) return;
@@ -268,8 +268,8 @@ public class CurseForgePlatform implements ModPlatform {
         return 50;
     }
 
-    private PlatformMod createMod(Mod mod) {
-        return new PlatformMod() {
+    private PlatformProject createMod(Mod mod) {
+        return new PlatformProject() {
             @Override
             public ModPlatform getPlatform() {
                 return CurseForgePlatform.this;
@@ -316,7 +316,7 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             @Override
-            public PlatformModFile getLatestFile(String gameVersion, @Nullable ModLoader loader) {
+            public PlatformProjectFile getLatestFile(String gameVersion, @Nullable ModLoader loader) {
                 var ld = loader == null ? null : loader(loader);
                 var idx = mod.latestFilesIndexes().stream()
                         .filter(f -> f.gameVersion().equals(gameVersion) && (ld == null || (f.modLoader() != null && f.modLoaderType() == ld)))
@@ -327,7 +327,7 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             @Override
-            public Iterator<PlatformModFile> getAllFiles() {
+            public Iterator<PlatformProjectFile> getAllFiles() {
                 try {
                     return new MappingIterator<>(api.getHelper().listModFiles(mod)
                             .orElseThrow(), fl -> createFile(this, fl.id(), fl));
@@ -338,7 +338,7 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             @Override
-            public Iterator<PlatformModFile> getFilesForVersion(String version, ModLoader loader) {
+            public Iterator<PlatformProjectFile> getFilesForVersion(String version, ModLoader loader) {
                 try {
                     return new MappingIterator<>(api.getHelper().listModFiles(mod.id(), FileListQuery.of()
                                     .gameVersion(version).modLoaderType(loader(loader)))
@@ -364,12 +364,12 @@ public class CurseForgePlatform implements ModPlatform {
         };
     }
 
-    private PlatformModFile createFile(@Nullable PlatformMod platformMod, int fileId, @Nullable File optionalFile) {
+    private PlatformProjectFile createFile(@Nullable PlatformProject platformMod, int fileId, @Nullable File optionalFile) {
         return new CFModFile() {
             private File file = optionalFile;
 
             @Override
-            public Object getModId() {
+            public Object getProjectId() {
                 return this.mod == null ? getFile().modId() : this.mod.getId();
             }
 
@@ -378,9 +378,9 @@ public class CurseForgePlatform implements ModPlatform {
                 return fileId;
             }
 
-            private PlatformMod mod = platformMod;
+            private PlatformProject mod = platformMod;
             @Override
-            public PlatformMod getMod() {
+            public PlatformProject getMod() {
                 if (mod == null) {
                     try {
                         mod = createMod(api.getHelper().getMod(getFile().modId()).orElseThrow());
@@ -469,7 +469,7 @@ public class CurseForgePlatform implements ModPlatform {
         };
     }
 
-    private interface CFModFile extends PlatformModFile {
+    private interface CFModFile extends PlatformProjectFile {
         @Nullable
         File getCachedFile();
 

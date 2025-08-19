@@ -16,8 +16,8 @@ import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModInfo;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformMod;
-import net.neoforged.waifu.platform.PlatformModFile;
+import net.neoforged.waifu.platform.PlatformProject;
+import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.ThrowingConsumer;
 import net.neoforged.waifu.util.Utils;
 import org.flywaydb.core.Flyway;
@@ -127,15 +127,15 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
     // TODO - reduce duplication?
 
     @Override
-    public @Nullable SQLDatabase.SqlMod getMod(PlatformModFile file) {
+    public @Nullable SQLDatabase.SqlMod getMod(PlatformProjectFile file) {
         return jdbi.withHandle(handle ->
                 handle.createQuery("select * from mods where " + file.getPlatform().getName() + "_project_id = ?")
-                        .bind(0, file.getModId())
+                        .bind(0, file.getProjectId())
                         .execute(returning(SqlMod::new)));
     }
 
     @Override
-    public @Nullable SQLDatabase.SqlMod getMod(PlatformMod mod) {
+    public @Nullable SQLDatabase.SqlMod getMod(PlatformProject mod) {
         return jdbi.withHandle(handle ->
                 handle.createQuery("select * from mods where " + mod.getPlatform().getName() + "_project_id = ?")
                         .bind(0, mod.getId())
@@ -207,7 +207,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
     }
 
     @Override
-    public @Nullable Instant getKnownLatestProjectFileDate(PlatformModFile file) {
+    public @Nullable Instant getKnownLatestProjectFileDate(PlatformProjectFile file) {
         return jdbi.withHandle(handle -> {
             var query = handle.createQuery("select id, latest_date from known_" + file.getPlatform().getName() + "_file_ids where id = ?");
             if (file.getId().getClass() == String.class) {
@@ -226,7 +226,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
     }
 
     @Override
-    public void markKnownById(PlatformModFile file, Instant latestDate) {
+    public void markKnownById(PlatformProjectFile file, Instant latestDate) {
         jdbi.useHandle(handle -> {
             var update = handle.createUpdate("insert into known_" + file.getPlatform().getName() + "_file_ids(id, latest_date) values (?, ?) on conflict do nothing");
             if (file.getId().getClass() == String.class) {
@@ -739,9 +739,9 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
         }
 
         @Override
-        public void link(PlatformModFile platformFile) {
+        public void link(PlatformProjectFile platformFile) {
             jdbi.useHandle(handle -> handle.createUpdate("update mods set " + platformFile.getPlatform().getName() + "_project_id = ? where id = ?")
-                    .bind(0, platformFile.getModId())
+                    .bind(0, platformFile.getProjectId())
                     .bind(1, id)
                     .execute());
         }
