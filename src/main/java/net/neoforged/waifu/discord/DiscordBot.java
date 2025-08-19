@@ -20,6 +20,7 @@ import net.neoforged.waifu.Main;
 import net.neoforged.waifu.MainDatabase;
 import net.neoforged.waifu.ModIndexer;
 import net.neoforged.waifu.db.IndexDatabase;
+import net.neoforged.waifu.index.Remapper;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformMod;
@@ -225,21 +226,31 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             @Override
             protected void execute(SlashCommandEvent event) {
                 var loader = ModLoader.valueOf(event.optString("loader"));
+                var gv = event.optString("version");
 
                 var platformName = event.optString("platform");
                 ModPlatform platform = Main.PLATFORMS.stream().filter(p -> p.getName().equals(platformName))
                         .findFirst().orElseThrow();
 
-                event.reply("Started manual index...").complete();
+                var reply = event.reply("Started manual index...").complete();
+
+                Remapper remapper;
+                try {
+                    remapper = loader.createRemapper(gv);
+                } catch (Exception exception) {
+                    reply.retrieveOriginal()
+                            .flatMap(m -> m.reply("Failed creating remapper: " + exception))
+                            .queue();
+                    Main.LOGGER.error("Failed creating remapper for loader {}, game version {}", loader, gv);
+                    return;
+                }
 
                 var fileIds = Arrays.stream(event.optString("files", "").split(","))
                         .map(s -> (Object) s.trim()).toList();
                 var files = platform.getFiles(fileIds);
                 platform.bulkFillData(files);
 
-                var gv = event.optString("version");
-                // TODO - we need remapping here
-                var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gv, loader), gv, loader);
+                var indexer = new ModIndexer<>(Main.PLATFORM_CACHE, Main.createDatabase(gv, loader), gv, loader, remapper, ModIndexer.DEFAULT_INDEXERS);
                 var counter = new Counter<>(new AtomicInteger(), new PlatformModFile[5]);
                 try (var exec = Executors.newFixedThreadPool(10, Thread.ofVirtual().name("mod-downloader-manual-", 0)
                         .uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory())) {
