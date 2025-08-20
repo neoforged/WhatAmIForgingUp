@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
 @FunctionalInterface
 public interface SqlFilter {
     FilterType INT_FILTER = builder()
+            .castFromJson("%s::int"::formatted)
+
             .filter("lessThan", SqlFilter::smallerThan)
             .filter("lessThanOrEqual", SqlFilter::smallerThanOrEqual)
 
@@ -27,6 +29,8 @@ public interface SqlFilter {
             .build();
 
     FilterType STRING_FILTER = builder()
+            .castFromJson("left(right(%s::text, -1), -1)"::formatted)
+
             .filter("matches", SqlFilter::matches)
             .filter("startsWith", SqlFilter::startsWith)
 
@@ -160,14 +164,35 @@ public interface SqlFilter {
 
     @SuppressWarnings("unchecked")
     static SqlFilter jsonpath_extract(Map<String, Object> config) {
+        var path = (String) config.get("path");
         var cast = ((Map<String, Object>) config.get("as")).entrySet().stream().findFirst().orElseThrow();
-        return (field, ctx) -> {
-            String where = switch (cast.getKey()) {
-                case "string" -> STRING_FILTER.parse(cast.getValue()).buildSql("left(right(elem::text, -1), -1)", ctx);
-                case "int" -> INT_FILTER.parse(cast.getValue()).buildSql("elem::int", ctx);
-                default -> throw new IllegalArgumentException("Unknown type " + cast.getKey());
-            };
-            return "exists (select 0 from jsonb_path_query(" + field + ", " + ctx.insert(config.get("path")) + "::jsonpath) as elem where " + where + ")";
+        var type = switch (cast.getKey()) {
+            case "string" -> STRING_FILTER;
+            case "int" -> INT_FILTER;
+            default -> throw new IllegalArgumentException("Unknown type " + cast.getKey());
+        };
+        return jsonpathPredicate(path, type, type.parse(cast.getValue()));
+    }
+
+    static SqlFilter jsonpathPredicate(String path, FilterType filterType, SqlFilter filter) {
+        return new SqlFilter() {
+            @Override
+            public String buildSql(String field, SqlSearchBuilder ctx) {
+                // Try to build a query that uses @@ first, if possible, to benefit from indexing
+                var asJson = filter.buildJson(path);
+                if (asJson != null) {
+                    return field + " @@ (" + ctx.insert(asJson) + "::jsonpath)";
+                }
+
+                // if not we will use a subquery
+                return "exists (select 0 from jsonb_path_query(" + field + ", " + ctx.insert(path) + "::jsonpath) as elem where " +
+                        filter.buildSql(filterType.castFromJson("elem"), ctx) + ")";
+            }
+
+            @Override
+            public @Nullable String buildJson(String lhs) {
+                return filter.buildJson(path);
+            }
         };
     }
 
@@ -188,6 +213,10 @@ public interface SqlFilter {
     @FunctionalInterface
     interface FilterType {
         SqlFilter parse(Object in);
+
+        default String castFromJson(String variable) {
+            return variable;
+        }
     }
 
     static TypeBuilder builder() {
@@ -195,7 +224,13 @@ public interface SqlFilter {
     }
 
     class TypeBuilder {
+        private UnaryOperator<String> jsonCast = UnaryOperator.identity();
         private final Map<String, Function<Object, SqlFilter>> filters = new HashMap<>();
+
+        public TypeBuilder castFromJson(UnaryOperator<String> cast) {
+            this.jsonCast = cast;
+            return this;
+        }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         public <T> TypeBuilder filter(String type, Function<T, SqlFilter> filterFunction) {
@@ -252,7 +287,17 @@ public interface SqlFilter {
         }
 
         public FilterType build() {
-            return this::parse;
+            return new FilterType() {
+                @Override
+                public SqlFilter parse(Object in) {
+                    return TypeBuilder.this.parse(in);
+                }
+
+                @Override
+                public String castFromJson(String variable) {
+                    return jsonCast.apply(variable);
+                }
+            };
         }
     }
 }

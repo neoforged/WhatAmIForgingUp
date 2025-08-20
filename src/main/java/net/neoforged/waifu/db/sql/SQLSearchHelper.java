@@ -203,8 +203,8 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                         "version", FilterCriterion.column("nested.version")
                 ))
                 .filterOnColumn("indexed", "mods.index_date", SqlFilter.DATE_TIME_FILTER)
-                .filter("modId", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.id" : "$.mods[*].modId"))
-                .filter("description", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.description" : "$.mods[*].description"))
+                .filter("modId", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.id" : "$.mods[*].modId", SqlFilter.STRING_FILTER))
+                .filter("description", FilterCriterion.jsonExpression("mods.mod_metadata_json", loader == ModLoader.FABRIC ? "$.description" : "$.mods[*].description", SqlFilter.STRING_FILTER))
                 .filterOnTable("anyClass", "class_defs")
 
                 // Only for complete Mod instances (i.e. not LightweightMod)

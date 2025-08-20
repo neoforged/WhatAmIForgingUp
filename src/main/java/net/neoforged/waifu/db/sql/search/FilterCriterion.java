@@ -14,8 +14,8 @@ public interface FilterCriterion {
         return value -> SqlCondition.columnFilter(col, type.parse(value));
     }
 
-    static FilterCriterion jsonExpression(String column, String expression) {
-        return value -> SqlCondition.jsonFilter(SqlFilter.STRING_FILTER.parse(value), column, expression, "left(right(elem::text, -1), -1)");
+    static FilterCriterion jsonExpression(String column, String expression, SqlFilter.FilterType filterType) {
+        return value -> SqlCondition.columnFilter(column, SqlFilter.jsonpathPredicate(expression, filterType, filterType.parse(value)));
     }
 
     @FunctionalInterface

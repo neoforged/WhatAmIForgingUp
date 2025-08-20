@@ -38,18 +38,6 @@ public interface SqlCondition {
         return ctx -> condition;
     }
 
-    static SqlCondition jsonFilter(SqlFilter op, String col, String expression, String extractMethod) {
-        return ctx -> {
-            final var jsonPredicate = op.buildJson(expression);
-            if (jsonPredicate == null) {
-                return "exists (select 0 from jsonb_path_query(" + col + ", " + ctx.insert(expression) + "::jsonpath) as elem where "
-                        + op.buildSql(extractMethod, ctx) + ")";
-            } else {
-                return col + " @@ (" + ctx.insert(jsonPredicate) + "::jsonpath)";
-            }
-        };
-    }
-
     static SqlCondition parseAsCriterion(Map<String, Object> filter, Map<String, FilterCriterion> criteria) {
         return parseAsCriterion(filter, criteria, null);
     }
