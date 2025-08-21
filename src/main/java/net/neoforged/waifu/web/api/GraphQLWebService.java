@@ -473,7 +473,7 @@ public class GraphQLWebService {
 
     private Object getVersions(DataFetchingEnvironment env) {
         var stream = db.getIndexedGameVersions().stream();
-        var loader = env.getArguments().get("loader");
+        String loader = env.getArgument("loader");
         if (loader != null) {
             var load = getLoader(loader);
             stream = stream.filter(v -> v.loader().equals(load));
@@ -483,12 +483,12 @@ public class GraphQLWebService {
                 .toList();
     }
 
-    private ModLoader getLoader(Object argument) {
-        return switch ((String) argument) {
+    private ModLoader getLoader(String argument) {
+        return switch (argument) {
             case "NeoForge" -> ModLoader.NEOFORGE;
             case "Fabric" -> ModLoader.FABRIC;
             case "Forge" -> ModLoader.FORGE;
-            default -> throw null;
+            default -> throw new IllegalArgumentException("Unknown loader '" + argument + "'");
         };
     }
 

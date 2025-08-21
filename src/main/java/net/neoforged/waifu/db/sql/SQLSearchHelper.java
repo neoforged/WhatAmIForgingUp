@@ -15,6 +15,7 @@ import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformProject;
 import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.Utils;
+import net.neoforged.waifu.web.api.GraphQLTokenPrivilege;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.statement.HashPrefixSqlParser;
 import org.jdbi.v3.core.statement.SqlStatements;
@@ -57,8 +58,6 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     private static final Map<String, FilterCriterion> DATA_MAP_CRITERIA = Map.of(
             "name", FilterCriterion.column("dmapname")
     );
-
-    private static final int MAX_ITEMS_PER_REQUEST = 500;
 
     private final Jdbi jdbi;
     private final Consumer<Runnable> cancellationInvoker;
@@ -472,7 +471,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
         builder.where(ctx -> "mods.id = any(" + ctx.insert(ids) + ")");
 
-        return paginate(builder, Pagination.parse(env.getArguments()), "mods.id");
+        return paginate(builder, Pagination.parse(env), "mods.id");
     }
 
     @Override
@@ -540,7 +539,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
             builder.groupBy("data_map_name.data_map_name");
         }
 
-        return paginate(builder, Pagination.parse(env.getArguments()), "data_maps.data_map");
+        return paginate(builder, Pagination.parse(env), "data_maps.data_map");
     }
 
     @Override
@@ -560,7 +559,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
             this.data_files.applyFilter(builder, filter);
         }
 
-        return paginate(builder, Pagination.parse(env.getArguments()), "data_files.mod", "data_files.path");
+        return paginate(builder, Pagination.parse(env), "data_files.mod", "data_files.path");
     }
 
     @Override
@@ -634,7 +633,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
             type.applyFilter(builder, filter);
         }
 
-        return paginate(builder, Pagination.parse(env.getArguments()), paginateOn);
+        return paginate(builder, Pagination.parse(env), paginateOn);
     }
 
     private <T> T executeQuery(SqlSearchBuilder builder, DBResultProducer<T> producer) {
@@ -827,18 +826,22 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     }
 
     private record Pagination(int limit, boolean descending, List<Integer> after, List<Integer> before) {
-        private static Pagination parse(Map<String, Object> args) {
-            int limit = MAX_ITEMS_PER_REQUEST;
+        private static Pagination parse(DataFetchingEnvironment env) {
+            return parse(env.getArguments(), GraphQLTokenPrivilege.PAGINATION_LIMIT.get(env));
+        }
+
+        private static Pagination parse(Map<String, Object> args, int maxItems) {
+            int limit = maxItems;
             boolean isLast = false;
 
             Integer last = (Integer) args.get("last");
             if (last == null) {
                 Integer first = (Integer) args.get("first");
                 if (first != null) {
-                    limit = Math.min(first, MAX_ITEMS_PER_REQUEST);
+                    limit = Math.min(first, maxItems);
                 }
             } else {
-                limit = Math.min(last, MAX_ITEMS_PER_REQUEST);
+                limit = Math.min(last, maxItems);
                 isLast = true;
             }
 
