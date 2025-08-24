@@ -36,6 +36,7 @@ import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 
 import java.awt.Color;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -190,9 +191,9 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         .map(t -> {
                             var str = new StringBuilder("- `" + t.gameVersion() + "` / " + t.loader());
                             if (t.indexInterval() == 0) {
-                                str.append(" - *interval not set* (default is ").append(Main.DEFAULT_INTERVAL_SEC).append(" seconds)");
+                                str.append(" - *interval not set* (default is ").append(DateUtils.formatDuration(Duration.ofSeconds(Main.DEFAULT_INTERVAL_SEC))).append(")");
                             } else {
-                                str.append(" - ").append(t.indexInterval()).append(" seconds");
+                                str.append(" - ").append(DateUtils.formatDuration(Duration.ofSeconds(t.indexInterval())));
                             }
                             return str.toString();
                         })
