@@ -50,6 +50,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -69,10 +70,12 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
     private final ScheduledExecutorService messageUpdateService;
     private final MainDatabase database;
     private final TokenManager tokens;
+    private final AtomicBoolean indexingPaused;
 
-    public DiscordBot(String token, MainDatabase database, TokenManager tokens) throws InterruptedException {
+    public DiscordBot(String token, MainDatabase database, TokenManager tokens, AtomicBoolean indexingPaused) throws InterruptedException {
         this.database = database;
         this.tokens = tokens;
+        this.indexingPaused = indexingPaused;
 
         this.jda = JDABuilder.createLight(token)
                 .addEventListeners(components = new ComponentManager())
@@ -138,7 +141,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                 database.addGameVersion(version, loader, interval == 0 ? null : interval);
                 event.reply("Started indexing version `" + version + "`").queue();
 
-                Main.schedule(version, loader, interval, DiscordBot.this, 30);
+                Main.schedule(version, loader, interval, DiscordBot.this, 30, indexingPaused);
             }
         };
 
@@ -380,6 +383,23 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                         dbMod.delete();
                         event.getHook().sendMessage("Mod `" + dbMod.getName() + "` deleted!").queue();
                     }
+                }
+            }
+        });
+
+        builder.addSlashCommand(new SlashCommand() {
+            {
+                name = "pause-all";
+                help = "Pause indexing for all versions, or resume if already paused.";
+            }
+
+            @Override
+            protected void execute(SlashCommandEvent event) {
+                indexingPaused.set(!indexingPaused.get());
+                if (indexingPaused.get()) {
+                    event.reply("Indexing has been paused. Use this command again to resume it.").queue();
+                } else {
+                    event.reply("Indexing resumed.").queue();
                 }
             }
         });

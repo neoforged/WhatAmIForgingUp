@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -77,11 +78,13 @@ public class Main {
 
         var tokens = new TokenManager(Path.of("tokens.db"));
 
-        var bot = new DiscordBot(System.getenv("DISCORD_TOKEN"), db, tokens);
+        var paused = new AtomicBoolean(false);
+
+        var bot = new DiscordBot(System.getenv("DISCORD_TOKEN"), db, tokens, paused);
 
         long initialDelay = 15;
         for (var version : db.getIndexedGameVersions()) {
-            schedule(version.gameVersion(), version.loader(), version.indexInterval(), bot, initialDelay);
+            schedule(version.gameVersion(), version.loader(), version.indexInterval(), bot, initialDelay, paused);
 
             initialDelay += 60 * 10;
         }
@@ -93,10 +96,10 @@ public class Main {
         web.start();
     }
 
-    public static void schedule(String version, ModLoader loader, long intervalSeconds, DiscordBot bot, long initialDelaySeconds) {
+    public static void schedule(String version, ModLoader loader, long intervalSeconds, GameVersionIndexService.ListenerFactory listener, long initialDelaySeconds, AtomicBoolean paused) {
         var indexDb = createDatabase(version, loader);
         var future = EXECUTOR.scheduleWithFixedDelay(
-                new GameVersionIndexService(version, loader, PLATFORMS, indexDb, SANITIZER, bot),
+                wrapWithPause(new GameVersionIndexService(version, loader, PLATFORMS, indexDb, SANITIZER, listener), paused),
                 initialDelaySeconds,
                 intervalSeconds == 0 ? DEFAULT_INTERVAL_SEC : intervalSeconds,
                 TimeUnit.SECONDS
@@ -104,6 +107,16 @@ public class Main {
 
         SERVICES.computeIfAbsent(version, k -> new ConcurrentHashMap<>())
                 .put(loader, future);
+    }
+
+    private static Runnable wrapWithPause(Runnable runnable, AtomicBoolean paused) {
+        return () -> {
+            if (paused.get()) {
+                LOGGER.info("Skipping task {} as executor is paused.", runnable);
+            } else {
+                runnable.run();
+            }
+        };
     }
 
     @Nullable
