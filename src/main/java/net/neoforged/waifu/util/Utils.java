@@ -3,6 +3,7 @@ package net.neoforged.waifu.util;
 import com.electronwill.nightconfig.core.io.ConfigWriter;
 import com.electronwill.nightconfig.json.MinimalJsonWriter;
 import com.electronwill.nightconfig.toml.TomlParser;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializer;
@@ -66,6 +67,7 @@ public class Utils {
         }
     }
 
+    @CanIgnoreReturnValue
     public static Path download(URI uri, Path path) throws IOException {
         Files.createDirectories(path.getParent());
         try (var is = uri.toURL().openStream(); var os = Files.newOutputStream(path)) {

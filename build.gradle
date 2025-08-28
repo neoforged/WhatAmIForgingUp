@@ -52,7 +52,6 @@ dependencies {
     // implementation 'pw.chew:jda-chewtils:2.0'
     implementation 'com.github.Chew:JDA-Chewtils:39a83bd8357b6dd0ea94f7b20bd4f611d84beaa9'
 
-    // we can't bump this because of https://github.com/neoforged/AutoRenamingTool/pull/13
     implementation 'net.neoforged:AutoRenamingTool:2.0.3'
 
     implementation 'io.github.matyrobbrt:curseforgeapi:2.3.3'

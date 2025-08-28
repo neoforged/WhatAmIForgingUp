@@ -1,9 +1,12 @@
 package net.neoforged.waifu.util;
 
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -35,7 +38,13 @@ public class MinecraftMetaUtils {
         }
     }
 
-    public record Download(URI url) {
-
+    public record Download(URI url, long size) {
+        @CanIgnoreReturnValue
+        public Path downloadTo(Path path) throws IOException {
+            if (Files.notExists(path) || Files.size(path) != size) {
+                Utils.download(url(), path);
+            }
+            return path;
+        }
     }
 }

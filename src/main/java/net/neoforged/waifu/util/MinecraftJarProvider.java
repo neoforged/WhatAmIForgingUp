@@ -20,9 +20,7 @@ public class MinecraftJarProvider {
         var pkg = MinecraftMetaUtils.getVersion(mcVersion).get();
 
         var rawMc = CACHE.resolve(mcVersion + "-raw.jar");
-        if (!Files.exists(rawMc)) {
-            Utils.download(pkg.download("client").url(), rawMc);
-        }
+        pkg.download("client").downloadTo(rawMc);
 
         var remapped = CACHE.resolve(mcVersion + ".jar");
         if (!Files.exists(remapped)) {
@@ -31,6 +29,7 @@ public class MinecraftJarProvider {
             Renamer.builder()
                     .logger(s -> {})
                     .add(Transformer.renamerFactory(namedToObf.reverse(), false))
+                    .add(Transformer.recordFixerFactory())
                     .build()
                     .run(rawMc.toFile(), remapped.toFile());
         }
