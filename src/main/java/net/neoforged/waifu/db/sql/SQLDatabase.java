@@ -288,6 +288,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                     }
                 }
 
+                // We strip null characters in the methods below because PostgreSQL is unable to process them in a JSON object
                 @Override
                 public void insertDataMaps(List<DataMapFile> maps) {
                     if (maps.isEmpty()) return;
@@ -298,7 +299,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                             stmt.setInt(1, modId);
                             stmt.setString(2, map.name());
                             stmt.setArray(3, con.createArrayOf("text", map.entries().stream()
-                                    .map(e -> Utils.GSON.toJson(e, DataMapFile.DataMapEntry.class))
+                                    .map(e -> Utils.GSON.toJson(e, DataMapFile.DataMapEntry.class).replace("\u0000", ""))
                                     .toArray(String[]::new)));
                             stmt.addBatch();
                         }
@@ -319,7 +320,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                             stmt.setInt(1, modId);
                             stmt.setString(2, recipe.name());
                             stmt.setString(3, recipe.type());
-                            stmt.setString(4, Utils.GSON.toJson(recipe.value()));
+                            stmt.setString(4, Utils.GSON.toJson(recipe.value()).replace("\u0000", ""));
                             stmt.addBatch();
                         }
 
@@ -338,7 +339,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                         for (var file : files) {
                             stmt.setInt(1, modId);
                             stmt.setString(2, file.path());
-                            stmt.setString(3, Utils.GSON.toJson(file.content()));
+                            stmt.setString(3, Utils.GSON.toJson(file.content()).replace("\u0000", ""));
                             stmt.addBatch();
                         }
 
@@ -359,7 +360,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                             stmt.setString(2, ext.enumName());
                             stmt.setString(3, ext.name());
                             stmt.setString(4, ext.constructor());
-                            stmt.setString(5, Utils.GSON.toJson(ext.parameters()));
+                            stmt.setString(5, Utils.GSON.toJson(ext.parameters()).replace("\u0000", ""));
                             stmt.addBatch();
                         }
 
