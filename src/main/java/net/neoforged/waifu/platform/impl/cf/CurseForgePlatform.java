@@ -19,6 +19,7 @@ import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
 import net.neoforged.waifu.platform.PlatformProject;
 import net.neoforged.waifu.platform.PlatformProjectFile;
+import net.neoforged.waifu.util.Hashing;
 import net.neoforged.waifu.util.MappingIterator;
 import net.neoforged.waifu.util.Utils;
 
@@ -398,7 +399,14 @@ public class CurseForgePlatform implements ModPlatform {
                         return hash.value();
                     }
                 }
-                throw new IllegalArgumentException("No hash?");
+
+                // This is a bit of a hack, but a file isn't guaranteed to have a hash
+                // so if it doesn't we'll just compute one ourselves
+                try {
+                    return Hashing.sha1().putStream(download()).hash();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             @Override
