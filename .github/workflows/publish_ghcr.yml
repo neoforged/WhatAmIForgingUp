@@ -17,6 +17,8 @@ on:
 jobs:
   push-image:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.build.outputs.version }}
     steps:
       - uses: neoforged/actions/checkout@main
 
@@ -27,7 +29,8 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build with Gradle Wrapper
-        run: ./gradlew :build :shadowJar
+        id: build
+        run: ./gradlew :configureGitHubActions :build :shadowJar
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -61,3 +64,18 @@ jobs:
           cache-to: type=gha,mode=max
           tags: ${{ steps.docker_metadata.outputs.tags }}
           labels: ${{ steps.docker_metadata.outputs.labels }}
+
+  notify-build-end:
+    name: Build notifications (end)
+    needs: [ "push-image" ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: neoforged/action-webhooks@v1
+        name: Send Discord end notification
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          status: ${{ needs.push-image.result }}
+          version: ${{ needs.push-image.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

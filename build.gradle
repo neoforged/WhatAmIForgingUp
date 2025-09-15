@@ -104,6 +104,22 @@ shadowJar {
     from(tasks.gitLog.output)
 }
 
+final versionProvider = providers.provider { project.version?.toString() }
+tasks.register("configureGitHubActions", ConfigureActions) {
+    version.set(versionProvider)
+}
+
+abstract class ConfigureActions extends DefaultTask {
+    @Input
+    abstract Property<String> getVersion()
+
+    @TaskAction
+    void doAction() {
+        final versionString = version.get()
+        new File(System.getenv('GITHUB_OUTPUT')) << "version=$versionString"
+    }
+}
+
 tasks.register('replacePluginVersion') {
     doLast {
         var file = file('neoforged-waifuvis-app/package.json')
