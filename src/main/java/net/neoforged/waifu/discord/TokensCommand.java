@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.ButtonStyle;
 import net.dv8tion.jda.api.components.container.Container;
+import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.section.Section;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.components.textinput.TextInput;
@@ -265,10 +266,17 @@ public class TokensCommand extends SlashCommand {
                                         .execute());
                                 event.deferEdit().queue();
                             })
-                            .addComponents(ActionRow.of(
-                                    TextInput.create("limit", "Rate limit", TextInputStyle.PARAGRAPH)
+                            .addComponents(
+                                    TextDisplay.of("""
+                                    ### Rate limit of `%s`
+                                    Configure how many requests the token can make within a specified time frame.
+                                    Example: 12/10m (12 requests every 10 minutes)
+                                    Leave empty to remove rate limit and allow the token to execute an unlimited number of requests.""".formatted(token.name())),
+                                    Label.of(
+                                    "Rate limit",
+                                    TextInput.create("limit", TextInputStyle.SHORT)
                                             .setRequired(false)
-                                            .setPlaceholder("Example: 12/10m (12 requests every 10 minutes).\nLeave empty to remove rate limit.")
+                                            .setValue(token.limit() == null ? null : token.limit().toMachine())
                                             .build()
                             ))
                             .build())
@@ -286,11 +294,17 @@ public class TokensCommand extends SlashCommand {
                                         .execute());
                                 event.deferEdit().queue();
                             })
-                            .addComponents(ActionRow.of(
-                                    TextInput.create("timeout", "Execution timeout", TextInputStyle.PARAGRAPH)
-                                            .setRequired(false)
-                                            .setPlaceholder("Execution timeout in seconds.\nZero is interpreted as indefinite.\nLeave empty to set to default.")
-                                            .build()
+                            .addComponents(TextDisplay.of("""
+                                    ### Execution timeout for `%s`
+                                    Any requests made by this token will time out after the amount of seconds configured below.
+                                    Zero is interpreted as indefinite (requests will NOT time out; **heavily** discouraged as queries that are too complex might overload the database).
+                                    Leave empty to set the default timeout (%s seconds).""".formatted(token.name(), WebService.getDefaultTimeout())),
+                                    Label.of(
+                                        "Execution timeout in seconds",
+                                        TextInput.create("timeout", TextInputStyle.SHORT)
+                                                .setRequired(false)
+                                                .setValue(token.executionTimeout() == null ? null : String.valueOf(token.executionTimeout()))
+                                                .build()
                             ))
                             .build())
                     .queue();

@@ -212,7 +212,7 @@ public class TokenManager {
             return new RateLimit(Integer.parseInt(spl[0].trim()), DateUtils.getDurationFromInput(spl[1].trim()));
         }
 
-        private String toMachine() {
+        public String toMachine() {
             return requests + "/" + per.getSeconds() + "s";
         }
 
