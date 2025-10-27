@@ -66,7 +66,7 @@ public class NeoForgeJarProvider {
         } else {
             InstallProfile installProfile;
             try (var installerFs = FileSystems.newFileSystem(installer);
-                 var is = Files.newBufferedReader(installerFs.getPath("install_profile.json"))) {
+                var is = Files.newBufferedReader(installerFs.getPath("install_profile.json"))) {
                 installProfile = Utils.GSON.fromJson(is, InstallProfile.class);
             }
 
