@@ -218,6 +218,11 @@ public class GameVersionIndexService implements Runnable {
         }
     }
 
+    @Override
+    public String toString() {
+        return "GameVersionIndexService[" + version + ", " + loader + "]";
+    }
+
     public interface ListenerFactory {
         Listener startIndexingListener(String gameVersion, ModLoader loader, ModPlatform platform);
 
