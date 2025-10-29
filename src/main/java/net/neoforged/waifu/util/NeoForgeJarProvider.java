@@ -30,9 +30,8 @@ public class NeoForgeJarProvider {
 
     public static String getLatestVersion(String mcVersion) {
         var split = mcVersion.split("\\.");
-        var neoPrefix = split[1] + "." + (split.length == 2 ? "0" : split[2]);
-        record Response(String version) {
-        }
+        var neoPrefix = split[1] + "." + (split.length == 2 ? "0" : split[2]) + ".";
+        record Response(String version) {}
         return Utils.getJson(URI.create(LATEST_VERSION_URL.formatted(neoPrefix)), Response.class).version();
     }
 
@@ -55,14 +54,13 @@ public class NeoForgeJarProvider {
 
         var neoJar = installationFolder.resolve("libraries/net/neoforged/neoforge/" + neoVersion + "/neoforge-" + neoVersion + "-universal.jar");
 
-        ModFileInfo mcMod;
+        Path mcJarPath;
 
         // This is the new combined Jar, which includes unpatched, patched and resources for Minecraft
         // This has been the new way since NeoForge 21.10.37-beta
         var combinedMinecraftJar = installationFolder.resolve("libraries/net/neoforged/minecraft-client-patched/" + neoVersion + "/minecraft-client-patched-" + neoVersion + ".jar");
         if (Files.exists(combinedMinecraftJar)) {
-            mcMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(combinedMinecraftJar, combinedMinecraftJar), "net.minecraft:minecraft", mcVersion));
-            Files.deleteIfExists(combinedMinecraftJar);
+            mcJarPath = combinedMinecraftJar;
         } else {
             InstallProfile installProfile;
             try (var installerFs = FileSystems.newFileSystem(installer);
@@ -79,10 +77,11 @@ public class NeoForgeJarProvider {
             var assetsJar = installationFolder.resolve("libraries/net/minecraft/client/" + neoFormVersion + "/client-" + neoFormVersion + "-extra.jar");
             merge(mcJarOut, assetsJar, mcVersion, clientJar, srgJar);
             Files.deleteIfExists(clientJar);
-            mcMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(mcJarOut, mcJarOut), "net.minecraft:minecraft", mcVersion));
+            mcJarPath = mcJarOut;
         }
 
         var neoMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(neoJar, neoJar), "net.neoforged:neoforge", neoVersion));
+        var mcMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(mcJarPath, mcJarPath), "net.minecraft:minecraft", mcVersion));
 
         return List.of(neoMod, mcMod);
     }
