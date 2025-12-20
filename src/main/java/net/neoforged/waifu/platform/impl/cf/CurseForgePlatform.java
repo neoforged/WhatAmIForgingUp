@@ -9,6 +9,7 @@ import io.github.matyrobbrt.curseforgeapi.schemas.HashAlgo;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.File;
 import io.github.matyrobbrt.curseforgeapi.schemas.file.FileHash;
 import io.github.matyrobbrt.curseforgeapi.schemas.fingerprint.FingerprintMatch;
+import io.github.matyrobbrt.curseforgeapi.schemas.fingerprint.FingerprintsMatchesResult;
 import io.github.matyrobbrt.curseforgeapi.schemas.mod.Mod;
 import io.github.matyrobbrt.curseforgeapi.schemas.mod.ModLoaderType;
 import io.github.matyrobbrt.curseforgeapi.util.Constants;
@@ -209,9 +210,9 @@ public class CurseForgePlatform implements ModPlatform {
                 murmurHashes.add(file.computeMurmur2());
             }
             var result = api.getHelper().getFingerprintMatches(murmurHashes.stream().mapToLong(value -> value).toArray())
-                    .orElseThrow();
+                    .map(FingerprintsMatchesResult::exactMatches).orElse(List.of());
 
-            for (FingerprintMatch exactMatch : result.exactMatches()) {
+            for (FingerprintMatch exactMatch : result) {
                 for (int i = 0; i < murmurHashes.size(); i++) {
                     if (murmurHashes.get(i) == exactMatch.file().fileFingerprint()) {
                         mods.set(i, createFile(null, exactMatch.file().id(), exactMatch.file()));
