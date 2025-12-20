@@ -1,4 +1,4 @@
-FROM openjdk:21
+FROM eclipse-temurin:21
 COPY build/libs/waifu-all.jar /waifu.jar
 VOLUME ["/home/waifu"]
 WORKDIR /home/waifu
