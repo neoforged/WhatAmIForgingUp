@@ -33,9 +33,11 @@ import net.neoforged.waifu.util.ProgressMonitor;
 import net.neoforged.waifu.util.Utils;
 import net.neoforged.waifu.web.api.TokenManager;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.codehaus.plexus.util.FileUtils;
 
 import java.awt.Color;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -401,6 +403,26 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                     event.reply("Indexing has been paused. Use this command again to resume it.").queue();
                 } else {
                     event.reply("Indexing resumed.").queue();
+                }
+            }
+        });
+
+        builder.addSlashCommand(new SlashCommand() {
+            {
+                name = "purge-cache";
+                help = "Purge the platform file cache";
+            }
+
+            @Override
+            protected void execute(SlashCommandEvent event) {
+                event.deferReply().complete();
+                try {
+                    FileUtils.deleteDirectory(Main.PLATFORM_CACHE.toFile());
+                    Files.createDirectories(Main.PLATFORM_CACHE);
+                    event.getHook().sendMessage("Successfully purged the platform cache.").queue();
+                } catch (IOException e) {
+                    Main.LOGGER.error("Failed to delete the platform file cache", e);
+                    event.getHook().sendMessage("Could not purge the platform file cache. Check the logs for more details.").queue();
                 }
             }
         });
