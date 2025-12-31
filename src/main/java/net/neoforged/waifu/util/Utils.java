@@ -169,4 +169,9 @@ public class Utils {
     public static String cursorEncode(Object o) {
         return base64(o instanceof List<?> lst ? lst.stream().map(Object::toString).collect(Collectors.joining(",")) : o);
     }
+
+    public static String sanitizeNull(String str) {
+        // Strip out the null character and replace the escaped version with a double-escape to please PostgreSQL
+        return str.replace("\u0000", "").replace("\\u0000", "\\\\u0000");
+    }
 }

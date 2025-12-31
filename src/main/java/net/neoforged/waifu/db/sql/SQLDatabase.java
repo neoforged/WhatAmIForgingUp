@@ -299,7 +299,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                             stmt.setInt(1, modId);
                             stmt.setString(2, map.name());
                             stmt.setArray(3, con.createArrayOf("text", map.entries().stream()
-                                    .map(e -> Utils.GSON.toJson(e, DataMapFile.DataMapEntry.class).replace("\u0000", ""))
+                                    .map(e -> Utils.sanitizeNull(Utils.GSON.toJson(e, DataMapFile.DataMapEntry.class)))
                                     .toArray(String[]::new)));
                             stmt.addBatch();
                         }
@@ -320,7 +320,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                             stmt.setInt(1, modId);
                             stmt.setString(2, recipe.name());
                             stmt.setString(3, recipe.type());
-                            stmt.setString(4, Utils.GSON.toJson(recipe.value()).replace("\u0000", ""));
+                            stmt.setString(4, Utils.sanitizeNull(Utils.GSON.toJson(recipe.value())));
                             stmt.addBatch();
                         }
 
@@ -339,7 +339,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                         for (var file : files) {
                             stmt.setInt(1, modId);
                             stmt.setString(2, file.path());
-                            stmt.setString(3, Utils.GSON.toJson(file.content()).replace("\u0000", ""));
+                            stmt.setString(3, Utils.sanitizeNull(Utils.GSON.toJson(file.content())));
                             stmt.addBatch();
                         }
 
@@ -360,7 +360,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                             stmt.setString(2, ext.enumName());
                             stmt.setString(3, ext.name());
                             stmt.setString(4, ext.constructor());
-                            stmt.setString(5, Utils.GSON.toJson(ext.parameters()).replace("\u0000", ""));
+                            stmt.setString(5, Utils.sanitizeNull(Utils.GSON.toJson(ext.parameters())));
                             stmt.addBatch();
                         }
 
@@ -550,7 +550,7 @@ public class SQLDatabase implements IndexDatabase<SQLDatabase.SqlMod> {
                 }
                 yield ar;
             }
-            case String str -> new JsonPrimitive(str.replace("\u0000", "")); // Catch weird escapes for weird annotations like kotlin's (but in case we can't catch it)
+            case String str -> new JsonPrimitive(Utils.sanitizeNull(str)); // Catch weird escapes for weird annotations like kotlin's (but in case we can't catch it)
             case Character c -> new JsonPrimitive(c == '\u0000' ? "" : String.valueOf(c));
             case Boolean b -> new JsonPrimitive(b);
 
