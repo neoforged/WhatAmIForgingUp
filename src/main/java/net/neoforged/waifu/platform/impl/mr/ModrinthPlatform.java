@@ -262,7 +262,7 @@ public class ModrinthPlatform implements ModPlatform {
 
             private synchronized List<Version> getVersions() {
                 if (versions == null) {
-                    versions = sendRequest("/project/" + id + "/version", new TypeToken<>() {});
+                    versions = sendRequest("/project/" + id + "/version?include_changelog=false", new TypeToken<>() {});
                     if (versions == null) {
                         versions = List.of();
                     }
