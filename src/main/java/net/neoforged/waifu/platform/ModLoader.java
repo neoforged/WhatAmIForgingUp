@@ -80,10 +80,15 @@ public enum ModLoader {
             Function.identity(), // Fabric only needs to process vanilla Minecraft
             MinecraftJarProvider::provide
     ), ModFileReader.FABRIC) {
+        private static final ArtifactVersion MC_26_1 = new DefaultArtifactVersion("26.1");
         private static final String INTERMEDIARY_URL = "https://maven.fabricmc.net/net/fabricmc/intermediary/%s/intermediary-%<s-v2.jar";
 
         @Override
         public Remapper createRemapper(String gameVersion) throws IOException {
+            var version = new DefaultArtifactVersion(gameVersion);
+            // Fabric versions prior to 26.1 use SRG mappings
+            if (version.compareTo(MC_26_1) >= 0) return Remapper.NOOP;
+
             var obfToInter = Utils.readFromZip(URI.create(INTERMEDIARY_URL.formatted(gameVersion)), "mappings/mappings.tiny", IMappingFile::load);
 
             var namedToObf = Utils.read(

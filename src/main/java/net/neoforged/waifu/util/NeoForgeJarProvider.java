@@ -30,7 +30,14 @@ public class NeoForgeJarProvider {
 
     public static String getLatestVersion(String mcVersion) {
         var split = mcVersion.split("\\.");
-        var neoPrefix = split[1] + "." + (split.length == 2 ? "0" : split[2]) + ".";
+
+        String neoPrefix;
+        if (mcVersion.startsWith("1.")) {
+            neoPrefix = split[1] + "." + (split.length == 2 ? "0" : split[2]) + ".";
+        } else { // New versioning scheme
+            neoPrefix = split[0] + "." + split[1] + "." + (split.length == 2 ? "0" : split[2]) + ".";
+        }
+
         record Response(String version) {}
         return Utils.getJson(URI.create(LATEST_VERSION_URL.formatted(neoPrefix)), Response.class).version();
     }
@@ -88,7 +95,12 @@ public class NeoForgeJarProvider {
 
     private static String getMcVersion(String neoVersion) {
         var neoSplit = neoVersion.split("\\.");
-        return "1." + neoSplit[0] + (neoSplit[1].equals("0") ? "" : ("." + neoSplit[1]));
+        if (neoSplit.length == 3) { // Old versioning scheme
+            return "1." + neoSplit[0] + (neoSplit[1].equals("0") ? "" : ("." + neoSplit[1]));
+        }
+
+        // New versioning scheme
+        return neoSplit[0] + "." + neoSplit[1] + "." + (neoSplit[2].equals("0") ? "" : ("." + neoSplit[2]));
     }
 
     private static int execJar(Path jar, Path workingDir, Object... args) throws IOException {
