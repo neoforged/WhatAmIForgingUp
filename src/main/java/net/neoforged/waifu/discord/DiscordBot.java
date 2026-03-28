@@ -17,6 +17,7 @@ import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import net.neoforged.waifu.GameVersionIndexService;
 import net.neoforged.waifu.Main;
@@ -424,6 +425,24 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
                     Main.LOGGER.error("Failed to delete the platform file cache", e);
                     event.getHook().sendMessage("Could not purge the platform file cache. Check the logs for more details.").queue();
                 }
+            }
+        });
+
+        builder.addSlashCommand(new SlashCommand() {
+            {
+                name = "remove-pins";
+                help = "Remove all pins";
+            }
+
+            @Override
+            protected void execute(SlashCommandEvent event) {
+                event.deferReply()
+                        .flatMap($ -> RestAction.allOf(event.getChannel()
+                                .retrievePinnedMessages()
+                                .stream().map(p -> p.getMessage().unpin())
+                                .toList()))
+                        .flatMap($ -> event.getHook().sendMessage("Messages un-pinned."))
+                        .queue();
             }
         });
 
