@@ -437,10 +437,8 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             @Override
             protected void execute(SlashCommandEvent event) {
                 event.deferReply()
-                        .flatMap($ -> RestAction.allOf(event.getChannel()
-                                .retrievePinnedMessages()
-                                .stream().map(p -> p.getMessage().unpin())
-                                .toList()))
+                        .flatMap($ -> event.getChannel().retrievePinnedMessages())
+                        .flatMap(pins -> RestAction.allOf(pins.stream().map(p -> p.getMessage().unpin()).toList()))
                         .flatMap($ -> event.getHook().sendMessage("Messages un-pinned."))
                         .queue();
             }
@@ -633,7 +631,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
 
                 editMessage(embed -> embed.setDescription("Fatal failure, check console for more details: **" + exception.getMessage() + "**"));
                 // Pin failures for visibility
-                message.pin().queue(null, err -> Main.LOGGER.warn("Failed to pin failure message because the bot is missing required permissions"));
+                message.pin().queue(null, err -> Main.LOGGER.warn("Failed to pin failure message:", err));
             }
 
             private void editMessage(Consumer<EmbedBuilder> consumer) {
