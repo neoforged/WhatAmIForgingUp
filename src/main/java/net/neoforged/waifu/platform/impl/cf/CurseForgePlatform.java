@@ -202,6 +202,8 @@ public class CurseForgePlatform implements ModPlatform {
 
     @Override
     public List<@org.jetbrains.annotations.Nullable PlatformProjectFile> getFilesByFingerprint(List<ModFileInfo> files) {
+        if (files.isEmpty()) return List.of();
+
         try {
             var mods = new ArrayList<PlatformProjectFile>(files.size());
             for (int i = 0; i < files.size(); i++) mods.add(null);

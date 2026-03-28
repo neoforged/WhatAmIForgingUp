@@ -146,6 +146,8 @@ public class ModrinthPlatform implements ModPlatform {
 
     @Override
     public List<@Nullable PlatformProjectFile> getFilesByFingerprint(List<ModFileInfo> files) {
+        if (files.isEmpty()) return List.of();
+
         var mods = new ArrayList<PlatformProjectFile>(files.size());
         for (int i = 0; i < files.size(); i++) mods.add(null);
 
