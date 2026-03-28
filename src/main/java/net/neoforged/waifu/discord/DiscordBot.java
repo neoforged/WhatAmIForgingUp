@@ -7,6 +7,7 @@ import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
@@ -432,15 +433,15 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             {
                 name = "remove-pins";
                 help = "Remove all pins";
+                userPermissions = new Permission[] { Permission.PIN_MESSAGES };
             }
 
             @Override
             protected void execute(SlashCommandEvent event) {
-                event.deferReply()
-                        .flatMap($ -> event.getChannel().retrievePinnedMessages())
-                        .flatMap(pins -> RestAction.allOf(pins.stream().map(p -> p.getMessage().unpin()).toList()))
-                        .flatMap($ -> event.getHook().sendMessage("Messages un-pinned."))
-                        .queue();
+                event.deferReply().complete();
+                event.getChannel().retrievePinnedMessages()
+                        .iterator().forEachRemaining(pm -> pm.getMessage().unpin().complete());
+                event.getHook().sendMessage("Messages un-pinned.").queue();
             }
         });
 
