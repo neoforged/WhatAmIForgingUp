@@ -118,15 +118,13 @@ tasks.register('packagePlugin', Zip) {
     archiveFileName = 'waifu-plugin.zip'
 }
 
-var lastCommitMessage = new ByteArrayOutputStream()
-project.exec {
+final lastCommitMessage = providers.exec {
     commandLine('git log -1 --pretty=%B'.split(' '))
-    standardOutput = lastCommitMessage
-}
+}.standardOutput.asText
 publishMods {
     file = tasks.packagePlugin.archiveFile
     modLoaders.addAll('neoforge')
-    getChangelog().set(lastCommitMessage.toString().trim())
+    getChangelog().set(lastCommitMessage.get().trim())
     type = STABLE
     github {
         accessToken = providers.environmentVariable('GITHUB_TOKEN')
