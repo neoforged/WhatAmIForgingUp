@@ -1,8 +1,9 @@
 package net.neoforged.waifu;
 
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
-import io.javalin.Javalin;
+import io.javalin.http.ContentType;
 import io.javalin.http.staticfiles.Location;
+import io.javalin.plugin.bundled.CorsPluginConfig;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.DatabaseManager;
 import net.neoforged.waifu.db.IndexDatabase;
@@ -20,10 +21,10 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -40,6 +41,7 @@ public class Main {
     public static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(
             3, Thread.ofPlatform().name("indexer-", 0).uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory()
     );
+    public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     public static final DataSanitizer SANITIZER = DataSanitizer.of(
             DataSanitizer.REMOVE_OWN_DIRECT_REFERENCES, DataSanitizer.REMOVE_PRIVATE_MEMBERS
     );
@@ -89,10 +91,13 @@ public class Main {
             initialDelay += 60 * 10;
         }
 
-        WebService web = new WebService(Javalin.create(cfg -> {
-            cfg.useVirtualThreads = true;
+        WebService web = new WebService(cfg -> {
+            cfg.concurrency.useVirtualThreads = true;
             cfg.staticFiles.add("/web/static", Location.CLASSPATH);
-        }), db, tokens);
+
+            cfg.bundledPlugins.enableCors(cors -> cors.addRule(CorsPluginConfig.CorsRule::anyHost));
+            cfg.routes.error(404, ctx -> ctx.contentType(ContentType.HTML).result(Main.class.getResourceAsStream("/web/static/404.html")));
+        }, db, tokens);
         web.start();
     }
 

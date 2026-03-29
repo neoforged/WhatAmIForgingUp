@@ -1,0 +1,8 @@
+schema: ./schema.graphql
+extensions:
+  endpoints:
+    Default GraphQL Endpoint:
+      url: https://api.waifu.neoforged.net/graphql
+      headers:
+        Authorization: ${GRAPHQL_TOKEN}
+      introspect: true

@@ -13,6 +13,8 @@ import org.postgresql.ds.PGSimpleDataSource;
 
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.function.Consumer;
@@ -70,6 +72,28 @@ public class PostgresDatabaseManager implements DatabaseManager {
         props.put("readOnly", "true");
         props.put("currentSchema", schema(gameVersion, loader));
         return new SQLSearchHelper(jdbi(props), gameVersion, loader, cancellationInvoker);
+    }
+
+    @Override
+    public List<Version> getAllVersions() {
+        try (var con = baseConnection.openConnection()) {
+            var stmt = con.prepareStatement("select nspname from pg_catalog.pg_namespace");
+            stmt.execute();
+
+            var versions = new ArrayList<Version>();
+            var rs = stmt.getResultSet();
+            while (rs.next()) {
+                var version = rs.getString(1);
+                var spl = version.split("-");
+                if (spl.length == 2 && ModLoader.LOADERS.contains(spl[1].toUpperCase(Locale.ROOT))) {
+                    versions.add(new Version(spl[0], ModLoader.valueOf(spl[1].toUpperCase(Locale.ROOT))));
+                }
+            }
+
+            return versions;
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 
     @Override

@@ -1,5 +1,8 @@
 package net.neoforged.waifu.web.api;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.gson.JsonObject;
 import graphql.ExecutionResult;
 import graphql.GraphQL;
 import graphql.language.Description;
@@ -41,6 +44,7 @@ import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
 import io.javalin.Javalin;
+import io.javalin.config.RoutesConfig;
 import io.javalin.http.HttpStatus;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.MainDatabase;
@@ -49,7 +53,9 @@ import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
-import java.time.Duration;
+import java.net.URI;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -60,10 +66,8 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -75,10 +79,9 @@ public class GraphQLWebService {
     private final boolean anonymousAccess;
     @Nullable
     private final TokenManager.RateLimit anonymousRateLimit;
+    @Nullable
+    private final TokenManager.RateLimit discordRateLimit;
     private final int defaultTimeout;
-
-    private final AtomicInteger anonymousResetsIn = new AtomicInteger();
-    private final Map<String, AtomicInteger> anonymousLimits = new ConcurrentHashMap<>();
 
     private final MainDatabase db;
     private final TokenManager tokenManager;
@@ -86,22 +89,24 @@ public class GraphQLWebService {
 
     private final ThreadLocal<List<Runnable>> cancellationInvokers = ThreadLocal.withInitial(ArrayList::new);
 
-    record TokenInfo(boolean active, int executionTimeout, Optional<TokenRateLimit> rateLimit) {}
+    record TokenInfo(boolean active, int executionTimeout, @Nullable TokenManager.RateLimit limit) {}
     private final Map<String, TokenInfo> tokens = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService rateLimitService;
 
-    private record TokenRateLimit(int requests, Duration interval, AtomicInteger resetsIn, AtomicInteger remaining) {}
+    private final Cache<String, Long> discordTokenToUser = Caffeine.newBuilder()
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
+
+    private final RateLimiter rateLimiter = new RateLimiter();
 
     private final ExecutorService executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("graphql-executor-", 0).factory());
 
-    public GraphQLWebService(Javalin javalin, MainDatabase db, TokenManager tokenManager, boolean anonymousAccess, @Nullable TokenManager.RateLimit anonymousRateLimit, int defaultTimeout) {
+    public GraphQLWebService(RoutesConfig routes, MainDatabase db, TokenManager tokenManager, boolean anonymousAccess, @Nullable TokenManager.RateLimit anonymousRateLimit, @Nullable TokenManager.RateLimit discordRateLimit, int defaultTimeout) {
         this.db = db;
         this.tokenManager = tokenManager;
         this.anonymousAccess = anonymousAccess;
         this.anonymousRateLimit = anonymousAccess ? anonymousRateLimit : null;
+        this.discordRateLimit = discordRateLimit;
         this.defaultTimeout = defaultTimeout;
-
-        this.rateLimitService = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().name("graphql-rate-limiter").factory());
 
         SchemaParser schemaParser = new SchemaParser();
         TypeDefinitionRegistry typeDefinitionRegistry = schemaParser.parse(getClass().getResourceAsStream("/web/api/schema.graphql"));
@@ -324,44 +329,20 @@ public class GraphQLWebService {
 
         this.engine = GraphQL.newGraphQL(graphQLSchema).build();
 
-        javalin.get("/graphql", ctx -> ctx.redirect("/graphql.html", HttpStatus.TEMPORARY_REDIRECT));
+        routes.get("/graphql", ctx -> ctx.redirect("/graphql.html", HttpStatus.TEMPORARY_REDIRECT));
 
-        setupEndpoint(javalin);
+        setupEndpoint(routes);
     }
 
-    private void setupEndpoint(Javalin javalin) {
-        if (anonymousRateLimit != null) {
-            anonymousResetsIn.set((int) anonymousRateLimit.per().getSeconds());
-        }
-
+    private void setupEndpoint(RoutesConfig javalin) {
         for (TokenManager.Token token : tokenManager.getTokens()) {
             addToken(token);
         }
 
-        rateLimitService.scheduleWithFixedDelay(() -> {
-            for (var entry : tokens.entrySet()) {
-                var rateLimit = entry.getValue().rateLimit();
-                if (rateLimit.isPresent()) {
-                    var limit = rateLimit.orElseThrow();
-                    if (limit.resetsIn.decrementAndGet() <= 0) {
-                        limit.resetsIn.set((int) limit.interval.getSeconds());
-                        limit.remaining.set(limit.requests);
-                    }
-                }
-            }
-
-            if (anonymousRateLimit != null) {
-                if (anonymousResetsIn.decrementAndGet() <= 0) {
-                    anonymousResetsIn.set((int) anonymousRateLimit.per().getSeconds());
-                    anonymousLimits.clear();
-                }
-            }
-        }, 1, 1, TimeUnit.SECONDS);
-
         tokenManager.addAddCallback(this::addToken);
         tokenManager.addRemoveCallback(tokens::remove);
 
-        javalin.post("graphql", ctx -> {
+        javalin.post("/api/graphql", ctx -> {
             var token = ctx.header("Authorization");
             var executionTimeout = defaultTimeout;
 
@@ -371,25 +352,30 @@ public class GraphQLWebService {
                     return;
                 }
 
-                if (anonymousRateLimit != null) {
-                    ctx.header("x-ratelimit-reset", String.valueOf(anonymousResetsIn.get()));
-
-                    var limit = this.anonymousLimits.get(ctx.ip());
-                    if (limit == null) {
-                        limit = new AtomicInteger(anonymousRateLimit.requests());
-                        anonymousLimits.put(ctx.ip(), limit);
-                    }
-
-                    var current = limit.get();
-                    if (current <= 0) {
-                        ctx.status(HttpStatus.TOO_MANY_REQUESTS)
-                                .header("x-ratelimit-remaining", "0")
-                                .json(Map.of("error", "Rate limit (" + anonymousRateLimit.requests() + ") exceeded, try again in " + anonymousResetsIn.get() + " seconds"));
+                if (anonymousRateLimit != null && rateLimiter.rateLimitExceeded(ctx, ctx.ip(), anonymousRateLimit)) {
+                    return;
+                }
+            } else if (token.startsWith("Discord ")) {
+                if (discordRateLimit == null) {
+                    if (!anonymousAccess) {
+                        ctx.status(HttpStatus.UNAUTHORIZED).json(Map.of("error", "Cannot use Discord token based authentication"));
                         return;
                     }
 
-                    var remaining = limit.decrementAndGet();
-                    ctx.header("x-ratelimit-remaining", String.valueOf(remaining));
+                    if (anonymousRateLimit != null && rateLimiter.rateLimitExceeded(ctx, ctx.ip(), anonymousRateLimit)) {
+                        return;
+                    }
+                } else {
+                    var discordToken = token.substring("Discord ".length());
+                    var identifiedUser = identifyDiscordUser(discordToken);
+                    if (identifiedUser == null) {
+                        ctx.status(HttpStatus.UNAUTHORIZED).json(Map.of("error", "Cannot identify user from Discord token"));
+                        return;
+                    }
+
+                    if (rateLimiter.rateLimitExceeded(ctx, "Discord " + identifiedUser, discordRateLimit)) {
+                        return;
+                    }
                 }
             } else {
                 var tokenInfo = tokens.get(token);
@@ -402,24 +388,11 @@ public class GraphQLWebService {
                     return;
                 }
 
-                executionTimeout = tokenInfo.executionTimeout();
-
-                if (tokenInfo.rateLimit().isPresent()) {
-                    var limit = tokenInfo.rateLimit().orElseThrow();
-
-                    ctx.header("x-ratelimit-reset", String.valueOf(limit.resetsIn.get()));
-
-                    var current = limit.remaining.get();
-                    if (current <= 0) {
-                        ctx.status(HttpStatus.TOO_MANY_REQUESTS)
-                                .header("x-ratelimit-remaining", "0")
-                                .json(Map.of("error", "Rate limit (" + limit.requests() + ") exceeded, try again in " + limit.resetsIn.get() + " seconds"));
-                        return;
-                    }
-
-                    var remaining = limit.remaining().decrementAndGet();
-                    ctx.header("x-ratelimit-remaining", String.valueOf(remaining));
+                if (tokenInfo.limit() != null && rateLimiter.rateLimitExceeded(ctx, "Bearer " + token, tokenInfo.limit())) {
+                    return;
                 }
+
+                executionTimeout = tokenInfo.executionTimeout();
             }
 
             record Body(String query, String operationName, Map<String, Object> variables) {}
@@ -460,9 +433,30 @@ public class GraphQLWebService {
         tokens.put(token.token(), new TokenInfo(
                 token.active(),
                 token.executionTimeout() == null ? defaultTimeout : token.executionTimeout(),
-                Optional.ofNullable(token.limit())
-                        .map(l -> new TokenRateLimit(l.requests(), l.per(), new AtomicInteger((int) l.per().getSeconds()), new AtomicInteger(l.requests())))
+                token.limit()
         ));
+    }
+
+    private static final URI DISCORD_ME = URI.create("https://discord.com/api/v10/users/@me");
+    @Nullable
+    private Long identifyDiscordUser(String token) {
+        return discordTokenToUser.get(token, $ -> {
+            final HttpResponse<String> response;
+            try {
+                response = Main.HTTP_CLIENT.send(HttpRequest.newBuilder(DISCORD_ME)
+                        .header("Authorization", "Bearer " + token).build(), HttpResponse.BodyHandlers.ofString());
+            } catch (Exception e) {
+                return null;
+            }
+
+            if (response.statusCode() == 200) {
+                var body = Utils.GSON.fromJson(response.body(), JsonObject.class);
+                if (body.has("id")) {
+                    return body.get("id").getAsLong();
+                }
+            }
+            return null;
+        });
     }
 
     private Object getVersion(DataFetchingEnvironment env) {

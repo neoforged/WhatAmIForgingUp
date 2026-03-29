@@ -15,10 +15,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public enum ModLoader {
     NEOFORGE("NeoForge", "https://github.com/neoforged.png", new VersionProvider(
@@ -120,6 +123,9 @@ public enum ModLoader {
             );
         }
     };
+
+    public static final Set<String> LOADERS = Arrays.stream(ModLoader.values())
+            .map(ModLoader::name).collect(Collectors.toSet());
 
     private final String name;
     private final String logo;

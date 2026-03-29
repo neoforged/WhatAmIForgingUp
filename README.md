@@ -18,14 +18,18 @@ WhatAmIForgingUp is configured using environment variables:
 - `CF_API_KEY`: a CurseForge API key used for searching and indexing mods available on CurseForge
 - `MODRINTH_API_TOKEN`: an **optional** Modrinth API token used for searching and indexing mods available on Modrinth
 - `DISCORD_TOKEN`: the token of the Discord bot
+- `DISCORD_OAUTH_CLIENT_ID`: the client ID for Discord OAuth
+- `DISCORD_OAUTH_CLIENT_SECRET`: the client secret for Discord OAuth
 - `DISCORD_CHANNEL_ID`: the ID of a channel that the bot will send index status updates in
 - `POSTGRES_DB_URL`: the URL of the Postgres database. The format is `<ip>:<port>/<database_name>` (example: `localhost:5432/waifu`)
 - `POSTGRES_DB_USERNAME`: the username of a user with write (and importantly create schema) permissions to the database
 - `POSTGRES_DB_PASSWORD`: the password of the database user
 - `KEEP_PLATFORM_CACHES`: boolean defaulting to `true`. If set to `false`, the bot will not keep indexed mod jars in its cache, deleting them after they've been indexed. Note that while this is used for space saving purposes, for the initial index you will still need to be able to store all mod jars (which could amount to several gigabytes) as they will be deleted only after all mods are indexed
 - `DEFAULT_INDEX_INTERVAL`: duration defaulting to `1h`. When a version is tracked without a index interval specified, the interval will default to this duration. Example duration: `1d5h3m45s` - 1 day, 5 hours, 3 minutes and 45 seconds. This duration has second precision
-- `WEB_API_PORT`: when configured, the API webserver will be started on the port configured in this value
+- `WEB_SERVER_URL`: the base url of the web server
+- `WEB_SERVER_PORT`: when configured, the web server will be started on the port configured in this value
 - `GRAPHQL_ANONYMOUS_RATE_LIMIT`: rate-limit for anonymous GraphQL API access. When not configured, anonymous access is disabled, requiring tokens for all requests
+- `GRAPHQL_DISCORD_RATE_LIMIT`: rate-limit for Discord token-based GraphQL API access. When not configured, attempting to access the API with a Discord token will be treated as an annonymous request
 - `GRAPHQL_DEFAULT_TIMEOUT`: default timeout (in seconds) for GraphQL requests (can be overridden on a per-token basis). Default value is `30`.
 
 As for memory usage, 16 gigabytes are recommended.
