@@ -22,19 +22,26 @@ public class MinecraftJarProvider {
         var rawMc = CACHE.resolve(mcVersion + "-raw.jar");
         pkg.download("client").downloadTo(rawMc);
 
-        var remapped = CACHE.resolve(mcVersion + ".jar");
-        if (!Files.exists(remapped)) {
-            var namedToObf = Utils.read(pkg.download("client_mappings").url(), IMappingFile::load);
+        Path finalMcJar = rawMc;
 
-            Renamer.builder()
-                    .logger(s -> {})
-                    .add(Transformer.renamerFactory(namedToObf.reverse(), false))
-                    .add(Transformer.recordFixerFactory())
-                    .build()
-                    .run(rawMc.toFile(), remapped.toFile());
+        if (pkg.download("client_mappings") != null) {
+            // Remap the jar if we're trying to index an obfuscated version (prior to 26.1)
+            var remapped = CACHE.resolve(mcVersion + ".jar");
+            if (!Files.exists(remapped)) {
+                var namedToObf = Utils.read(pkg.download("client_mappings").url(), IMappingFile::load);
+
+                Renamer.builder()
+                        .logger(s -> {})
+                        .add(Transformer.renamerFactory(namedToObf.reverse(), false))
+                        .add(Transformer.recordFixerFactory())
+                        .build()
+                        .run(rawMc.toFile(), remapped.toFile());
+            }
+
+            finalMcJar = remapped;
         }
 
-        var mcMod = Objects.requireNonNull(ModFileReader.LIBRARY.read(ModFilePath.create(remapped), "net.minecraft:minecraft", mcVersion));
+        var mcMod = Objects.requireNonNull(ModFileReader.LIBRARY.read(ModFilePath.create(finalMcJar), "net.minecraft:minecraft", mcVersion));
 
         return List.of(mcMod);
     }
