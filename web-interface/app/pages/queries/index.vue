@@ -7,6 +7,14 @@
         Find mixins that target classes in a certain package (and its subpackages).
       </template>
     </v-card>
+    <br>
+    <v-card
+      title="Implementations"
+      to="implementations" router>
+      <template v-slot:text>
+        Find the implementations of a given class.
+      </template>
+    </v-card>
   </v-container>
 </template>
 

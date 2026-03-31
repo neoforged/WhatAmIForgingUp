@@ -5,7 +5,7 @@ import {Loader} from "~~/graphql-requests/types/__generated__/graphql";
 import type {RelayConnection} from './graphql-utils'
 
 export class QueryClient {
-  private apollo = useApolloClient().client;
+  apollo = useApolloClient().client;
   private route = useRoute();
   private router = useRouter()
 

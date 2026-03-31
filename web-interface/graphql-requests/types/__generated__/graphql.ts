@@ -1799,6 +1799,15 @@ export type TagFilePredicate = {
   replace?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
+export type GetImplementationsQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  class: Scalars['String']['input'];
+}>;
+
+
+export type GetImplementationsQuery = { gameVersion: { __typename: 'GameVersion', class: { __typename: 'Class', inheritors: Array<{ __typename: 'InheritanceTreeClass', name: string, definitions: Array<{ __typename: 'ClassDefinition', mod: { __typename: 'LightweightMod', id: number, name: string } }> }> } | null } | null };
+
 export type GetMixinsQueryVariables = Exact<{
   version: Scalars['String']['input'];
   loader: Loader;
