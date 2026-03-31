@@ -96,7 +96,10 @@ public class Main {
             cfg.staticFiles.add("/web/static", Location.CLASSPATH);
 
             cfg.bundledPlugins.enableCors(cors -> cors.addRule(CorsPluginConfig.CorsRule::anyHost));
-            cfg.routes.error(404, ctx -> ctx.contentType(ContentType.HTML).result(Main.class.getResourceAsStream("/web/static/404.html")));
+
+            if (Main.class.getResource("/web/static/404.html") != null) {
+                cfg.routes.error(404, ctx -> ctx.contentType(ContentType.HTML).result(Main.class.getResourceAsStream("/web/static/404.html")));
+            }
         }, db, tokens);
         web.start();
     }

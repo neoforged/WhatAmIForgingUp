@@ -313,8 +313,8 @@ public class GraphQLWebService {
 
                 // Internal types
                 .type("IntModInformation", builder ->
-                        builder.dataFetcher("curseforge", this.<Map<String, Object>>fetcher(map -> Main.CURSE_FORGE_PLATFORM.getProjectById(map.get("cpid"))))
-                                .dataFetcher("modrinth", this.<Map<String, Object>>fetcher(map -> Main.MODRINTH_PLATFORM.getProjectById(map.get("mpid"))))
+                        builder.dataFetcher("curseforge", this.<Map<String, Object>>fetcher(map -> Objects.equals(map.get("cpid"), null) ? null : Main.CURSE_FORGE_PLATFORM.getProjectById(map.get("cpid"))))
+                                .dataFetcher("modrinth", this.<Map<String, Object>>fetcher(map -> Objects.equals(map.get("mpid"), null) ? null : Main.MODRINTH_PLATFORM.getProjectById(map.get("mpid"))))
                 )
                 .type("IntPlatformInformation", builder ->
                         builder.dataFetcher("projectUrl", fetcher(PlatformProject::getUrl))

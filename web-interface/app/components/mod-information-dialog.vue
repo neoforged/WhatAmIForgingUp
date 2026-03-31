@@ -1,24 +1,42 @@
 <template>
-  <v-dialog v-model="showDialog">
+  <v-dialog v-model="showDialog" max-width="500">
     <v-card :title="title ?? 'Mod Information'" :loading="loading">
-      <v-card-text>
-        {{ platformProject?.description }}
-      </v-card-text>
+      <template v-slot:subtitle v-if="!loading">
+        <i>by <b>{{ authors }}</b></i> | {{ license }}<br/>
+        Version {{ modVersion }} for {{ version }}
+      </template>
+      <template v-slot:text v-if="!loading">
+        <p>{{ platformProject?.description }}</p>
+        <p v-if="mavenCoordinates">Maven Coordinates: <code>{{ mavenCoordinates }}</code></p>
+        <p v-if="curseforge">CurseForge Project: <a :href="curseforge?.projectUrl" target="_blank">{{ curseforge?.title }}</a></p>
+        <p v-if="modrinth">Modrinth Project: <a :href="modrinth?.projectUrl" target="_blank">{{ modrinth?.title }}</a></p>
+        <v-chip-group column>
+          <v-chip :disabled="!platformProject?.sourceUrl"
+                  :href="platformProject?.sourceUrl ?? undefined"
+                  target="_blank"
+                  text="Source"
+                  append-icon="mdi-open-in-new"/>
+          <v-chip :disabled="!platformProject?.issuesUrl"
+                  :href="platformProject?.issuesUrl ?? undefined"
+                  target="_blank"
+                  text="Issues"
+                  append-icon="mdi-open-in-new"/>
+        </v-chip-group>
+      </template>
 
       <template v-slot:append>
-        <v-avatar v-if="platformProject?.iconUrl" rounded="0" size="64">
+        <v-avatar v-if="platformProject?.iconUrl" rounded="0" :size="sm ? '48' : '64'">
           <v-img :src="platformProject?.iconUrl" />
         </v-avatar>
       </template>
 
-      <v-card-actions>
-        <v-spacer></v-spacer>
-
+      <template v-slot:actions>
         <v-btn
             text="Close"
             @click="close"
+            variant="tonal"
         ></v-btn>
-      </v-card-actions>
+      </template>
     </v-card>
   </v-dialog>
 </template>
@@ -28,6 +46,7 @@ import {fetchWithVersion} from "~/utils/graphql-utils";
 import {MOD_INFORMATION} from "~~/graphql-requests/mods";
 import {useApolloClient} from "@vue/apollo-composable";
 import type {PlatformInformationFragment} from "~~/graphql-requests/types/__generated__/graphql";
+import {useDisplay} from "vuetify/framework";
 
 const props = defineProps<{
   version?: string,
@@ -42,15 +61,23 @@ const modId = computed({
 
 const client = useApolloClient().client
 
+const sm = useDisplay().smAndDown
+
 const loading = ref(false)
 
-const title = ref(undefined as string | undefined)
-const platformProject = ref(undefined as PlatformInformationFragment | undefined)
+const title = ref(null as string | null)
+const authors = ref(null as string | null)
+const license = ref(null as string | null)
+const modVersion = ref(null as string | null)
+const platformProject = ref(null as PlatformInformationFragment | null)
+const curseforge = ref(null as PlatformInformationFragment | null)
+const modrinth = ref(null as PlatformInformationFragment | null)
+const mavenCoordinates = ref(null as string | null)
 
 const showDialog = ref(false)
 
-const merge = (a?: PlatformInformationFragment | null, b?: PlatformInformationFragment | null): PlatformInformationFragment | undefined => {
-  if (!a && !b) return undefined
+const merge = (a?: PlatformInformationFragment | null, b?: PlatformInformationFragment | null): PlatformInformationFragment | null => {
+  if (!a && !b) return null
   if (a && !b) return a
   if (b && !a) return b
 
@@ -65,9 +92,7 @@ const merge = (a?: PlatformInformationFragment | null, b?: PlatformInformationFr
 }
 
 watch(modId, newValue => {
-  if (newValue == undefined) return
-  title.value = undefined
-  platformProject.value = undefined
+  if (newValue == null) return
 
   showDialog.value = true
   loading.value = true
@@ -79,9 +104,22 @@ watch(modId, newValue => {
         const mod = result?.gameVersion?._modInformation!!
 
         title.value = mod.name
+        authors.value = mod.authors
+        license.value = mod.license
+        modVersion.value = mod.version
+        mavenCoordinates.value = mod.mavenCoordinates
+        modrinth.value = mod.modrinth
+        curseforge.value = mod.curseforge
 
         platformProject.value = merge(mod.curseforge, mod.modrinth)
       })
+})
+
+watch(showDialog, newValue => {
+  if (newValue == false) {
+    modId.value = undefined;
+    [title, authors, license, modVersion, platformProject, mavenCoordinates, curseforge, modrinth].forEach(v => v.value = null)
+  }
 })
 
 const close = () => {
