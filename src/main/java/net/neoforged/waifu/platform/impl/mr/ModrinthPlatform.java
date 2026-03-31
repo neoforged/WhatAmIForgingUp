@@ -231,6 +231,16 @@ public class ModrinthPlatform implements ModPlatform {
                 return "https://modrinth.com/mod/" + id;
             }
 
+            @Override
+            public String getSourceUrl() {
+                return fill().source_url;
+            }
+
+            @Override
+            public String getIssuesUrl() {
+                return fill().issues_url;
+            }
+
             private volatile List<Version> versions;
 
             @Override
@@ -419,7 +429,7 @@ public class ModrinthPlatform implements ModPlatform {
         };
     }
 
-    private record ProjectResponse(String id, String slug, long downloads, Instant published, String title, String description, String icon_url) {}
+    private record ProjectResponse(String id, String slug, long downloads, Instant published, String title, String description, String icon_url, String source_url, String issues_url) {}
     private record Version(String id, String project_id, List<Dependency> dependencies, List<String> game_versions, List<String> loaders, Instant date_published, List<File> files) {
 
         private record File(Hashes hashes, String url, boolean primary, long size) {

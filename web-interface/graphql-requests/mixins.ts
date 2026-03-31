@@ -27,9 +27,8 @@ export const MIXINS_ANNOTATION_PREDICATE: TypedDocumentNode<
           node {
             name
             mod {
+              id
               name
-              curseforgeProjectId
-              modrinthProjectId
             }
             annotations(where: {type: {equals: "org/spongepowered/asm/mixin/Mixin"}}) {
               type

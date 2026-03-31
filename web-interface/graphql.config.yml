@@ -2,7 +2,7 @@ schema: ./schema.graphql
 extensions:
   endpoints:
     Default GraphQL Endpoint:
-      url: https://waifu.neoforged.net/api/graphql
-      headers:
-        Authorization: ${GRAPHQL_TOKEN}
+      url: http://localhost:6532/api/graphql
+#      headers:
+#        Authorization: ${GRAPHQL_TOKEN}
       introspect: true

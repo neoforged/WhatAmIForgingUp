@@ -45,6 +45,9 @@
             <template v-for="head in headers" v-slot:[`header.${head.key}`]="{ column }">
               <b>{{ column.title }}</b>
             </template>
+            <template v-slot:item.mod.name="{ item, value }">
+              <v-btn density="compact" color="primary" variant="text" border="false" @click="selectedMod = item.mod.id">{{ value }}</v-btn>
+            </template>
           </v-data-table>
         </v-card>
       </template>
@@ -62,6 +65,7 @@
         </div>
       </template>
     </query-component>
+    <mod-information-dialog :version="version" v-model:modId="selectedMod" />
   </v-container>
 </template>
 
@@ -69,6 +73,7 @@
 import {MIXINS_ANNOTATION_PREDICATE} from "~~/graphql-requests/mixins";
 import QueryComponent from "~/components/query-component.vue";
 import type {DataTableSortItem} from "vuetify";
+import ModInformationDialog from "~/components/mod-information-dialog.vue";
 
 definePageMeta({
   title: 'Mixins targetting Classes in Package Query'
@@ -78,6 +83,8 @@ const queryClient = useQueryClient()
 
 const version = queryClient.version
 const pkg = queryClient.queryParam('pkg')
+
+const selectedMod = ref(undefined as number | undefined)
 
 const items = ref([] as any[])
 const loading = ref(true)

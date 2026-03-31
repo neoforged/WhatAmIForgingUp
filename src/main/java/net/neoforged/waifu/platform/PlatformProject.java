@@ -24,6 +24,10 @@ public interface PlatformProject {
 
     String getUrl();
 
+    String getSourceUrl();
+
+    String getIssuesUrl();
+
     @Nullable
     PlatformProjectFile getLatestFile(String gameVersion, @Nullable ModLoader loader);
 

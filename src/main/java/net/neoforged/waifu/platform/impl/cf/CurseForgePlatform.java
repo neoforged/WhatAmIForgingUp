@@ -320,6 +320,16 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             @Override
+            public String getIssuesUrl() {
+                return mod.links().issuesUrl();
+            }
+
+            @Override
+            public String getSourceUrl() {
+                return mod.links().sourceUrl();
+            }
+
+            @Override
             public PlatformProjectFile getLatestFile(String gameVersion, @Nullable ModLoader loader) {
                 var ld = loader == null ? null : loader(loader);
                 var idx = mod.latestFilesIndexes().stream()

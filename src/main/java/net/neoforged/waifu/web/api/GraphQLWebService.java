@@ -50,6 +50,7 @@ import net.neoforged.waifu.Main;
 import net.neoforged.waifu.MainDatabase;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
 import net.neoforged.waifu.platform.ModLoader;
+import net.neoforged.waifu.platform.PlatformProject;
 import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
@@ -305,7 +306,24 @@ public class GraphQLWebService {
 
                                 .dataFetcher("loader", get(Version::loaderAsGraphQLEnum))
                                 .dataFetcher("version", get(v -> v.version))
-                );
+
+                                // Internal
+                                .dataFetcher("_modInformation", dbHelper(DatabaseSearchHelper::getInternalModInformation))
+                )
+
+                // Internal types
+                .type("IntModInformation", builder ->
+                        builder.dataFetcher("curseforge", this.<Map<String, Object>>fetcher(map -> Main.CURSE_FORGE_PLATFORM.getProjectById(map.get("cpid"))))
+                                .dataFetcher("modrinth", this.<Map<String, Object>>fetcher(map -> Main.MODRINTH_PLATFORM.getProjectById(map.get("mpid"))))
+                )
+                .type("IntPlatformInformation", builder ->
+                        builder.dataFetcher("projectUrl", fetcher(PlatformProject::getUrl))
+                                .dataFetcher("iconUrl", fetcher(PlatformProject::getIconUrl))
+                                .dataFetcher("sourceUrl", fetcher(PlatformProject::getSourceUrl))
+                                .dataFetcher("issuesUrl", fetcher(PlatformProject::getIssuesUrl))
+                                .dataFetcher("title", fetcher(PlatformProject::getTitle))
+                                .dataFetcher("description", fetcher(PlatformProject::getDescription))
+                                .dataFetcher("downloads", fetcher(PlatformProject::getDownloads)));
 
         typesToAdd.forEach((key, def) -> {
             if (key.endsWith("Edge")) {
@@ -491,6 +509,10 @@ public class GraphQLWebService {
     }
 
     private DataFetcher<?> get(Function<Version, ?> getter) {
+        return environment -> getter.apply(environment.getSource());
+    }
+
+    private <T> DataFetcher<?> fetcher(Function<T, ?> getter) {
         return environment -> getter.apply(environment.getSource());
     }
 

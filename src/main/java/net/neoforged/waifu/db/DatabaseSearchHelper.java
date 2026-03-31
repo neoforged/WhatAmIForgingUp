@@ -15,4 +15,7 @@ public interface DatabaseSearchHelper {
     Object getDataMaps(DataFetchingEnvironment env);
     Object getDataFiles(DataFetchingEnvironment env);
     Object getEnumExtensions(DataFetchingEnvironment env);
+
+    // Internal
+    Object getInternalModInformation(DataFetchingEnvironment env);
 }

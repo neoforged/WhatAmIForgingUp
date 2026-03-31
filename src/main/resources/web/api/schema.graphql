@@ -65,6 +65,9 @@ type GameVersion {
         ids: [Int!]!
     ): Mod @paginated
 
+    "Internal endpoint. It might be removed at any point"
+    _modInformation(id: Int!): IntModInformation! @deprecated
+
     "Get the classes known by this game version that optionally match the given predicate"
     classes(
         "Optional filter applied to the query"
@@ -946,4 +949,21 @@ enum OrderDirection {
 input OrderMethod {
     by: OrderRule = value
     direction: OrderDirection = asc
+}
+
+# Internal types
+type IntModInformation @implement(interfaces: ["Identifiable", "BaseMod"]) {
+    curseforge: IntPlatformInformation
+    modrinth: IntPlatformInformation
+}
+
+type IntPlatformInformation {
+    title: String!
+    description: String!
+    downloads: Int!
+
+    projectUrl: String!
+    iconUrl: String!
+    sourceUrl: String
+    issuesUrl: String
 }

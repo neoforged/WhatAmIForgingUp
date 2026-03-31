@@ -475,6 +475,19 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     }
 
     @Override
+    public Object getInternalModInformation(DataFetchingEnvironment env) {
+        var builder = mods.createQuery();
+        this.mods.apply(builder, getEnvSelection(env));
+
+        builder.requestColumn("curseforge_project_id", "cpid");
+        builder.requestColumn("modrinth_project_id", "mpid");
+
+        builder.where(SqlCondition.columnFilter("mods.id", SqlFilter.eq(env.getArguments().get("id"))));
+
+        return executeQuery(builder);
+    }
+
+    @Override
     public Object getMods(DataFetchingEnvironment env) {
         return executePaginatedRequest(mods, env, "mods.id");
     }
@@ -490,20 +503,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 .where(ctx -> "classes.name = " + ctx.insert(env.getArgument("name")));
         classes.apply(builder, getEnvSelection(env));
 
-        return executeQuery(builder, (rs, ctx, columns) -> {
-            if (!rs.next()) {
-                return null;
-            }
-
-            var map = HashMap.<String, Object>newHashMap(rs.getMetaData().getColumnCount());
-
-            for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
-                var col = columns[i];
-                map.put(col.resultName(), col.read(rs, i));
-            }
-
-            return map;
-        });
+        return executeQuery(builder);
     }
 
     @Override
@@ -634,6 +634,23 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
 
         return paginate(builder, Pagination.parse(env), paginateOn);
+    }
+
+    private Map<String, Object> executeQuery(SqlSearchBuilder builder) {
+        return executeQuery(builder, (rs, ctx, columns) -> {
+            if (!rs.next()) {
+                return null;
+            }
+
+            var map = HashMap.<String, Object>newHashMap(rs.getMetaData().getColumnCount());
+
+            for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+                var col = columns[i];
+                map.put(col.resultName(), col.read(rs, i));
+            }
+
+            return map;
+        });
     }
 
     private <T> T executeQuery(SqlSearchBuilder builder, DBResultProducer<T> producer) {
