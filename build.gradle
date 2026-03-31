@@ -94,15 +94,14 @@ jar {
     manifest.attributes([
             'Implementation-Version': project.version
     ])
-
-    from('web-interface/.output/public') {
-        into 'web/static'
-    }
-    from(tasks.gitLog.output)
 }
 
 shadowJar {
     mergeServiceFiles()
     archiveClassifier = 'all'
     archiveFile.set(project.layout.buildDirectory.file("libs/waifu-all.jar"))
+    from('web-interface/.output/public') {
+        into 'web/static'
+    }
+    from(tasks.gitLog.output)
 }
