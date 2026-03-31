@@ -6,11 +6,13 @@ import { setContext } from '@apollo/client/link/context';
 const authLink = setContext((_, { headers }) => {
   const token = getCookieByName('discord-token');
 
+  const newHeaders = {...headers}
+  if (token) {
+    newHeaders['Authorization'] = `Discord ${token}`
+  }
+
   return {
-    headers: {
-      ...headers,
-      Authorization: token ? `Discord ${token}` : undefined,
-    },
+    headers: newHeaders
   };
 });
 
