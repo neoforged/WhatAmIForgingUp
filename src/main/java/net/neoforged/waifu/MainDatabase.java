@@ -62,6 +62,10 @@ public class MainDatabase {
         transactional.addGameVersion(gameVersion, loader, intervalSeconds);
     }
 
+    public boolean isBeingIndexed(String version, ModLoader loader) {
+        return transactional.isBeingIndexed(version, loader) != null;
+    }
+
     public List<IndexVersion> getIndexedGameVersions() {
         return transactional.getIndexedGameVersions();
     }
@@ -76,6 +80,10 @@ public class MainDatabase {
 
         @SqlUpdate("delete from indexed_game_versions where version = ? and loader = ?")
         int deleteVersion(String version, @EnumByName ModLoader loader);
+
+        @Nullable
+        @SqlQuery("select version from indexed_game_versions where version = ? and loader = ?")
+        String isBeingIndexed(String version, @EnumByName ModLoader loader);
 
         @UseRowMapper(IndexVersion.Mapper.class)
         @SqlQuery("select * from indexed_game_versions")

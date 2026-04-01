@@ -2,9 +2,10 @@ import type {Loader} from "~~/graphql-requests/types/__generated__/graphql";
 
 export async function getAllVersions(): Promise<{
   gameVersion: string,
-  loader: Loader
+  loader: Loader,
+  activelyIndexed: boolean
 }[]> {
-  const result = await fetch(`${getBaseUrl()}/api/indexed-versions`)
+  const result = await fetch(`${getBaseUrl()}/api/internal/indexed-versions`)
   return await result.json()
 }
 

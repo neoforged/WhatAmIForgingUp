@@ -14,7 +14,6 @@ import net.neoforged.waifu.web.api.TokenManager;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Map;
 import java.util.function.Consumer;
 
 @SuppressWarnings({"FieldCanBeLocal", "unused"})
@@ -39,10 +38,7 @@ public class WebService {
                 }
             });
 
-            routes.get("/api/indexed-versions", ctx -> ctx.json(Main.DB_MANAGER.getAllVersions().stream()
-                    .map(v -> Map.of("gameVersion", v.gameVersion(), "loader", v.loader().getDisplayName())).toList()));
-
-            new InternalAPI(routes);
+            new InternalAPI(routes, db);
 
             OAuthClient discordOAuthClient = new OAuthClient(
                     "https://discord.com/oauth2/authorize", "https://discord.com/api/oauth2/token",
