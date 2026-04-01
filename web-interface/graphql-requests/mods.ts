@@ -26,6 +26,8 @@ export const MOD_INFORMATION: TypedDocumentNode<
                 license
                 version
                 
+                metadata
+                
                 mavenCoordinates
                 curseforge {
                     ...PlatformInformation

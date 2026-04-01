@@ -95,16 +95,34 @@ watch(clazz, newValue => {
         if (mod?.curseforge?.sourceUrl) {
           repository = extractGitHub(mod.curseforge.sourceUrl)
         }
-        if (repository == null && mod?.modrinth?.sourceUrl) {
+        if (repository == null && mod.modrinth?.sourceUrl) {
           repository = extractGitHub(mod.modrinth.sourceUrl)
         }
 
         // Next try the issues links
-        if (repository == null && mod?.curseforge?.issuesUrl) {
+        if (repository == null && mod.curseforge?.issuesUrl) {
           repository = extractGitHub(mod.curseforge.issuesUrl)
         }
-        if (repository == null && mod?.modrinth?.issuesUrl) {
+        if (repository == null && mod.modrinth?.issuesUrl) {
           repository = extractGitHub(mod.modrinth.issuesUrl)
+        }
+
+        // And if all fails, try to extract from metadata
+        if (repository == null && mod.metadata) {
+          const metadata = mod.metadata as any
+
+          // NeoForge
+          if (metadata.issueTrackerURL) {
+            repository = extractGitHub(metadata.issueTrackerURL)
+          }
+
+          // Fabric
+          if (repository == null && metadata.contact?.sources) {
+            repository = extractGitHub(metadata.contact.sources)
+          }
+          if (repository == null && metadata.contact?.issues) {
+            repository = extractGitHub(metadata.contact.issues)
+          }
         }
 
         if (repository == null) {

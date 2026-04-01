@@ -16,8 +16,8 @@
                   target="_blank"
                   text="Source"
                   append-icon="mdi-open-in-new"/>
-          <v-chip :disabled="!platformProject?.issuesUrl"
-                  :href="platformProject?.issuesUrl ?? undefined"
+          <v-chip :disabled="!platformProject?.issuesUrl && !metadata?.issueTrackerURL"
+                  :href="platformProject?.issuesUrl ?? metadata?.issueTrackerURL ?? undefined"
                   target="_blank"
                   text="Issues"
                   append-icon="mdi-open-in-new"/>
@@ -66,6 +66,7 @@ const sm = useDisplay().smAndDown
 const loading = ref(false)
 
 const title = ref(null as string | null)
+const metadata = ref(null as any | null)
 const authors = ref(null as string | null)
 const license = ref(null as string | null)
 const modVersion = ref(null as string | null)
@@ -104,6 +105,7 @@ watch(modId, newValue => {
         const mod = result?.gameVersion?._modInformation!!
 
         title.value = mod.name
+        metadata.value = mod.metadata
         authors.value = mod.authors
         license.value = mod.license
         modVersion.value = mod.version
@@ -118,7 +120,7 @@ watch(modId, newValue => {
 watch(showDialog, newValue => {
   if (newValue == false) {
     modId.value = undefined;
-    [title, authors, license, modVersion, platformProject, mavenCoordinates, curseforge, modrinth].forEach(v => v.value = null)
+    [title, metadata, authors, license, modVersion, platformProject, mavenCoordinates, curseforge, modrinth].forEach(v => v.value = null)
   }
 })
 
