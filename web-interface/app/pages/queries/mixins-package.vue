@@ -48,6 +48,9 @@
             <template v-slot:item.mod.name="{ item, value }">
               <v-btn density="compact" color="primary" variant="text" border="false" @click="selectedMod = item.mod.id">{{ value }}</v-btn>
             </template>
+            <template v-slot:item.className="{ item, value }">
+              <span @click="selectedClass = {mod: item.mod.id, class: item.className}">{{ value }}</span>
+            </template>
           </v-data-table>
         </v-card>
       </template>
@@ -66,6 +69,7 @@
       </template>
     </query-component>
     <mod-information-dialog :version="version" v-model:modId="selectedMod" />
+    <class-source-dialog :version="version" v-model:selectedClass="selectedClass" />
   </v-container>
 </template>
 
@@ -84,7 +88,11 @@ const queryClient = useQueryClient()
 const version = queryClient.version
 const pkg = queryClient.queryParam('pkg')
 
-const selectedMod = ref(undefined as number | undefined)
+const selectedMod = ref<number>()
+const selectedClass = ref<{
+  mod: number,
+  class: string
+}>()
 
 const items = ref([] as any[])
 const loading = ref(true)

@@ -18,6 +18,13 @@ export default defineNuxtConfig({
       include: [
         '@vue/devtools-core',
         '@vue/devtools-kit',
+        '@vue/apollo-composable',
+        '@apollo/client/core',
+        '@apollo/client/link/context',
+        'jszip', // CJS
+        'graphql-tag',
+        'highlight.js',
+        'highlight.js/lib/languages/java',
       ]
     }
   },

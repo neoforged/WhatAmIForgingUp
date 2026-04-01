@@ -8,6 +8,7 @@ import io.javalin.http.HttpStatus;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.MainDatabase;
 import net.neoforged.waifu.web.api.GraphQLWebService;
+import net.neoforged.waifu.web.api.InternalAPI;
 import net.neoforged.waifu.web.api.OAuthClient;
 import net.neoforged.waifu.web.api.TokenManager;
 
@@ -40,6 +41,8 @@ public class WebService {
 
             routes.get("/api/indexed-versions", ctx -> ctx.json(Main.DB_MANAGER.getAllVersions().stream()
                     .map(v -> Map.of("gameVersion", v.gameVersion(), "loader", v.loader().getDisplayName())).toList()));
+
+            new InternalAPI(routes);
 
             OAuthClient discordOAuthClient = new OAuthClient(
                     "https://discord.com/oauth2/authorize", "https://discord.com/api/oauth2/token",

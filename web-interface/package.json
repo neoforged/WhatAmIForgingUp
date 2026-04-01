@@ -18,6 +18,8 @@
     "@vuelidate/validators": "^2.0.4",
     "graphql": "^16.13.2",
     "graphql-tag": "^2.12.6",
+    "highlight.js": "^11.11.1",
+    "jszip": "^3.10.1",
     "nuxt": "^4.4.2",
     "vue": "3.5.30",
     "vue-router": "^5.0.4"

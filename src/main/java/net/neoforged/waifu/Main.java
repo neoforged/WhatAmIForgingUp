@@ -41,7 +41,9 @@ public class Main {
     public static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(
             3, Thread.ofPlatform().name("indexer-", 0).uncaughtExceptionHandler(Utils.LOG_EXCEPTIONS).factory()
     );
-    public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+    public static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.ALWAYS)
+            .build();
     public static final DataSanitizer SANITIZER = DataSanitizer.of(
             DataSanitizer.REMOVE_OWN_DIRECT_REFERENCES, DataSanitizer.REMOVE_PRIVATE_MEMBERS
     );

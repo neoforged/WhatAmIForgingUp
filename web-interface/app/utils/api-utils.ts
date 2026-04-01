@@ -23,3 +23,13 @@ export function getBaseUrl() {
   }
   return window.location.origin
 }
+
+export async function getGitHubBranches(owner: string, repo: string): Promise<string[]> {
+  const res = await fetch(getBaseUrl() + `/api/internal/github-refs/${owner}/${repo}`)
+  return (await res.json() as string[]).map(s => s.replace('refs/heads/', ''))
+}
+
+export async function downloadGitHubBranch(owner: string, repo: string, branch: string): Promise<ArrayBuffer> {
+  const res = await fetch(getBaseUrl() + `/api/internal/download-github/${owner}/${repo}/refs/heads/${branch}`)
+  return await res.arrayBuffer()
+}
