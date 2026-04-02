@@ -1808,6 +1808,16 @@ export type GetImplementationsQueryVariables = Exact<{
 
 export type GetImplementationsQuery = { gameVersion: { __typename: 'GameVersion', class: { __typename: 'Class', inheritors: Array<{ __typename: 'InheritanceTreeClass', name: string, definitions: Array<{ __typename: 'ClassDefinition', mod: { __typename: 'LightweightMod', id: number, name: string } }> }> } | null } | null };
 
+export type GetClassesAnnotatedQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  predicate: AnnotationPredicate;
+  cursor?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type GetClassesAnnotatedQuery = { gameVersion: { __typename: 'GameVersion', classDefinitions: { __typename: 'ClassDefinitionConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'ClassDefinitionEdge', node: { __typename: 'ClassDefinition', name: string, mod: { __typename: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename: 'Annotation', value: unknown | null }> } }> } } | null };
+
 export type GetMixinsQueryVariables = Exact<{
   version: Scalars['String']['input'];
   loader: Loader;
@@ -1816,7 +1826,7 @@ export type GetMixinsQueryVariables = Exact<{
 }>;
 
 
-export type GetMixinsQuery = { gameVersion: { __typename: 'GameVersion', classDefinitions: { __typename: 'ClassDefinitionConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'ClassDefinitionEdge', node: { __typename: 'ClassDefinition', name: string, mod: { __typename: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename: 'Annotation', type: string, value: unknown | null }> } }> } } | null };
+export type GetMixinsQuery = { gameVersion: { __typename: 'GameVersion', classDefinitions: { __typename: 'ClassDefinitionConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'ClassDefinitionEdge', node: { __typename: 'ClassDefinition', name: string, mod: { __typename: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename: 'Annotation', value: unknown | null }> } }> } } | null };
 
 export type PlatformInformationFragment = { __typename: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null };
 

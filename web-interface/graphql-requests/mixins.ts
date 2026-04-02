@@ -31,7 +31,6 @@ export const MIXINS_ANNOTATION_PREDICATE: TypedDocumentNode<
               name
             }
             annotations(where: {type: {equals: "org/spongepowered/asm/mixin/Mixin"}}) {
-              type
               value
             }
           }

@@ -15,6 +15,14 @@
         Find the implementations of a given class.
       </template>
     </v-card>
+    <br>
+    <v-card
+      title="Annotated Classes"
+      to="annotated-classes" router>
+      <template v-slot:text>
+        Find the classes annotated with a given annotation.
+      </template>
+    </v-card>
   </v-container>
 </template>
 

@@ -1,6 +1,11 @@
 import gql from "graphql-tag";
 import type {TypedDocumentNode} from "@apollo/client";
-import type {GetImplementationsQuery, GetImplementationsQueryVariables} from "./types/__generated__/graphql";
+import type {
+  GetClassesAnnotatedQuery,
+  GetClassesAnnotatedQueryVariables,
+  GetImplementationsQuery,
+  GetImplementationsQueryVariables,
+} from "./types/__generated__/graphql";
 
 export const IMPLEMENTATIONS: TypedDocumentNode<
     GetImplementationsQuery,
@@ -21,4 +26,37 @@ export const IMPLEMENTATIONS: TypedDocumentNode<
             }
         }
     }
+`;
+
+export const CLASSES_ANNOTATED: TypedDocumentNode<
+    GetClassesAnnotatedQuery,
+    GetClassesAnnotatedQueryVariables
+> = gql`
+  query GetClassesAnnotated($version: String!, $loader: Loader!, $predicate: AnnotationPredicate!, $cursor: ID) {
+    gameVersion(loader: $loader, version: $version) {
+      classDefinitions(
+        where: {
+          anyAnnotation: $predicate
+        },
+        after: $cursor
+      ) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          node {
+            name
+            mod {
+              id
+              name
+            }
+            annotations(where: $predicate) {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
 `;
