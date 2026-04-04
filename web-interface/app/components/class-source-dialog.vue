@@ -131,11 +131,25 @@ watch(clazz, newValue => {
           repo.value = repository
           getGitHubBranches(repository.owner, repository.repo)
               .then(repoBranches => {
+                const [mcVersion, loader] = props.version!!.split('-')
+
                 branches.value = repoBranches
+                // The simplest scenario: repo has only one branch
                 if (repoBranches.length == 1) {
                   selectedBranch.value = repoBranches[0]!!
-                } else if (repoBranches.includes(props.version!!.split('-')[0]!!)) {
-                  selectedBranch.value = props.version!!.split('-')[0]!!
+                }
+                // Repo has a branch named after the mc version
+                else if (repoBranches.includes(mcVersion!!)) {
+                  selectedBranch.value = mcVersion!!
+                }
+
+                // Repo has a branch named loader/mcVersion
+                else if (repoBranches.includes(`${loader!!.toLowerCase()}/${mcVersion}`)) {
+                  selectedBranch.value = `${loader!!.toLowerCase()}/${mcVersion}`
+                }
+                // Special case of the above for neo
+                else if (loader?.toLowerCase() == 'neoforge' && repoBranches.includes(`neo/${mcVersion}`)) {
+                  selectedBranch.value = `neo/${mcVersion}`
                 }
               })
         }

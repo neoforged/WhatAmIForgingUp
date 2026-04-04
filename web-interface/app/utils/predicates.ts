@@ -67,12 +67,27 @@ addLogicPredicate('StringPredicate', {
     equals: {
       name: 'Equals',
       type: ScalarType.STRING,
-      hint: '{object} must be equal to the value below'
+      hint: '{object} must be equal to the given string'
     },
     matches: {
       name: 'Matches RegExp',
       type: ScalarType.STRING,
-      hint: '{object} must match the given regular expression'
+      hint: '{object} must match the given regular expression. You must use start/end-of-line assertions if you want only full matches.'
+    },
+    contains: {
+      name: 'Contains',
+      type: ScalarType.STRING,
+      hint: '{object} must contain the given string'
+    },
+    startsWith: {
+      name: 'Starts with',
+      type: ScalarType.STRING,
+      hint: '{object} must start with the given string'
+    },
+    endsWith: {
+      name: 'Starts with',
+      type: ScalarType.STRING,
+      hint: '{object} must end with the given string'
     },
   }
 })
@@ -130,6 +145,13 @@ function addLogicPredicate(name: string, pred: PredicateType) {
         list: name
       },
       hint: 'All of the given predicates must match (logical AND)'
+    },
+    noneOf: {
+      name: 'None of',
+      type: {
+        list: name
+      },
+      hint: 'All of the given predicates must NOT match'
     },
     not: {
       name: 'Not',
