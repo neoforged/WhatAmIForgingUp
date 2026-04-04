@@ -1686,7 +1686,7 @@ input PlatformProjectIdentifier {
     "The ID of the project on CurseForge"
     curseforge: Int
     "The slug of the project on CurseForge"
-    curseforgeSlug: Int
+    curseforgeSlug: String
     "The ID of the project on Modrinth"
     modrinth: String
     "The slug of the project on Modrinth"

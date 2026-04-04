@@ -4,7 +4,7 @@
         v-model:version="version"
         :on-load="load"
         :on-reset="() => loading = true"
-        :additionalProperties="{'Package': pkg}">
+        :additionalProperties="{'Package': pkg, 'Filter': filter ? formatFilter(filter, 'ClassDefinitionPredicate') : 'None'}">
       <template v-slot:result-display>
         <v-card title="Results" flat>
           <template v-slot:text>
@@ -46,7 +46,9 @@
               <b>{{ column.title }}</b>
             </template>
             <template v-slot:item.mod.name="{ item, value }">
-              <v-btn density="compact" color="primary" variant="text" border="false" @click="selectedMod = item.mod.id">{{ value }}</v-btn>
+              <v-btn density="compact" color="primary" variant="text" border="false" @click="selectedMod = item.mod.id">
+                {{ value }}
+              </v-btn>
             </template>
             <template v-slot:item.className="{ item, value }">
               <span @click="selectedClass = {mod: item.mod.id, class: item.className}">{{ value }}</span>
@@ -63,9 +65,17 @@
             density="compact"
             variant="underlined"
         />
-        <div class="text-left">
+        <div class="text-left mb-2">
           Mixins targetting classes in the package above will be returned. Subpackages are included.
         </div>
+
+        <v-expansion-panels>
+          <v-expansion-panel title="Optional filter">
+            <v-expansion-panel-text>
+              <predicate-builder type-name="ClassDefinitionPredicate" v-model="filter" :meta="predicates" clearable/>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
       </template>
     </query-component>
     <mod-information-dialog :version="version" v-model:modId="selectedMod" />
@@ -74,10 +84,13 @@
 </template>
 
 <script setup lang="ts">
-import {MIXINS_ANNOTATION_PREDICATE} from "~~/graphql-requests/mixins";
 import QueryComponent from "~/components/query-component.vue";
 import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
+import PredicateBuilder from "~/components/predicates/PredicateBuilder.vue";
+import {CLASSES_ANNOTATED} from "~~/graphql-requests/classes";
+import type {ClassDefinitionPredicate} from "~~/graphql-requests/types/__generated__/graphql";
+import {formatFilter} from "~/utils/predicates";
 
 definePageMeta({
   title: 'Mixins targetting Classes in Package Query'
@@ -87,6 +100,8 @@ const queryClient = useQueryClient()
 
 const version = queryClient.version
 const pkg = queryClient.queryParam('pkg')
+
+const filter = queryClient.jsonQueryParam<Record<string, any>>('filter')
 
 const selectedMod = ref<number>()
 const selectedClass = ref<{
@@ -115,15 +130,33 @@ const groupByConfiguration = computed<DataTableSortItem[]>(() => {
 })
 
 const load = () => {
-  queryClient.fetchPaginated(MIXINS_ANNOTATION_PREDICATE, {
-    predicate: {
-      value: {
-        anyOf: [
-          {pathExists: `$.value ? (@ like_regex "${pkg.value!!.replaceAll('.', '/')}/.*")`},
-          {pathExists: `$.targets ? (@ like_regex "${pkg.value!!.replaceAll('.', '(\\.|/)')}(\\.|/).*")`}
+  const classDefPredicates: ClassDefinitionPredicate[] = [
+    {
+      anyAnnotation: {
+        allOf: [
+          {type: {equals: "org/spongepowered/asm/mixin/Mixin"}},
+          {
+            value: {
+              anyOf: [
+                {pathExists: `$.value ? (@ like_regex "${pkg.value!!.replaceAll('.', '/')}/.*")`},
+                {pathExists: `$.targets ? (@ like_regex "${pkg.value!!.replaceAll('.', '(\\.|/)')}(\\.|/).*")`}
+              ]
+            }
+          }
         ]
       }
     }
+  ]
+
+  if (filter.value && Object.keys(filter.value).length > 0) {
+    classDefPredicates.push(filter.value)
+  }
+
+  queryClient.fetchPaginated(CLASSES_ANNOTATED, {
+    predicate: {
+      allOf: classDefPredicates
+    },
+    annotationPredicate: {type: {equals: "org/spongepowered/asm/mixin/Mixin"}}
   }, data => data.gameVersion?.classDefinitions!!)
       .then((values) => {
         items.value = values.map(item => {

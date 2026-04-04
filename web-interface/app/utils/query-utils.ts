@@ -23,6 +23,14 @@ export class QueryClient {
     return reference
   }
 
+  jsonQueryParam<T>(key: string): Ref<T, T> {
+    const ref = this.queryParam(key)
+    return computed({
+      get: () => ref.value ? JSON.parse(ref.value) : undefined,
+      set: (nv) => ref.value = nv ? JSON.stringify(nv) : '',
+    })
+  }
+
   async fetchPaginated<
       TData,
       TVariables extends OperationVariables & {

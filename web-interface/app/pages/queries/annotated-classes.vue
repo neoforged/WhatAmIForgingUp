@@ -139,6 +139,11 @@ const formatAnnotation = (annotation: any, tp: string): string => {
 const load = () => {
   queryClient.fetchPaginated(CLASSES_ANNOTATED, {
     predicate: {
+      anyAnnotation: {
+        type: {equals: annotation.value!!.replaceAll('.', '/')}
+      }
+    },
+    annotationPredicate: {
       type: {equals: annotation.value!!.replaceAll('.', '/')}
     }
   }, data => data.gameVersion?.classDefinitions!!)

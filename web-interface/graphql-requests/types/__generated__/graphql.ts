@@ -1559,7 +1559,7 @@ export type PlatformProjectIdentifier = {
   /** The ID of the project on CurseForge */
   curseforge?: InputMaybe<Scalars['Int']['input']>;
   /** The slug of the project on CurseForge */
-  curseforgeSlug?: InputMaybe<Scalars['Int']['input']>;
+  curseforgeSlug?: InputMaybe<Scalars['String']['input']>;
   /** The ID of the project on Modrinth */
   modrinth?: InputMaybe<Scalars['String']['input']>;
   /** The slug of the project on Modrinth */
@@ -1811,22 +1811,13 @@ export type GetImplementationsQuery = { gameVersion: { __typename: 'GameVersion'
 export type GetClassesAnnotatedQueryVariables = Exact<{
   version: Scalars['String']['input'];
   loader: Loader;
-  predicate: AnnotationPredicate;
+  predicate: ClassDefinitionPredicate;
+  annotationPredicate: AnnotationPredicate;
   cursor?: InputMaybe<Scalars['ID']['input']>;
 }>;
 
 
 export type GetClassesAnnotatedQuery = { gameVersion: { __typename: 'GameVersion', classDefinitions: { __typename: 'ClassDefinitionConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'ClassDefinitionEdge', node: { __typename: 'ClassDefinition', name: string, mod: { __typename: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename: 'Annotation', value: unknown | null }> } }> } } | null };
-
-export type GetMixinsQueryVariables = Exact<{
-  version: Scalars['String']['input'];
-  loader: Loader;
-  predicate: AnnotationPredicate;
-  cursor?: InputMaybe<Scalars['ID']['input']>;
-}>;
-
-
-export type GetMixinsQuery = { gameVersion: { __typename: 'GameVersion', classDefinitions: { __typename: 'ClassDefinitionConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'ClassDefinitionEdge', node: { __typename: 'ClassDefinition', name: string, mod: { __typename: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename: 'Annotation', value: unknown | null }> } }> } } | null };
 
 export type PlatformInformationFragment = { __typename: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null };
 

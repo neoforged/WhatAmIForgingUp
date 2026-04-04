@@ -32,12 +32,10 @@ export const CLASSES_ANNOTATED: TypedDocumentNode<
     GetClassesAnnotatedQuery,
     GetClassesAnnotatedQueryVariables
 > = gql`
-  query GetClassesAnnotated($version: String!, $loader: Loader!, $predicate: AnnotationPredicate!, $cursor: ID) {
+  query GetClassesAnnotated($version: String!, $loader: Loader!, $predicate: ClassDefinitionPredicate!, $annotationPredicate: AnnotationPredicate!, $cursor: ID) {
     gameVersion(loader: $loader, version: $version) {
       classDefinitions(
-        where: {
-          anyAnnotation: $predicate
-        },
+        where: $predicate,
         after: $cursor
       ) {
         pageInfo {
@@ -51,7 +49,7 @@ export const CLASSES_ANNOTATED: TypedDocumentNode<
               id
               name
             }
-            annotations(where: $predicate) {
+            annotations(where: $annotationPredicate) {
               value
             }
           }
