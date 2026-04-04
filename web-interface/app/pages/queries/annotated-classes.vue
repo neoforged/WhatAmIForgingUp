@@ -74,7 +74,6 @@
 </template>
 
 <script setup lang="ts">
-import {MIXINS_ANNOTATION_PREDICATE} from "~~/graphql-requests/mixins";
 import QueryComponent from "~/components/query-component.vue";
 import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
