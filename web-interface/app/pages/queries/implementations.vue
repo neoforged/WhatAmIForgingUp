@@ -49,7 +49,7 @@
               <v-btn density="compact" color="primary" variant="text" border="false" @click="selectedMod = item.mod.id">{{ value }}</v-btn>
             </template>
             <template v-slot:item.cls="{ item, value }">
-              <span @click="selectedClass = {mod: item.mod.id, class: item.cls}">{{ value }}</span>
+              <span @click="selectedFile = {mod: item.mod.id, file: getClassSourceFileName(item.cls)}">{{ value }}</span>
             </template>
           </v-data-table>
         </v-card>
@@ -69,7 +69,7 @@
       </template>
     </query-component>
     <mod-information-dialog :version="version" v-model:modId="selectedMod" />
-    <class-source-dialog :version="version" v-model:selectedClass="selectedClass" />
+    <file-source-dialog :version="version" v-model:selected-file="selectedFile" />
   </v-container>
 </template>
 
@@ -78,6 +78,7 @@ import QueryComponent from "~/components/query-component.vue";
 import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {IMPLEMENTATIONS} from "~~/graphql-requests/classes";
+import {getClassSourceFileName} from "~/utils/utils";
 
 definePageMeta({
   title: 'Implementations Query'
@@ -89,9 +90,9 @@ const version = queryClient.version
 const clazz = queryClient.queryParam('class')
 
 const selectedMod = ref<number>()
-const selectedClass = ref<{
+const selectedFile = ref<{
   mod: number,
-  class: string
+  file: string
 }>()
 
 const items = ref([] as any[])

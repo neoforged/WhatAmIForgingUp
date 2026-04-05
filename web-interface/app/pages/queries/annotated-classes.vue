@@ -2,6 +2,8 @@
   <v-container>
     <query-component
         v-model:version="version"
+        v-model:predicate="filter"
+        predicate-type="ClassDefinitionPredicate"
         :on-load="load"
         :on-reset="() => loading = true"
         :additionalProperties="{'Annotation': annotation}">
@@ -49,7 +51,7 @@
               <v-btn density="compact" color="primary" variant="text" border="false" @click="selectedMod = item.mod.id">{{ value }}</v-btn>
             </template>
             <template v-slot:item.cls="{ item, value }">
-              <span @click="selectedClass = {mod: item.mod.id, class: item.cls}">{{ value }}</span>
+              <span @click="selectedFile = {mod: item.mod.id, file: getClassSourceFileName(item.cls)}">{{ value }}</span>
             </template>
           </v-data-table>
         </v-card>
@@ -69,7 +71,7 @@
       </template>
     </query-component>
     <mod-information-dialog :version="version" v-model:modId="selectedMod" />
-    <class-source-dialog :version="version" v-model:selectedClass="selectedClass" />
+    <file-source-dialog :version="version" v-model:selected-file="selectedFile" />
   </v-container>
 </template>
 
@@ -78,6 +80,8 @@ import QueryComponent from "~/components/query-component.vue";
 import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {CLASSES_ANNOTATED} from "~~/graphql-requests/classes";
+import type {ClassDefinitionPredicate} from "~~/graphql-requests/types/__generated__/graphql";
+import {getClassSourceFileName} from "~/utils/utils";
 
 definePageMeta({
   title: 'Classes with Annotation Query'
@@ -87,11 +91,12 @@ const queryClient = useQueryClient()
 
 const version = queryClient.version
 const annotation = queryClient.queryParam('annotation')
+const filter = queryClient.jsonQueryParam<Record<string, any>>('filter')
 
 const selectedMod = ref<number>()
-const selectedClass = ref<{
+const selectedFile = ref<{
   mod: number,
-  class: string
+  file: string
 }>()
 
 const items = ref([] as any[])
@@ -136,11 +141,21 @@ const formatAnnotation = (annotation: any, tp: string): string => {
 }
 
 const load = () => {
-  queryClient.fetchPaginated(CLASSES_ANNOTATED, {
-    predicate: {
+  const classDefPredicates: ClassDefinitionPredicate[] = [
+    {
       anyAnnotation: {
         type: {equals: annotation.value!!.replaceAll('.', '/')}
       }
+    }
+  ]
+
+  if (filter.value && Object.keys(filter.value).length > 0) {
+    classDefPredicates.push(filter.value)
+  }
+
+  queryClient.fetchPaginated(CLASSES_ANNOTATED, {
+    predicate: {
+      allOf: classDefPredicates
     },
     annotationPredicate: {
       type: {equals: annotation.value!!.replaceAll('.', '/')}

@@ -8,3 +8,7 @@ export function getCookieByName(key: string): string | undefined {
 export function deleteCookieByName(name: string) {
   document.cookie = name + "=; Max-Age=0; Path=/"
 }
+
+export function getClassSourceFileName(className: string): string {
+  return className.split('$')[0]!!.replaceAll('.', '/') + '.java'
+}

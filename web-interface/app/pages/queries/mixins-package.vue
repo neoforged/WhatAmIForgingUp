@@ -2,9 +2,11 @@
   <v-container>
     <query-component
         v-model:version="version"
+        v-model:predicate="filter"
+        predicate-type="ClassDefinitionPredicate"
         :on-load="load"
         :on-reset="() => loading = true"
-        :additionalProperties="{'Package': pkg, 'Filter': filter ? formatFilter(filter, 'ClassDefinitionPredicate') : 'None'}">
+        :additionalProperties="{'Package': pkg}">
       <template v-slot:result-display>
         <v-card title="Results" flat>
           <template v-slot:text>
@@ -51,7 +53,7 @@
               </v-btn>
             </template>
             <template v-slot:item.className="{ item, value }">
-              <span @click="selectedClass = {mod: item.mod.id, class: item.className}">{{ value }}</span>
+              <span @click="selectedFile = {mod: item.mod.id, file: getClassSourceFileName(item.className)}">{{ value }}</span>
             </template>
           </v-data-table>
         </v-card>
@@ -68,18 +70,10 @@
         <div class="text-left mb-2">
           Mixins targetting classes in the package above will be returned. Subpackages are included.
         </div>
-
-        <v-expansion-panels>
-          <v-expansion-panel title="Optional filter">
-            <v-expansion-panel-text>
-              <predicate-builder type-name="ClassDefinitionPredicate" v-model="filter" :meta="predicates" clearable/>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
-        </v-expansion-panels>
       </template>
     </query-component>
     <mod-information-dialog :version="version" v-model:modId="selectedMod" />
-    <class-source-dialog :version="version" v-model:selectedClass="selectedClass" />
+    <file-source-dialog :version="version" v-model:selected-file="selectedFile" />
   </v-container>
 </template>
 
@@ -87,10 +81,9 @@
 import QueryComponent from "~/components/query-component.vue";
 import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
-import PredicateBuilder from "~/components/predicates/PredicateBuilder.vue";
 import {CLASSES_ANNOTATED} from "~~/graphql-requests/classes";
 import type {ClassDefinitionPredicate} from "~~/graphql-requests/types/__generated__/graphql";
-import {formatFilter} from "~/utils/predicates";
+import {getClassSourceFileName} from "~/utils/utils";
 
 definePageMeta({
   title: 'Mixins targetting Classes in Package Query'
@@ -100,13 +93,12 @@ const queryClient = useQueryClient()
 
 const version = queryClient.version
 const pkg = queryClient.queryParam('pkg')
-
 const filter = queryClient.jsonQueryParam<Record<string, any>>('filter')
 
 const selectedMod = ref<number>()
-const selectedClass = ref<{
+const selectedFile = ref<{
   mod: number,
-  class: string
+  file: string
 }>()
 
 const items = ref([] as any[])

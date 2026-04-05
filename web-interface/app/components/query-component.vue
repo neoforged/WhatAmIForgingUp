@@ -12,14 +12,21 @@
             variant="text"
             rounded
             @click="modify"
-        >Modify</v-btn>
+        >Modify
+        </v-btn>
       </template>
       <v-chip-group class="pa-2">
         <v-chip>Version: {{ version }}</v-chip>
-        <v-chip v-for="key in Object.keys(props.additionalProperties)">{{ key }}: {{ additionalProperties[key] }}</v-chip>
+        <v-chip v-for="key in Object.keys(props.additionalProperties)">{{ key }}: {{
+            additionalProperties[key]
+          }}
+        </v-chip>
+        <v-chip v-if="predicateType">Filter:
+          {{ predicate && Object.keys(predicate).length > 0 ? formatFilter(predicate, predicateType) : 'None' }}
+        </v-chip>
       </v-chip-group>
     </v-card>
-    <br />
+    <br/>
     <slot name="result-display"></slot>
   </div>
   <v-dialog v-model="dialog" width="auto" class="text-center" v-else>
@@ -39,10 +46,23 @@
             :items="availableVersions"
         >
           <template v-slot:item="{ props: itemProps, item }">
-            <v-list-item v-bind="itemProps" :subtitle="item.active ? undefined : 'No longer updated, data is stale.'" :append-avatar="loaderToLogo(item.value)" />
+            <v-list-item v-bind="itemProps" :subtitle="item.active ? undefined : 'No longer updated, data is stale.'"
+                         :append-avatar="loaderToLogo(item.value)"/>
           </template>
         </v-select>
         <slot name="form"></slot>
+
+        <v-expansion-panels v-if="predicateType">
+          <v-expansion-panel title="Optional filter">
+            <v-expansion-panel-text>
+              <predicate-builder
+                  :meta="predicates"
+                  :type-name="predicateType"
+                  v-model="predicate"
+                  clearable/>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
         <v-btn class="mt-2" type="submit" color="primary" :disabled="!version" @click="submit" block>Submit</v-btn>
       </v-form>
     </v-card>
@@ -50,19 +70,28 @@
 </template>
 
 <script setup lang="ts">
+import PredicateBuilder from "~/components/predicates/PredicateBuilder.vue";
+
 const props = defineProps<{
   version?: string,
   additionalProperties: Record<string, any>,
-  validationRules?: any,
   onLoad: () => void,
-  onReset: () => void
+  onReset: () => void,
+
+  predicateType?: string,
+  predicate?: Record<string, any>,
 }>()
 
-const emit = defineEmits(["update:version"]);
+const emit = defineEmits(["update:version", "update:predicate"]);
 
 const version = computed({
   get: () => props.version,
   set: (val) => emit("update:version", val)
+});
+
+const predicate = computed({
+  get: () => props.predicate,
+  set: (val) => emit("update:predicate", val)
 });
 
 let allSet: boolean = version.value != undefined && version.value != ''
@@ -70,7 +99,7 @@ Object.keys(props.additionalProperties).forEach(key => allSet = allSet && props.
 
 const dialog = ref(!allSet)
 
-const availableVersions = ref([] as {value: string, title: string}[])
+const availableVersions = ref([] as { value: string, title: string; active: boolean; }[])
 
 const populateVersions = () => {
   getAllVersions().then(ver => availableVersions.value = ver.map(v => ({

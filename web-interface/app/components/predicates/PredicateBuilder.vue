@@ -4,7 +4,7 @@ import PredicateFieldEditor from "./PredicateFieldEditor.vue";
 
 const props = defineProps<{
   typeName: string;
-  modelValue: Record<string, any>;
+  modelValue: Record<string, any> | undefined;
   meta: Record<string, PredicateType>;
   clearable?: boolean;
 

@@ -1,7 +1,7 @@
 <template>
   <div>
     <v-dialog v-model="showDialog" max-width="800">
-      <v-card :title="fileContent ? `Source of ${clazz?.class}` : 'Attempting to locate source'" :loading="loading">
+      <v-card :title="fileContent ? `Source of ${file?.file}` : 'Attempting to locate source'" :loading="loading">
         <template v-slot:text>
           <v-select v-if="branches && branches.length > 0"
                     :items="branches"
@@ -9,7 +9,7 @@
                     label="Select branch"
                     density="compact"/>
           <p v-if="error">{{ error }}</p>
-          <code-block v-if="fileContent" :code="fileContent" class="mb-3"/>
+          <code-block v-if="fileContent" :code="fileContent" :language="fileExtension" class="mb-3"/>
           <v-chip v-if="fileLink"
                   :href="fileLink"
                   target="_blank"
@@ -38,19 +38,24 @@ import CodeBlock from "~/components/code-block.vue";
 
 const props = defineProps<{
   version?: string,
-  selectedClass?: {
+  selectedFile?: {
     mod: number,
-    class: string
+    file: string
   }
 }>()
-const emit = defineEmits(["update:selectedClass"]);
+const emit = defineEmits(["update:selectedFile"]);
 
 const client = useApolloClient().client
 
-const clazz = computed({
-  get: () => props.selectedClass,
-  set: (val) => emit("update:selectedClass", val)
+const file = computed({
+  get: () => props.selectedFile,
+  set: (val) => emit("update:selectedFile", val)
 });
+
+const fileExtension = computed(() => {
+  const split = props.selectedFile?.file?.split('.')
+  return split ? split[split.length - 1] : undefined
+})
 
 const showDialog = ref(false)
 const loading = ref(false)
@@ -79,7 +84,7 @@ const extractGitHub = (url: string): GitHubRepo | null => {
   return null
 }
 
-watch(clazz, newValue => {
+watch(file, newValue => {
   if (newValue == null) return
 
   showDialog.value = true
@@ -159,7 +164,7 @@ watch(clazz, newValue => {
 })
 
 watch(selectedBranch, newBranch => {
-  if (!newBranch || !repo.value || !clazz.value) return
+  if (!newBranch || !repo.value || !file.value) return
 
   loading.value = true
   error.value = null
@@ -173,15 +178,18 @@ watch(selectedBranch, newBranch => {
         const zip = new JSZip()
         zip.loadAsync(result)
             .then(zip => {
-              const pattern = new RegExp('.*\/' + clazz.value!!.class.split('$')[0]!!.replaceAll('.', '\\/') + '\\.java')
-              const file = zip.file(pattern)[0]
-              if (!file) {
-                error.value = `Cannot find source for class in branch ${newBranch}.`
+              const fileName = file.value!!.file
+              console.log(zip.files)
+              const zipFile = Object.values(zip.files)
+                  .find(f => f.name.endsWith(fileName))
+
+              if (!zipFile) {
+                error.value = `Cannot find file named ${fileName} in branch ${newBranch}.`
                 loading.value = false
               } else {
-                file.async('string').then(result => {
+                zipFile.async('string').then(result => {
                   fileContent.value = result
-                  fileLink.value = `https://github.com/${repository.owner}/${repository.repo}/blob/${newBranch}/${file.name.substring(file.name.indexOf('/') + 1)}`
+                  fileLink.value = `https://github.com/${repository.owner}/${repository.repo}/blob/${newBranch}/${zipFile.name.substring(zipFile.name.indexOf('/') + 1)}`
                   loading.value = false
                 })
               }
