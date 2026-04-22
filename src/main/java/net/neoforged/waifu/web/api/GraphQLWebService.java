@@ -5,6 +5,17 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.gson.JsonObject;
 import graphql.ExecutionResult;
 import graphql.GraphQL;
+import graphql.analysis.QueryTraverser;
+import graphql.analysis.QueryVisitor;
+import graphql.analysis.QueryVisitorFieldEnvironment;
+import graphql.analysis.QueryVisitorFragmentSpreadEnvironment;
+import graphql.analysis.QueryVisitorInlineFragmentEnvironment;
+import graphql.execution.AbortExecutionException;
+import graphql.execution.instrumentation.Instrumentation;
+import graphql.execution.instrumentation.InstrumentationContext;
+import graphql.execution.instrumentation.InstrumentationState;
+import graphql.execution.instrumentation.SimpleInstrumentationContext;
+import graphql.execution.instrumentation.parameters.InstrumentationValidationParameters;
 import graphql.language.Description;
 import graphql.language.Directive;
 import graphql.language.FieldDefinition;
@@ -43,7 +54,7 @@ import graphql.schema.idl.SchemaDirectiveWiringEnvironment;
 import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
-import io.javalin.Javalin;
+import graphql.validation.ValidationError;
 import io.javalin.config.RoutesConfig;
 import io.javalin.http.HttpStatus;
 import net.neoforged.waifu.Main;
@@ -58,6 +69,7 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -74,6 +86,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class GraphQLWebService {
+    private static final String PERMISSIONS_CONTEXT_KEY = "permissions";
+
     private record VersionKey(String ver, ModLoader loader) {}
     private final Map<VersionKey, Optional<Version>> versions = new ConcurrentHashMap<>();
 
@@ -292,6 +306,8 @@ public class GraphQLWebService {
                         builder.dataFetcher("gameVersion", this::getVersion)
                                 .dataFetcher("gameVersions", this::getVersions)
                 )
+                .type("Mutation", builder ->
+                        builder.dataFetcher("stopIndexingGameVersion", this::stopIndexing))
                 .type("GameVersion", builder ->
                         builder.dataFetcher("mods", dbHelper(DatabaseSearchHelper::getMods))
                                 .dataFetcher("modsById", dbHelper(DatabaseSearchHelper::getModsById))
@@ -345,7 +361,43 @@ public class GraphQLWebService {
         GraphQLSchema graphQLSchema = schemaGenerator.makeExecutableSchema(SchemaGenerator.Options.defaultOptions().useCommentsAsDescriptions(false)
                 .useAppliedDirectivesOnly(true), typeDefinitionRegistry, runtimeWiring.build());
 
-        this.engine = GraphQL.newGraphQL(graphQLSchema).build();
+        this.engine = GraphQL.newGraphQL(graphQLSchema)
+                .instrumentation(new Instrumentation() {
+                    @Override
+                    public InstrumentationContext<List<ValidationError>> beginValidation(InstrumentationValidationParameters parameters, InstrumentationState state) {
+                        return SimpleInstrumentationContext.whenCompleted((err, ex) -> {
+                            if (!err.isEmpty() || ex != null) return; // No need to check when the query provided is invalid
+
+                            QueryTraverser queryTraverser = QueryTraverser.newQueryTraverser().document(parameters.getDocument()).schema(parameters.getSchema()).variables(parameters.getVariables()).build();
+                            queryTraverser.visitDepthFirst(new QueryVisitor() {
+                                @Override
+                                public void visitField(QueryVisitorFieldEnvironment queryVisitorFieldEnvironment) {
+                                    var directive = queryVisitorFieldEnvironment.getFieldDefinition().getAppliedDirective("requires");
+                                    if (directive != null) {
+                                        var permission = directive.getArgument("permission");
+                                        if (permission != null && permission.getValue() != null) {
+                                            var permissions = parameters.getGraphQLContext().<Collection<String>>getOrDefault(PERMISSIONS_CONTEXT_KEY, List.of());
+                                            if (!permissions.contains(permission.<String>getValue())) {
+                                                throw new AbortExecutionException("Field '" + queryVisitorFieldEnvironment.getFieldDefinition().getName() + "' requires permissions the current user does not have: " + permission.getValue());
+                                            }
+                                        }
+                                    }
+                                }
+
+                                @Override
+                                public void visitInlineFragment(QueryVisitorInlineFragmentEnvironment queryVisitorInlineFragmentEnvironment) {
+
+                                }
+
+                                @Override
+                                public void visitFragmentSpread(QueryVisitorFragmentSpreadEnvironment queryVisitorFragmentSpreadEnvironment) {
+
+                                }
+                            });
+                        });
+                    }
+                })
+                .build();
 
         routes.get("/graphql", ctx -> ctx.redirect("/graphql.html", HttpStatus.TEMPORARY_REDIRECT));
 
@@ -493,6 +545,21 @@ public class GraphQLWebService {
         return stream
                 .map(v -> getVersion(v.gameVersion(), v.loader()))
                 .toList();
+    }
+
+    private boolean stopIndexing(DataFetchingEnvironment env) {
+        final String version = env.getArgument("version");
+        final ModLoader loader = getLoader(env.getArgumentOrDefault("loader", ""));
+
+        final boolean success = db.stopIndexingVersion(version, loader);
+        if (success) {
+            var future = Main.getService(version, loader);
+            if (future != null) {
+                future.cancel(env.getArgumentOrDefault("force", false));
+            }
+        }
+
+        return success;
     }
 
     private ModLoader getLoader(String argument) {

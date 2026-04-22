@@ -6,12 +6,25 @@ directive @specifiedBy(url: String!) on SCALAR
 directive @paginated on FIELD_DEFINITION
 directive @orderBy on FIELD_DEFINITION
 
+"Indicates that the element (and its children) is unstable and it may change in the future without notice"
+directive @unstable on FIELD_DEFINITION | OBJECT
+
+"Permissions that a user can have"
+enum Permission {
+    "The user has the permission to manage the indexed versions (stop indexing, request that a new version is indexed, etc.)"
+    MANAGE_VERSIONS
+}
+
+"Indicates that a field requires the user executing the request to have certain permissions."
+directive @requires(permission: Permission) on FIELD_DEFINITION
+
 scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/andimarek/date-time.html")
 
 scalar JSON
 
 schema {
     query: Query
+    mutation: Mutation
 }
 
 "Represents the loaders WAIFU supports (the loaders it can index)"
@@ -38,6 +51,21 @@ type Query {
         "The loader"
         loader: Loader!
     ): GameVersion
+}
+
+type Mutation @unstable {
+    """
+    Stop indexing the given game version.
+    Returns `true` if the game version was indexed before and is now no longer actively indexed.
+    """
+    stopIndexingGameVersion(
+        "The Minecraft version"
+        version: String!,
+        "The loader"
+        loader: Loader!,
+        "If `true` and there's an index operation in-progress, it will be forcefully stopped. If `false`, the operation will be allowed to finish execution normally."
+        force: Boolean
+    ): Boolean! @requires(permission: MANAGE_VERSIONS)
 }
 
 "Represents a version of the game on a loader, which WAIFU is indexing"

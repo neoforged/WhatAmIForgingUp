@@ -18,7 +18,6 @@ import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
-import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import net.neoforged.waifu.GameVersionIndexService;
 import net.neoforged.waifu.Main;
@@ -166,7 +165,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             protected void execute(SlashCommandEvent event) {
                 var version = event.optString("version", "");
                 var loader = ModLoader.valueOf(event.optString("loader"));
-                if (database.deleteVersion(version, loader)) {
+                if (database.stopIndexingVersion(version, loader)) {
                     event.reply("Stopped indexing version `" + version + "` for loader `" + loader.name().toLowerCase(Locale.ROOT) + "`.").queue();
 
                     var future = Main.getService(version, loader);

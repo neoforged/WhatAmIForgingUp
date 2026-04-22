@@ -70,8 +70,8 @@ public class MainDatabase {
         return transactional.getIndexedGameVersions();
     }
 
-    public boolean deleteVersion(String gameVersion, ModLoader loader) {
-        return transactional.deleteVersion(gameVersion, loader) == 1;
+    public boolean stopIndexingVersion(String gameVersion, ModLoader loader) {
+        return transactional.stopIndexingVersion(gameVersion, loader) == 1;
     }
 
     private interface DBTrans extends Transactional<DBTrans> {
@@ -79,7 +79,7 @@ public class MainDatabase {
         void addGameVersion(String version, @EnumByName ModLoader loader, @Nullable Long intervalSeconds);
 
         @SqlUpdate("delete from indexed_game_versions where version = ? and loader = ?")
-        int deleteVersion(String version, @EnumByName ModLoader loader);
+        int stopIndexingVersion(String version, @EnumByName ModLoader loader);
 
         @Nullable
         @SqlQuery("select version from indexed_game_versions where version = ? and loader = ?")
