@@ -1,0 +1,13 @@
+{
+  "name": "WhatAmIForgingUp",
+  "display": "standalone",
+  "start_url": "/",
+  "description": "Query information from WAIFU",
+  "icons": [
+    {
+      "src": "/icons/512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

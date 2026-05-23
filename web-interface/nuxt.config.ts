@@ -4,6 +4,13 @@ export default defineNuxtConfig({
   build: {
     transpile: ['vuetify'],
   },
+  app: {
+    head: {
+      link: [
+        { rel: 'manifest', href: '/appmanifest.json' }
+      ]
+    }
+  },
   vite: {
     plugins: [
       // @ts-expect-error
