@@ -1,26 +1,36 @@
 <template>
   <v-container>
+    <h2>Classes</h2>
     <v-card
-      title="Mixins targetting Classes in Package"
-      to="mixins-package" router>
+        title="Mixins targetting Classes in Package"
+        to="mixins-package" router>
       <template v-slot:text>
         Find mixins that target classes in a certain package (and its subpackages).
       </template>
     </v-card>
     <br>
     <v-card
-      title="Implementations"
-      to="implementations" router>
+        title="Implementations"
+        to="implementations" router>
       <template v-slot:text>
         Find the implementations of a given class.
       </template>
     </v-card>
     <br>
     <v-card
-      title="Annotated Classes"
-      to="annotated-classes" router>
+        title="Annotated Classes"
+        to="annotated-classes" router>
       <template v-slot:text>
         Find the classes annotated with a given annotation.
+      </template>
+    </v-card>
+
+    <h2>Data Files</h2>
+    <v-card
+        title="Recipes by type"
+        to="recipes" router>
+      <template v-slot:text>
+        Find recipes of a given type.
       </template>
     </v-card>
   </v-container>

@@ -17,6 +17,8 @@ import 'highlight.js/styles/github-dark.css'
 
 import java from 'highlight.js/lib/languages/java'
 hljs.registerLanguage('java', java);
+import json from 'highlight.js/lib/languages/json'
+hljs.registerLanguage('json', json);
 
 export default {
   name: 'CodeBlock',

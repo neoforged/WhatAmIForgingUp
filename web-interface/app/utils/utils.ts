@@ -12,3 +12,8 @@ export function deleteCookieByName(name: string) {
 export function getClassSourceFileName(className: string): string {
   return className.split('$')[0]!!.replaceAll('.', '/') + '.java'
 }
+
+export function getRecipeSourceFileName(recipeName: string): string {
+  // TODO - we should try to use the namespace too, for more accurate matching. That will however require being able to find a file based on several names (recipe/recipes)
+  return recipeName.split(':').pop()!! + '.json'
+}

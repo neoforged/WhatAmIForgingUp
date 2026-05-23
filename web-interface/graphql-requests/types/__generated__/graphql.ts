@@ -1829,3 +1829,13 @@ export type GetModInformationQueryVariables = Exact<{
 
 
 export type GetModInformationQuery = { gameVersion: { __typename: 'GameVersion', _modInformation: { __typename: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: unknown | null, mavenCoordinates: string | null, curseforge: { __typename: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };
+
+export type GetRecipesQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  predicate: RecipeFilePredicate;
+  cursor?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type GetRecipesQuery = { gameVersion: { __typename: 'GameVersion', recipes: { __typename: 'RecipeFileConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'RecipeFileEdge', node: { __typename: 'RecipeFile', name: string, recipe: unknown, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };
