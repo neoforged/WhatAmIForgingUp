@@ -5,8 +5,7 @@
         v-model:predicate="filter"
         predicate-type="ClassDefinitionPredicate"
         :on-load="load"
-        :on-reset="() => loading = true"
-        :additionalProperties="{'Annotation': annotation}">
+        :parameters="queryClient.parameters">
       <template v-slot:result-display>
         <v-card title="Results" flat>
           <template v-slot:text>
@@ -58,13 +57,6 @@
       </template>
 
       <template v-slot:form>
-        <v-text-field
-            v-model="annotation"
-            label="Annotation"
-            placeholder="com.example.ExampleAnnotation"
-            density="compact"
-            variant="underlined"
-        />
         <div class="text-left">
           Classes annotated with the annotation above will be returned.
         </div>
@@ -82,6 +74,9 @@ import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {CLASSES_ANNOTATED} from "~~/graphql-requests/classes";
 import type {ClassDefinitionPredicate} from "~~/graphql-requests/types/__generated__/graphql";
 import {type FileSelection, getClassSourceFileName} from "~/utils/utils";
+import AutocompleteInput from "~/components/form/autocomplete-input.vue";
+import {predicateQueryParameter, stringQueryParameter} from "~/utils/query-utils";
+import {classSearch} from "~/utils/autocomplete";
 
 definePageMeta({
   title: 'Classes with Annotation Query'
@@ -90,8 +85,15 @@ definePageMeta({
 const queryClient = useQueryClient()
 
 const version = queryClient.version
-const annotation = queryClient.queryParam('annotation')
-const filter = queryClient.jsonQueryParam<Record<string, any>>('filter')
+const annotation = queryClient.defineParameter('annotation', stringQueryParameter({
+  label: 'Annotation',
+  placeholder: 'com.example.ExampleAnnotation',
+  autocomplete: classSearch(version)
+}))
+const filter = queryClient.defineOptionalParameter<ClassDefinitionPredicate>('filter', predicateQueryParameter({
+  label: 'Filter',
+  type: 'ClassDefinitionPredicate'
+}))
 
 const selectedMod = ref<number>()
 const selectedFile = ref<{
@@ -141,6 +143,8 @@ const formatAnnotation = (annotation: any, tp: string): string => {
 }
 
 const load = () => {
+  loading.value = true
+
   const classDefPredicates: ClassDefinitionPredicate[] = [
     {
       anyAnnotation: {
@@ -149,7 +153,7 @@ const load = () => {
     }
   ]
 
-  if (filter.value && Object.keys(filter.value).length > 0) {
+  if (filter.value) {
     classDefPredicates.push(filter.value)
   }
 

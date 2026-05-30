@@ -1,10 +1,8 @@
 <template>
   <v-container>
     <query-component
-        v-model:version="version"
         :on-load="load"
-        :on-reset="() => loading = true"
-        :additionalProperties="{'Class': clazz, 'Method': method}">
+        :parameters="queryClient.parameters">
       <template v-slot:result-display>
         <v-card title="Results" flat>
           <template v-slot:text>
@@ -57,18 +55,6 @@
       </template>
 
       <template v-slot:form>
-        <autocomplete-input
-            v-model="clazz"
-            :strategy="classSearch(version)"
-            label="Class"
-            placeholder="com.example.ExampleClass"
-        />
-        <autocomplete-input
-            v-model="method"
-            :strategy="methodSearch(version, clazz)"
-            label="Method"
-            placeholder="exampleMethod"
-        />
         <div class="text-left">
           <b>Direct</b> references to the method with the given name, from the given class will be returned.
         </div>
@@ -84,8 +70,9 @@ import QueryComponent from "~/components/query-component.vue";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {type FileSelection, getClassSourceFileName, grouper} from "~/utils/utils";
 import {METHOD_REFERENCES} from "~~/graphql-requests/methods";
-import {classSearch} from "~/utils/autocomplete";
+import {classSearch, methodSearch} from "~/utils/autocomplete";
 import AutocompleteInput from "~/components/form/autocomplete-input.vue";
+import {stringQueryParameter} from "~/utils/query-utils";
 
 definePageMeta({
   title: 'Method References Query'
@@ -94,8 +81,16 @@ definePageMeta({
 const queryClient = useQueryClient()
 
 const version = queryClient.version
-const clazz = queryClient.queryParam('class')
-const method = queryClient.queryParam('method')
+const clazz = queryClient.defineParameter('class', stringQueryParameter({
+  label: 'Class',
+  placeholder: 'com.example.ExampleClass',
+  autocomplete: classSearch(version)
+}))
+const method = queryClient.defineParameter('method', stringQueryParameter({
+  label: 'Method',
+  placeholder: 'exampleMethod',
+  autocomplete: methodSearch(version, clazz)
+}))
 
 const selectedMod = ref<number>()
 const selectedFile = ref<{
@@ -116,6 +111,7 @@ const headers = [
 const groups = grouper(headers)
 
 const load = () => {
+  loading.value = true
   fetchWithVersion(queryClient.apollo, METHOD_REFERENCES, {
     class: clazz.value!!.replaceAll('.', '/'),
     methodFilter: {

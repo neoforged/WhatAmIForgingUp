@@ -83,12 +83,7 @@ addLogicPredicate('StringPredicate', {
       name: 'Starts with',
       type: ScalarType.STRING,
       hint: '{object} must start with the given string'
-    },
-    endsWith: {
-      name: 'Starts with',
-      type: ScalarType.STRING,
-      hint: '{object} must end with the given string'
-    },
+    }
   }
 })
 

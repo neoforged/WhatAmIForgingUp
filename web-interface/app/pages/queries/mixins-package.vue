@@ -1,12 +1,8 @@
 <template>
   <v-container>
     <query-component
-        v-model:version="version"
-        v-model:predicate="filter"
-        predicate-type="ClassDefinitionPredicate"
         :on-load="load"
-        :on-reset="() => loading = true"
-        :additionalProperties="{'Package': pkg}">
+        :parameters="queryClient.parameters">
       <template v-slot:result-display>
         <v-card title="Results" flat>
           <template v-slot:text>
@@ -60,13 +56,6 @@
       </template>
 
       <template v-slot:form>
-        <v-text-field
-            v-model="pkg"
-            label="Package"
-            placeholder="com.example"
-            density="compact"
-            variant="underlined"
-        />
         <div class="text-left mb-2">
           Mixins targetting classes in the package above will be returned. Subpackages are included.
         </div>
@@ -83,7 +72,8 @@ import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {CLASSES_ANNOTATED} from "~~/graphql-requests/classes";
 import type {ClassDefinitionPredicate} from "~~/graphql-requests/types/__generated__/graphql";
-import {type FileSelection, getClassSourceFileName} from "~/utils/utils";
+import {type FileSelection} from "~/utils/utils";
+import {predicateQueryParameter, stringQueryParameter} from "~/utils/query-utils";
 
 definePageMeta({
   title: 'Mixins targetting Classes in Package Query'
@@ -92,8 +82,14 @@ definePageMeta({
 const queryClient = useQueryClient()
 
 const version = queryClient.version
-const pkg = queryClient.queryParam('pkg')
-const filter = queryClient.jsonQueryParam<Record<string, any>>('filter')
+const pkg = queryClient.defineParameter('package', stringQueryParameter({
+  label: 'Package',
+  placeholder: 'com.example'
+}))
+const filter = queryClient.defineOptionalParameter<ClassDefinitionPredicate>('filter', predicateQueryParameter({
+  label: 'Filter',
+  type: 'ClassDefinitionPredicate'
+}))
 
 const selectedMod = ref<number>()
 const selectedFile = ref<{
@@ -122,6 +118,8 @@ const groupByConfiguration = computed<DataTableSortItem[]>(() => {
 })
 
 const load = () => {
+  loading.value = true
+
   const classDefPredicates: ClassDefinitionPredicate[] = [
     {
       anyAnnotation: {
@@ -140,7 +138,7 @@ const load = () => {
     }
   ]
 
-  if (filter.value && Object.keys(filter.value).length > 0) {
+  if (filter.value) {
     classDefPredicates.push(filter.value)
   }
 

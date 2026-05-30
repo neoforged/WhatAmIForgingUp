@@ -1,10 +1,8 @@
 <template>
   <v-container>
     <query-component
-        v-model:version="version"
         :on-load="load"
-        :on-reset="() => loading = true"
-        :additionalProperties="{'Class': clazz}">
+        :parameters="queryClient.parameters">
       <template v-slot:result-display>
         <v-card title="Results" flat>
           <template v-slot:text>
@@ -56,13 +54,6 @@
       </template>
 
       <template v-slot:form>
-        <v-text-field
-            v-model="clazz"
-            label="Class"
-            placeholder="com.example.ExampleClass"
-            density="compact"
-            variant="underlined"
-        />
         <div class="text-left">
           Implementations of the above class will be returned. To the greatest extent possible, indirect implementations (A extends B - which extends the class) will also be returned.
         </div>
@@ -74,11 +65,11 @@
 </template>
 
 <script setup lang="ts">
-import QueryComponent from "~/components/query-component.vue";
 import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {IMPLEMENTATIONS} from "~~/graphql-requests/classes";
 import {type FileSelection, getClassSourceFileName} from "~/utils/utils";
+import {stringQueryParameter} from "~/utils/query-utils";
 
 definePageMeta({
   title: 'Implementations Query'
@@ -87,7 +78,11 @@ definePageMeta({
 const queryClient = useQueryClient()
 
 const version = queryClient.version
-const clazz = queryClient.queryParam('class')
+const clazz = queryClient.defineParameter('class', stringQueryParameter({
+  label: 'Class',
+  placeholder: 'com.example.ExampleClass',
+  autocomplete: classSearch(version)
+}))
 
 const selectedMod = ref<number>()
 const selectedFile = ref<{
@@ -113,6 +108,7 @@ const groupByConfiguration = computed<DataTableSortItem[]>(() => {
 })
 
 const load = () => {
+  loading.value = true
   fetchWithVersion(queryClient.apollo, IMPLEMENTATIONS, {
     class: clazz.value!!.replaceAll('.', '/')
   }, version.value)

@@ -16,20 +16,17 @@
         </v-btn>
       </template>
       <v-chip-group class="pa-2">
-        <v-chip>Version: {{ version }}</v-chip>
-        <v-chip v-for="key in Object.keys(props.additionalProperties)">{{ key }}: {{
-            additionalProperties[key]
-          }}
-        </v-chip>
-        <v-chip v-if="predicateType">Filter:
-          {{ predicate && Object.keys(predicate).length > 0 ? formatFilter(predicate, predicateType) : 'None' }}
+        <v-chip v-for="p in parameters">{{ p.type.label }}:
+          <span>&nbsp;</span>
+          <component v-if="p.humanReadable" :is="p.humanReadable" />
+          <span v-else>{{ p.value.value }}</span>
         </v-chip>
       </v-chip-group>
     </v-card>
     <br/>
     <slot name="result-display"></slot>
   </div>
-  <v-dialog v-model="dialog" persistent width="auto" class="text-center" v-else>
+  <v-dialog eager v-model="dialog" persistent width="auto" class="text-center">
     <v-card
         min-width="400"
         max-width="800"
@@ -37,105 +34,44 @@
         title="Configure query"
     >
       <v-form @submit.prevent class="pa-4">
-        <v-select
-            v-model="version"
-            label="Version"
-            density="compact"
-            variant="underlined"
-            :loading="availableVersions.length == 0"
-            :disabled="availableVersions.length == 0"
-            :items="availableVersions"
-        >
-          <template v-slot:item="{ props: itemProps, item }">
-            <v-list-item v-bind="itemProps" :subtitle="item.active ? undefined : 'No longer updated, data is stale.'"
-                         :append-avatar="loaderToLogo(item.value)"/>
-          </template>
-        </v-select>
+        <component v-for="p in parameters" :is="p.formComponent" />
         <slot name="form"></slot>
-
-        <v-expansion-panels v-if="predicateType">
-          <v-expansion-panel title="Optional filter">
-            <v-expansion-panel-text>
-              <predicate-builder
-                  :meta="predicates"
-                  :type-name="predicateType"
-                  v-model="predicate"
-                  clearable/>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
-        </v-expansion-panels>
-        <v-btn class="mt-2" type="submit" color="primary" :disabled="!version" @click="submit" block>Submit</v-btn>
+        <v-btn class="mt-2" type="submit" color="primary" :disabled="!allParametersSet()" @click="submit" block>Submit</v-btn>
       </v-form>
     </v-card>
   </v-dialog>
 </template>
 
 <script setup lang="ts">
-import PredicateBuilder from "~/components/predicates/PredicateBuilder.vue";
+import type {QueryParameter} from "~/utils/query-utils";
 
 const props = defineProps<{
-  version?: string,
-  additionalProperties: Record<string, any>,
-  onLoad: () => void,
-  onReset: () => void,
-
-  predicateType?: string,
-  predicate?: Record<string, any>,
+  parameters: QueryParameter<any>[]
+  onLoad: () => void
 }>()
 
-const emit = defineEmits(["update:version", "update:predicate"]);
-
-const version = computed({
-  get: () => props.version,
-  set: (val) => emit("update:version", val)
-});
-
-const predicate = computed({
-  get: () => props.predicate,
-  set: (val) => emit("update:predicate", val)
-});
-
-let allSet: boolean = version.value != undefined && version.value != ''
-Object.keys(props.additionalProperties).forEach(key => allSet = allSet && props.additionalProperties[key] as boolean)
-
-const dialog = ref(!allSet)
-
-const availableVersions = ref([] as { value: string, title: string; active: boolean; }[])
-
-const populateVersions = () => {
-  getAllVersions().then(ver => availableVersions.value = ver.map(v => ({
-    value: v.gameVersion + '-' + v.loader,
-    title: v.gameVersion + ' ' + v.loader,
-    active: v.activelyIndexed
-  })))
-}
-
-const loaderToLogo = (version: string) => {
-  const loader = version.split('-')[1]!!.toLowerCase()
-  if (loader == 'neoforge') {
-    return 'https://github.com/neoforged.png'
-  } else if (loader == 'fabric') {
-    return 'https://github.com/fabricmc.png'
-  }
-  return 'https://github.com/minecraftforge.png'
-}
-
-if (dialog.value) {
-  populateVersions()
-}
+const dialog = ref(false)
 
 const submit = async () => {
   dialog.value = false
   props.onLoad!!()
 }
 
-const modify = () => {
-  dialog.value = true
-  if (availableVersions.value.length == 0) populateVersions()
-  props.onReset!!()
+const allParametersSet = () => {
+  for (const param of props.parameters) {
+    if (!param.optional && !(param.value.value as boolean)) return false
+  }
+  return true
 }
 
-if (!dialog.value) {
+const modify = () => {
+  dialog.value = true
+}
+
+if (allParametersSet()) {
   props.onLoad!!()
+  dialog.value = false
+} else {
+  dialog.value = true
 }
 </script>

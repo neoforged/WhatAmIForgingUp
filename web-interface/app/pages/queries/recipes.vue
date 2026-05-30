@@ -1,12 +1,8 @@
 <template>
   <v-container>
     <query-component
-        v-model:version="version"
-        v-model:predicate="filter"
-        predicate-type="RecipeFilePredicate"
         :on-load="load"
-        :on-reset="() => loading = true"
-        :additionalProperties="{'Recipe type': recipeType}">
+        :parameters="queryClient.parameters">
       <template v-slot:result-display>
         <v-card title="Results" flat>
           <template v-slot:text>
@@ -61,13 +57,6 @@
       </template>
 
       <template v-slot:form>
-        <v-text-field
-            v-model="recipeType"
-            label="Recipe type"
-            placeholder="minecraft:crafting_shaped"
-            density="compact"
-            variant="underlined"
-        />
         <div class="text-left">
           Recipes of the given type will be returned.
         </div>
@@ -85,6 +74,7 @@ import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {type FileSelection, getRecipeSourceFileName} from "~/utils/utils";
 import {RECIPES} from "~~/graphql-requests/recipes";
 import type {RecipeFilePredicate} from "~~/graphql-requests/types/__generated__/graphql";
+import {predicateQueryParameter, stringQueryParameter} from "~/utils/query-utils";
 
 definePageMeta({
   title: 'Recipes Query'
@@ -93,9 +83,14 @@ definePageMeta({
 const queryClient = useQueryClient()
 
 const version = queryClient.version
-const recipeType = queryClient.queryParam('recipetype')
-const filter = queryClient.jsonQueryParam<Record<string, any>>('filter')
-
+const recipeType = queryClient.defineParameter('recipetype', stringQueryParameter({
+  label: 'Recipe type',
+  placeholder: 'minecraft:crafting_shaped'
+}))
+const filter = queryClient.defineOptionalParameter<RecipeFilePredicate>('filter', predicateQueryParameter({
+  label: 'Filter',
+  type: 'RecipeFilePredicate'
+}))
 const selectedMod = ref<number>()
 const selectedFile = ref<{
   mod: number,
@@ -121,6 +116,8 @@ const groupByConfiguration = computed<DataTableSortItem[]>(() => {
 })
 
 const load = () => {
+  loading.value = true
+
   const predicates: RecipeFilePredicate[] = [
     {
       type: {
@@ -128,7 +125,7 @@ const load = () => {
       }
     }
   ]
-  if (filter.value && Object.keys(filter.value).length > 0) {
+  if (filter.value) {
     predicates.push(filter.value)
   }
 

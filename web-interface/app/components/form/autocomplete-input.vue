@@ -19,7 +19,7 @@ const props = defineProps<{
   modelValue?: string,
   label: string,
   placeholder: string,
-  strategy: AutoCompleteStrategy
+  strategy?: AutoCompleteStrategy
 }>()
 
 const emit = defineEmits(["update:modelValue"]);
@@ -35,12 +35,13 @@ const loading = ref(false)
 watch(value, querySelections)
 
 function querySelections(v?: string) {
+  if (!props.strategy) return
   loading.value = true
   setTimeout(() => {
     if (v !== value.value) {
       return // avoid race condition
     }
-    props.strategy(v).then(res => {
+    props.strategy!!(v).then(res => {
       autoComplete.value = res
       loading.value = false
     })
