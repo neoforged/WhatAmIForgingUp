@@ -145,12 +145,15 @@ watch(file, newValue => {
           repo.value = repository
           getGitHubBranches(repository.owner, repository.repo)
               .then(repoBranches => {
-                error.value = `Linked repository is empty (https://github.com/${repository.owner}/${repository.repo}).`
                 const [mcVersion, loader] = props.version!!.split('-')
 
                 branches.value = repoBranches
+                if (repoBranches.length == 0) {
+                  error.value = `Linked repository is empty (https://github.com/${repository.owner}/${repository.repo}).`
+                }
+
                 // The simplest scenario: repo has only one branch
-                if (repoBranches.length == 1) {
+                else if (repoBranches.length == 1) {
                   selectedBranch.value = repoBranches[0]!!
                 }
                 // Repo has a branch named after the mc version
