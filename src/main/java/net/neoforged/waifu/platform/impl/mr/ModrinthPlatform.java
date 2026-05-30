@@ -16,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -331,11 +330,6 @@ public class ModrinthPlatform implements ModPlatform {
             }
 
             @Override
-            public InputStream download() throws IOException {
-                return URI.create(downloadFile.url).toURL().openStream();
-            }
-
-            @Override
             public ModPlatform getPlatform() {
                 return ModrinthPlatform.this;
             }
@@ -343,6 +337,11 @@ public class ModrinthPlatform implements ModPlatform {
             @Override
             public String getUrl() {
                 return "https://modrinth.com/mod/" + getProjectId() + "/version/" + getId();
+            }
+
+            @Override
+            public String getDownloadUrl() {
+                return downloadFile.url;
             }
 
             @Override

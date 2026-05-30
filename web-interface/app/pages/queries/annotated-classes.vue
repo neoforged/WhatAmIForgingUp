@@ -81,7 +81,7 @@ import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {CLASSES_ANNOTATED} from "~~/graphql-requests/classes";
 import type {ClassDefinitionPredicate} from "~~/graphql-requests/types/__generated__/graphql";
-import {getClassSourceFileName} from "~/utils/utils";
+import {type FileSelection, getClassSourceFileName} from "~/utils/utils";
 
 definePageMeta({
   title: 'Classes with Annotation Query'
@@ -96,7 +96,7 @@ const filter = queryClient.jsonQueryParam<Record<string, any>>('filter')
 const selectedMod = ref<number>()
 const selectedFile = ref<{
   mod: number,
-  file: string
+  file: FileSelection
 }>()
 
 const items = ref([] as any[])

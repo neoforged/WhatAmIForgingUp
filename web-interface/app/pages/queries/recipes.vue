@@ -80,7 +80,7 @@
 import QueryComponent from "~/components/query-component.vue";
 import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
-import {getRecipeSourceFileName} from "~/utils/utils";
+import {type FileSelection, getRecipeSourceFileName} from "~/utils/utils";
 import {RECIPES} from "~~/graphql-requests/recipes";
 
 definePageMeta({
@@ -95,7 +95,7 @@ const recipeType = queryClient.queryParam('recipetype')
 const selectedMod = ref<number>()
 const selectedFile = ref<{
   mod: number,
-  file: string
+  file: FileSelection
 }>()
 
 const items = ref([] as any[])

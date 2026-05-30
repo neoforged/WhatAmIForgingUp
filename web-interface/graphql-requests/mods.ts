@@ -31,9 +31,11 @@ export const MOD_INFORMATION: TypedDocumentNode<
                 mavenCoordinates
                 curseforge {
                     ...PlatformInformation
+                    fileDownloadUrl(version: $version, loader: $loader)
                 }
                 modrinth {
                     ...PlatformInformation
+                    fileDownloadUrl(version: $version, loader: $loader)
                 }
             }
         }

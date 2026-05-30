@@ -32,6 +32,7 @@ export default defineNuxtConfig({
         'graphql-tag',
         'highlight.js',
         'highlight.js/lib/languages/java',
+        '@run-slicer/vf',
       ]
     }
   },

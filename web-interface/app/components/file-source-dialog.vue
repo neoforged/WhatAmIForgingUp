@@ -1,7 +1,7 @@
 <template>
   <div>
     <v-dialog v-model="showDialog" max-width="800">
-      <v-card :title="fileContent ? `Source of ${file?.file}` : 'Attempting to locate source'" :loading="loading">
+      <v-card :title="fileContent ? `Source of ${file?.file.name}` : 'Attempting to locate source'" :loading="loading">
         <template v-slot:text>
           <v-select v-if="branches && branches.length > 0"
                     :items="branches"
@@ -9,6 +9,11 @@
                     label="Select branch"
                     density="compact"/>
           <p v-if="error">{{ error }}</p>
+          <v-btn v-if="error && binaryUrl && file?.file?.binaryExtractor"
+                  @click="openFromBinary()"
+                  text="Decompile from binary instead"
+                  :disabled="loading"
+                  color="primary"/>
           <code-block v-if="fileContent" :code="fileContent" :language="fileExtension" class="mb-3"/>
           <v-chip v-if="fileLink"
                   :href="fileLink"
@@ -32,15 +37,16 @@
 import {useApolloClient} from "@vue/apollo-composable";
 import {fetchWithVersion} from "~/utils/graphql-utils";
 import {MOD_INFORMATION} from "~~/graphql-requests/mods";
-import {downloadGitHubBranch, getGitHubBranches} from "~/utils/api-utils";
+import {downloadGitHubBranch, downloadZip, getBaseUrl, getGitHubBranches} from "~/utils/api-utils";
 import JSZip from "jszip";
 import CodeBlock from "~/components/code-block.vue";
+import type {FileSelection} from "~/utils/utils";
 
 const props = defineProps<{
   version?: string,
   selectedFile?: {
     mod: number,
-    file: string
+    file: FileSelection
   }
 }>()
 const emit = defineEmits(["update:selectedFile"]);
@@ -53,7 +59,7 @@ const file = computed({
 });
 
 const fileExtension = computed(() => {
-  const split = props.selectedFile?.file?.split('.')
+  const split = props.selectedFile?.file?.name.split('.')
   return split ? split[split.length - 1] : undefined
 })
 
@@ -72,6 +78,8 @@ const selectedBranch = ref(null as string | null)
 
 const fileContent = ref(null as string | null)
 const fileLink = ref(null as string | null)
+
+const binaryUrl = ref(null as string | null)
 
 const extractGitHub = (url: string): GitHubRepo | null => {
   const match = url.match(/https:\/\/github\.com\/([\w-.]*)\/([\w-.]*)(\/.*)*/)
@@ -94,10 +102,11 @@ watch(file, newValue => {
   }, props.version!!)
       .then(result => {
         const mod = result?.gameVersion?._modInformation!!
+        binaryUrl.value = mod.curseforge?.fileDownloadUrl ?? mod.modrinth?.fileDownloadUrl ?? null
 
         let repository: GitHubRepo | null = null;
         // First try the source links directly
-        if (mod?.curseforge?.sourceUrl) {
+        if (mod.curseforge?.sourceUrl) {
           repository = extractGitHub(mod.curseforge.sourceUrl)
         }
         if (repository == null && mod.modrinth?.sourceUrl) {
@@ -163,13 +172,16 @@ watch(file, newValue => {
       })
 })
 
-watch(selectedBranch, newBranch => {
-  if (!newBranch || !repo.value || !file.value) return
-
+function resetContent() {
   loading.value = true
   error.value = null
   fileContent.value = null
   fileLink.value = null
+}
+
+watch(selectedBranch, newBranch => {
+  if (!newBranch || !repo.value || !file.value) return
+  resetContent()
 
   const repository = repo.value!!
 
@@ -178,8 +190,7 @@ watch(selectedBranch, newBranch => {
         const zip = new JSZip()
         zip.loadAsync(result)
             .then(zip => {
-              const fileName = file.value!!.file
-              console.log(zip.files)
+              const fileName = file.value!!.file.name
               const zipFile = Object.values(zip.files)
                   .find(f => f.name.endsWith(fileName))
 
@@ -197,6 +208,24 @@ watch(selectedBranch, newBranch => {
       })
 })
 
+const openFromBinary = () => {
+  resetContent()
+
+  downloadZip(`${getBaseUrl()}/api/internal/cdn-proxy?url=${binaryUrl.value!!}`) // CurseForge does not have CORS on their CDN... we might want to consider our own proxy
+      .then(zip => {
+        file.value!!.file.binaryExtractor!!(zip)
+            .then(res => {
+              const result = res as any
+              loading.value = false
+              if (result.error) {
+                error.value = result.error
+              } else {
+                fileContent.value = result.content
+              }
+            })
+      })
+}
+
 watch(showDialog, newValue => {
   if (!newValue) {
     loading.value = false
@@ -206,6 +235,7 @@ watch(showDialog, newValue => {
     selectedBranch.value = null
     fileContent.value = null
     fileLink.value = null
+    binaryUrl.value = null
   }
 })
 </script>

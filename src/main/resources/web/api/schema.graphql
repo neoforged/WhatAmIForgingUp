@@ -994,4 +994,6 @@ type IntPlatformInformation {
     iconUrl: String!
     sourceUrl: String
     issuesUrl: String
+
+    fileDownloadUrl(version: String!, loader: Loader!): String
 }

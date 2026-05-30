@@ -1,4 +1,5 @@
 import type {Loader} from "~~/graphql-requests/types/__generated__/graphql";
+import JSZip from "jszip";
 
 export async function getAllVersions(): Promise<{
   gameVersion: string,
@@ -33,4 +34,10 @@ export async function getGitHubBranches(owner: string, repo: string): Promise<st
 export async function downloadGitHubBranch(owner: string, repo: string, branch: string): Promise<ArrayBuffer> {
   const res = await fetch(getBaseUrl() + `/api/internal/download-github/${owner}/${repo}/refs/heads/${branch}`)
   return await res.arrayBuffer()
+}
+
+export async function downloadZip(url: string): Promise<JSZip> {
+  const res = await fetch(url)
+  const zip = new JSZip()
+  return await zip.loadAsync(res.arrayBuffer())
 }

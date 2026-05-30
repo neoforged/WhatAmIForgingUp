@@ -992,11 +992,18 @@ export type IntPlatformInformation = {
   __typename: 'IntPlatformInformation';
   description: Scalars['String']['output'];
   downloads: Scalars['Int']['output'];
+  fileDownloadUrl: Maybe<Scalars['String']['output']>;
   iconUrl: Scalars['String']['output'];
   issuesUrl: Maybe<Scalars['String']['output']>;
   projectUrl: Scalars['String']['output'];
   sourceUrl: Maybe<Scalars['String']['output']>;
   title: Scalars['String']['output'];
+};
+
+
+export type IntPlatformInformationFileDownloadUrlArgs = {
+  loader: Loader;
+  version: Scalars['String']['input'];
 };
 
 /**
@@ -1479,6 +1486,22 @@ export type ModPredicate = {
   not?: InputMaybe<ModPredicate>;
 };
 
+export type Mutation = {
+  __typename: 'Mutation';
+  /**
+   * Stop indexing the given game version.
+   * Returns `true` if the game version was indexed before and is now no longer actively indexed.
+   */
+  stopIndexingGameVersion: Scalars['Boolean']['output'];
+};
+
+
+export type MutationStopIndexingGameVersionArgs = {
+  force?: InputMaybe<Scalars['Boolean']['input']>;
+  loader: Loader;
+  version: Scalars['String']['input'];
+};
+
 /** Represents an artifact nested within another one, in a strictly flat structure. */
 export type NestedArtifact = BaseNestedArtifact & {
   __typename: 'NestedArtifact';
@@ -1553,6 +1576,12 @@ export type PageInfo = {
   /** The cursor ID that points to the first element returned, if there is one */
   startCursor: Maybe<Scalars['ID']['output']>;
 };
+
+/** Permissions that a user can have */
+export enum Permission {
+  /** The user has the permission to manage the indexed versions (stop indexing, request that a new version is indexed, etc.) */
+  ManageVersions = 'MANAGE_VERSIONS'
+}
 
 /** Represents the ID/slug of a project on CurseForge or Modrinth */
 export type PlatformProjectIdentifier = {
@@ -1828,7 +1857,7 @@ export type GetModInformationQueryVariables = Exact<{
 }>;
 
 
-export type GetModInformationQuery = { gameVersion: { __typename: 'GameVersion', _modInformation: { __typename: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: unknown | null, mavenCoordinates: string | null, curseforge: { __typename: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };
+export type GetModInformationQuery = { gameVersion: { __typename: 'GameVersion', _modInformation: { __typename: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: unknown | null, mavenCoordinates: string | null, curseforge: { __typename: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };
 
 export type GetRecipesQueryVariables = Exact<{
   version: Scalars['String']['input'];

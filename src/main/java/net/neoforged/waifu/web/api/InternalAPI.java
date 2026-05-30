@@ -42,5 +42,7 @@ public class InternalAPI {
                     + "/" + ctx.pathParam("repo") + "/archive/" + ctx.pathParam("ref") + ".zip")).build(), HttpResponse.BodyHandlers.ofInputStream());
             ctx.status(response.statusCode()).result(response.body());
         });
+
+        config.get("/api/internal/cdn-proxy", PlatformCDNProxy::proxy);
     }
 }

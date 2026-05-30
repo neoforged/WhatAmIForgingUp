@@ -339,7 +339,13 @@ public class GraphQLWebService {
                                 .dataFetcher("issuesUrl", fetcher(PlatformProject::getIssuesUrl))
                                 .dataFetcher("title", fetcher(PlatformProject::getTitle))
                                 .dataFetcher("description", fetcher(PlatformProject::getDescription))
-                                .dataFetcher("downloads", fetcher(PlatformProject::getDownloads)));
+                                .dataFetcher("downloads", fetcher(PlatformProject::getDownloads))
+                                .dataFetcher("fileDownloadUrl", environment -> {
+                                    var project = environment.<PlatformProject>getSource();
+                                    assert project != null;
+                                    var latestFile = project.getLatestFile(environment.getArgument("version"), getLoader(environment.getArgumentOrDefault("loader", "")));
+                                    return latestFile == null ? null : latestFile.getDownloadUrl();
+                                }));
 
         typesToAdd.forEach((key, def) -> {
             if (key.endsWith("Edge")) {

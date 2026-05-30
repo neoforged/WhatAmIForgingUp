@@ -25,10 +25,8 @@ import net.neoforged.waifu.util.MappingIterator;
 import net.neoforged.waifu.util.Utils;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -428,15 +426,13 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             @Override
-            public InputStream download() throws IOException {
+            public String getDownloadUrl() {
                 var file = getFile();
                 if (file.downloadUrl() != null) {
-                    return URI.create(file.downloadUrl()).toURL().openStream();
+                    return file.downloadUrl();
                 }
                 var fileId = String.valueOf(file.id());
-                return URI.create("https://edge.forgecdn.net/files/%s/%s/%s"
-                        .formatted(fileId.substring(0, 4), fileId.substring(4), URLEncoder.encode(file.fileName(), StandardCharsets.UTF_8)))
-                        .toURL().openStream();
+                return "https://edge.forgecdn.net/files/%s/%s/%s".formatted(fileId.substring(0, 4), fileId.substring(4), URLEncoder.encode(file.fileName(), StandardCharsets.UTF_8));
             }
 
             private synchronized File getFile() {

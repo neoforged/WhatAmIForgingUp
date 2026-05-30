@@ -78,7 +78,7 @@ import QueryComponent from "~/components/query-component.vue";
 import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {IMPLEMENTATIONS} from "~~/graphql-requests/classes";
-import {getClassSourceFileName} from "~/utils/utils";
+import {type FileSelection, getClassSourceFileName} from "~/utils/utils";
 
 definePageMeta({
   title: 'Implementations Query'
@@ -92,7 +92,7 @@ const clazz = queryClient.queryParam('class')
 const selectedMod = ref<number>()
 const selectedFile = ref<{
   mod: number,
-  file: string
+  file: FileSelection
 }>()
 
 const items = ref([] as any[])

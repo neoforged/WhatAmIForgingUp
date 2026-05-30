@@ -2,6 +2,7 @@
 
 schema {
     query: Query
+    mutation: Mutation
 }
 
 "This directive allows results to be deferred during execution"
@@ -25,6 +26,12 @@ directive @orderBy on FIELD_DEFINITION
 directive @paginated on FIELD_DEFINITION
 
 directive @predicateType on INPUT_OBJECT
+
+"Indicates that a field requires the user executing the request to have certain permissions."
+directive @requires(permission: Permission) on FIELD_DEFINITION
+
+"Indicates that the element (and its children) is unstable and it may change in the future without notice"
+directive @unstable on OBJECT | FIELD_DEFINITION
 
 "Represents an object that can be annotated - method, field or class definition"
 interface Annotatable {
@@ -746,6 +753,7 @@ type IntModInformation implements BaseMod & Identifiable {
 type IntPlatformInformation {
     description: String!
     downloads: Int!
+    fileDownloadUrl(loader: Loader!, version: String!): String
     iconUrl: String!
     issuesUrl: String
     projectUrl: String!
@@ -1006,6 +1014,22 @@ type ModEdge {
     node: Mod!
 }
 
+type Mutation {
+    """
+
+    Stop indexing the given game version.
+    Returns `true` if the game version was indexed before and is now no longer actively indexed.
+    """
+    stopIndexingGameVersion(
+        "If `true` and there's an index operation in-progress, it will be forcefully stopped. If `false`, the operation will be allowed to finish execution normally."
+        force: Boolean,
+        "The loader"
+        loader: Loader!,
+        "The Minecraft version"
+        version: String!
+    ): Boolean!
+}
+
 "Represents an artifact nested within another one, in a strictly flat structure."
 type NestedArtifact implements BaseNestedArtifact {
     "The ID of this artifact"
@@ -1158,8 +1182,14 @@ enum OrderRule {
     value
 }
 
+"Permissions that a user can have"
+enum Permission {
+    "The user has the permission to manage the indexed versions (stop indexing, request that a new version is indexed, etc.)"
+    MANAGE_VERSIONS
+}
+
 "A slightly refined version of RFC-3339 compliant DateTime Scalar"
-scalar DateTime
+scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/andimarek/date-time.html")
 
 "A JSON scalar"
 scalar JSON

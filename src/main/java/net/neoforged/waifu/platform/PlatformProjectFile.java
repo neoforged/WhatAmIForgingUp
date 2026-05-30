@@ -2,6 +2,7 @@ package net.neoforged.waifu.platform;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 
 public interface PlatformProjectFile {
     Object getProjectId();
@@ -14,9 +15,13 @@ public interface PlatformProjectFile {
 
     long getFileLength();
 
-    InputStream download() throws IOException;
-
     ModPlatform getPlatform();
 
     String getUrl();
+
+    String getDownloadUrl();
+
+    default InputStream download() throws IOException {
+        return URI.create(getDownloadUrl()).toURL().openStream();
+    }
 }
