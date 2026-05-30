@@ -718,6 +718,8 @@ input RecipeFilePredicate @predicateType @oneOf {
     type: StringPredicate
     "Filter based on the recipe JSON (the object given to this predicate does not include the type)"
     recipe: JSONPredicate
+    "Filter based on the mod that defines the recipe"
+    mod: ModPredicate
 }
 
 "Used to filter data files based on different criteria"

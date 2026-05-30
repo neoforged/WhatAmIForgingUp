@@ -1,5 +1,7 @@
 package net.neoforged.waifu.db.sql;
 
+import graphql.GraphQLException;
+import graphql.execution.AbortExecutionException;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.SelectedField;
 import net.neoforged.waifu.Main;
@@ -84,6 +86,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 .filterOnColumn("name", "recipe_name.constant")
                 .filterOnColumn("type", "recipe_type.constant")
                 .filterOnColumn("recipe", "recipes.value", SqlFilter.JSON_FILTER)
+                .filterOnTable("mod", "mods")
         );
         schema.registerIndependentJoin("recipes", "constants", "recipe_name", SqlCondition.equals("recipes.name", "recipe_name.id"));
         schema.registerIndependentJoin("recipes", "constants", "recipe_type", SqlCondition.equals("recipes.type", "recipe_type.id"));
@@ -901,7 +904,9 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
 
         private SqlCondition applyCurseforge(PlatformProject mod) {
-            var file = mod.getFilesForVersion(gameVersion, loader).next();
+            var files = mod.getFilesForVersion(gameVersion, loader);
+            if (!files.hasNext()) throw new AbortExecutionException("CurseForge modpack " + mod.getSlug() + " does not have any files for " + loader + ", version " + gameVersion);
+            var file = files.next();
             return ctx -> {
                 var testExpression = " = any(" + ctx.insert(ids(file)) + "::int[])";
                 var jijQuery = BASE_JIJ_QUERY + curseforgeColumn + testExpression;
@@ -910,7 +915,9 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         }
 
         private SqlCondition applyModrinth(PlatformProject mod) {
-            var file = mod.getFilesForVersion(gameVersion, loader).next();
+            var files = mod.getFilesForVersion(gameVersion, loader);
+            if (!files.hasNext()) throw new AbortExecutionException("Modrinth modpack " + mod.getSlug() + " does not have any files for " + loader + ", version " + gameVersion);
+            var file = files.next();
             return ctx -> {
                 var testExpression = " = any(" + ctx.insert(ids(file)) + "::text[])";
                 var jijQuery = BASE_JIJ_QUERY + modrinthColumn + testExpression;

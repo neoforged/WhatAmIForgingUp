@@ -129,6 +129,21 @@ addLogicPredicate('ClassDefinitionPredicate', {
   }
 })
 
+addLogicPredicate('RecipeFilePredicate', {
+  fields: {
+    mod: {
+      type: 'ModPredicate',
+      name: 'Mod',
+      hint: 'Test against the mod that defines the recipe'
+    },
+    name: {
+      type: 'StringPredicate',
+      name: 'Name',
+      hint: 'Test against the name of the recipe'
+    },
+  }
+})
+
 function addLogicPredicate(name: string, pred: PredicateType) {
   pred.fields = {
     ...pred.fields,

@@ -1731,6 +1731,8 @@ input RecipeFilePredicate {
     anyOf: [RecipeFilePredicate!]
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
     isNull: Boolean
+    "Filter based on the mod that defines the recipe"
+    mod: ModPredicate
     "Filter based on the recipe name"
     name: StringPredicate
     """

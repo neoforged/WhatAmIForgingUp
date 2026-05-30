@@ -2,6 +2,8 @@
   <v-container>
     <query-component
         v-model:version="version"
+        v-model:predicate="filter"
+        predicate-type="RecipeFilePredicate"
         :on-load="load"
         :on-reset="() => loading = true"
         :additionalProperties="{'Recipe type': recipeType}">
@@ -52,7 +54,7 @@
               <span @click="selectedFile = {mod: item.mod.id, file: getRecipeSourceFileName(item.name)}">{{ value }}</span>
             </template>
             <template v-slot:item.recipe="{ item, value }">
-              <code-block class="pa-1" language="json" :code="JSON.stringify(item.recipe, null, 2)" />
+              <code-block class="pa-1" language="json" :code="item.recipe" />
             </template>
           </v-data-table>
         </v-card>
@@ -82,6 +84,7 @@ import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {type FileSelection, getRecipeSourceFileName} from "~/utils/utils";
 import {RECIPES} from "~~/graphql-requests/recipes";
+import type {RecipeFilePredicate} from "~~/graphql-requests/types/__generated__/graphql";
 
 definePageMeta({
   title: 'Recipes Query'
@@ -91,6 +94,7 @@ const queryClient = useQueryClient()
 
 const version = queryClient.version
 const recipeType = queryClient.queryParam('recipetype')
+const filter = queryClient.jsonQueryParam<Record<string, any>>('filter')
 
 const selectedMod = ref<number>()
 const selectedFile = ref<{
@@ -117,15 +121,30 @@ const groupByConfiguration = computed<DataTableSortItem[]>(() => {
 })
 
 const load = () => {
-  queryClient.fetchPaginated(RECIPES, {
-    predicate: {
+  const predicates: RecipeFilePredicate[] = [
+    {
       type: {
         equals: recipeType.value!!
       }
     }
+  ]
+  if (filter.value && Object.keys(filter.value).length > 0) {
+    predicates.push(filter.value)
+  }
+
+  queryClient.fetchPaginated(RECIPES, {
+    predicate: {
+      allOf: predicates
+    }
   }, data => data.gameVersion?.recipes!!)
       .then((values) => {
-        items.value = values!!
+        items.value = values!!.map(entry => {
+          return {
+            mod: entry.mod,
+            name: entry.name,
+            recipe: JSON.stringify(entry.recipe, null, 2)
+          }
+        })
         loading.value = false
       })
 }

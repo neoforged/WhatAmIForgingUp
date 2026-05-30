@@ -29,8 +29,9 @@
     <br/>
     <slot name="result-display"></slot>
   </div>
-  <v-dialog v-model="dialog" width="auto" class="text-center" v-else>
+  <v-dialog v-model="dialog" persistent width="auto" class="text-center" v-else>
     <v-card
+        min-width="400"
         max-width="800"
         prepend-icon="mdi-database-search"
         title="Configure query"

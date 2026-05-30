@@ -3,10 +3,11 @@
       v-model="value"
       :label="label"
       :placeholder="placeholder"
-      density="compact"
-      variant="underlined"
       :items="autoComplete"
       :loading="loading"
+      density="compact"
+      variant="underlined"
+      menu-icon=""
       @update:focused="focused => focused ? querySelections(value) : undefined"
   />
 </template>
