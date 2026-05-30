@@ -1655,6 +1655,8 @@ export type RecipeFilePredicate = {
   anyOf?: InputMaybe<Array<RecipeFilePredicate>>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
   isNull?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Filter based on the mod that defines the recipe */
+  mod?: InputMaybe<ModPredicate>;
   /** Filter based on the recipe name */
   name?: InputMaybe<StringPredicate>;
   /**
@@ -1878,4 +1880,4 @@ export type GetRecipesQueryVariables = Exact<{
 }>;
 
 
-export type GetRecipesQuery = { gameVersion: { __typename: 'GameVersion', recipes: { __typename: 'RecipeFileConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'RecipeFileEdge', node: { __typename: 'RecipeFile', name: string, recipe: unknown, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };
+export type GetRecipesQuery = { gameVersion: { __typename: 'GameVersion', recipes: { __typename: 'RecipeFileConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'RecipeFileEdge', node: { __typename: 'RecipeFile', name: string, recipe: unknown, type: string, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };

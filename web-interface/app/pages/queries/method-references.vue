@@ -72,7 +72,7 @@ import {type FileSelection, getClassSourceFileName, grouper} from "~/utils/utils
 import {METHOD_REFERENCES} from "~~/graphql-requests/methods";
 import {classSearch, methodSearch} from "~/utils/autocomplete";
 import AutocompleteInput from "~/components/form/autocomplete-input.vue";
-import {stringQueryParameter} from "~/utils/query-utils";
+import {queryToPredicate, stringQueryParameter} from "~/utils/query-utils";
 
 definePageMeta({
   title: 'Method References Query'
@@ -115,9 +115,7 @@ const load = () => {
   fetchWithVersion(queryClient.apollo, METHOD_REFERENCES, {
     class: clazz.value!!.replaceAll('.', '/'),
     methodFilter: {
-      name: {
-        equals: method.value!!
-      }
+      name: queryToPredicate(method.value)
     }
   }, version.value)
       .then((result) => {

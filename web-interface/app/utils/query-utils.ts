@@ -1,6 +1,6 @@
 import {useApolloClient} from "@vue/apollo-composable";
 import type {OperationVariables, TypedDocumentNode} from "@apollo/client";
-import type {InputMaybe} from "~~/graphql-requests/types/__generated__/graphql";
+import type {InputMaybe, StringPredicate} from "~~/graphql-requests/types/__generated__/graphql";
 import {Loader} from "~~/graphql-requests/types/__generated__/graphql";
 import type {RelayConnection} from './graphql-utils'
 import AutocompleteInput from "~/components/form/autocomplete-input.vue";
@@ -174,5 +174,16 @@ export function predicateQueryParameter<T>(options: {
     },
     serialise: (input) => JSON.stringify(input),
     deserialise: (input) => JSON.parse(input) as T
+  }
+}
+
+export function queryToPredicate(query: string): StringPredicate {
+  if (query.startsWith('/') && query.endsWith('/')) {
+    return {
+      matches: `^${query.substring(1, query.length - 1)}$`
+    }
+  }
+  return {
+    equals: query
   }
 }

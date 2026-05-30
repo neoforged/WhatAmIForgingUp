@@ -22,10 +22,10 @@
 
               <v-col sm="4" cols="12">
                 <v-select
-                    v-model="groupBy"
+                    v-model="group.groupBy.value"
                     label="Group by"
                     density="compact"
-                    :items="['None', 'Mod']"
+                    :items="group.names"
                     hide-details
                 />
               </v-col>
@@ -36,7 +36,7 @@
                         :items="items"
                         :loading="loading"
                         :search="search"
-                        :group-by="groupByConfiguration"
+                        :group-by="group.items.value"
                         :headers="headers"
                         items-per-page="10"
           >
@@ -74,7 +74,7 @@ import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {type FileSelection, getRecipeSourceFileName} from "~/utils/utils";
 import {RECIPES} from "~~/graphql-requests/recipes";
 import type {RecipeFilePredicate} from "~~/graphql-requests/types/__generated__/graphql";
-import {predicateQueryParameter, stringQueryParameter} from "~/utils/query-utils";
+import {predicateQueryParameter, queryToPredicate, stringQueryParameter} from "~/utils/query-utils";
 
 definePageMeta({
   title: 'Recipes Query'
@@ -100,29 +100,24 @@ const selectedFile = ref<{
 const items = ref([] as any[])
 const loading = ref(true)
 const search = ref(undefined)
-const groupBy = ref(undefined)
 
 const headers = [
   {title: 'Mod', key: 'mod.name'},
   {title: 'Recipe name', key: 'name'},
-  {title: 'Recipe content', key: 'recipe'}
+  {title: 'Recipe type', key: 'tp'},
+  {title: 'Recipe content', key: 'recipe'},
 ]
-const groupByConfiguration = computed<DataTableSortItem[]>(() => {
-  if (!groupBy.value || groupBy.value == 'None') {
-    return []
-  } else {
-    return [{key: 'mod.name'}]
-  }
-})
+const group = grouper([
+  {title: 'Mod', key: 'mod.name'},
+  {title: 'Recipe type', key: 'tp'}
+])
 
 const load = () => {
   loading.value = true
 
   const predicates: RecipeFilePredicate[] = [
     {
-      type: {
-        equals: recipeType.value!!
-      }
+      type: queryToPredicate(recipeType.value)
     }
   ]
   if (filter.value) {
@@ -139,7 +134,8 @@ const load = () => {
           return {
             mod: entry.mod,
             name: entry.name,
-            recipe: JSON.stringify(entry.recipe, null, 2)
+            recipe: JSON.stringify(entry.recipe, null, 2),
+            tp: entry.type
           }
         })
         loading.value = false

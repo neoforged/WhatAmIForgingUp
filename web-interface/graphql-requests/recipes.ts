@@ -20,6 +20,7 @@ export const RECIPES: TypedDocumentNode<
                     node {
                         name
                         recipe
+                        type
                         mod {
                             id
                             name
