@@ -28,7 +28,6 @@
   </div>
   <v-dialog eager v-model="dialog" persistent width="auto" class="text-center">
     <v-card
-        min-width="400"
         max-width="800"
         prepend-icon="mdi-database-search"
         title="Configure query"
