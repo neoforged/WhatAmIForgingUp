@@ -57,19 +57,17 @@
       </template>
 
       <template v-slot:form>
-        <v-text-field
+        <autocomplete-input
             v-model="clazz"
+            :strategy="classSearch(version)"
             label="Class"
             placeholder="com.example.ExampleClass"
-            density="compact"
-            variant="underlined"
         />
-        <v-text-field
+        <autocomplete-input
             v-model="method"
+            :strategy="methodSearch(version, clazz)"
             label="Method"
             placeholder="exampleMethod"
-            density="compact"
-            variant="underlined"
         />
         <div class="text-left">
           <b>Direct</b> references to the method with the given name, from the given class will be returned.
@@ -86,6 +84,8 @@ import QueryComponent from "~/components/query-component.vue";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {type FileSelection, getClassSourceFileName, grouper} from "~/utils/utils";
 import {METHOD_REFERENCES} from "~~/graphql-requests/methods";
+import {classSearch} from "~/utils/autocomplete";
+import AutocompleteInput from "~/components/form/autocomplete-input.vue";
 
 definePageMeta({
   title: 'Method References Query'

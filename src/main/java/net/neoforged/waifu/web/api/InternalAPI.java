@@ -6,11 +6,18 @@ import io.javalin.http.ContentType;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.MainDatabase;
 import net.neoforged.waifu.util.Utils;
+import org.jdbi.v3.core.statement.StatementContext;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class InternalAPI {
@@ -43,6 +50,42 @@ public class InternalAPI {
             ctx.status(response.statusCode()).result(response.body());
         });
 
+        config.get("/api/internal/autocomplete/class", ctx -> {
+            var jdbi = Main.DB_MANAGER.setupReadOnlyConnection(
+                    Objects.requireNonNull(ctx.queryParam("version")),
+                    GraphQLWebService.getLoader(Objects.requireNonNull(ctx.queryParam("loader")))
+            );
+            var currentQuery = ctx.queryParam("query");
+
+            ctx.json(jdbi.withHandle(handle -> handle.createQuery("select classes.name from classes where classes.name like ? limit 50")
+                    .bind(0, "%" + currentQuery + "%")
+                    .execute(this::collectAsList)));
+        });
+
+        config.get("/api/internal/autocomplete/method", ctx -> {
+            var jdbi = Main.DB_MANAGER.setupReadOnlyConnection(
+                    Objects.requireNonNull(ctx.queryParam("version")),
+                    GraphQLWebService.getLoader(Objects.requireNonNull(ctx.queryParam("loader")))
+            );
+
+            var clazz = ctx.queryParam("class");
+            var currentQuery = ctx.queryParam("query");
+
+            ctx.json(jdbi.withHandle(handle -> handle.createQuery("select constants.constant from methods join classes on classes.name = ? and methods.cls = classes.id join constants on methods.name = constants.id and constants.constant like ?")
+                    .bind(0, clazz)
+                    .bind(1, "%" + currentQuery + "%")
+                    .execute(this::collectAsList)));
+        });
+
         config.get("/api/internal/cdn-proxy", PlatformCDNProxy::proxy);
+    }
+
+    private List<String> collectAsList(Supplier<PreparedStatement> statementSupplier, StatementContext ctx) throws SQLException {
+        var rs = statementSupplier.get().getResultSet();
+        var results = new ArrayList<String>();
+        while (rs.next()) {
+            results.add(rs.getString(1));
+        }
+        return results;
     }
 }

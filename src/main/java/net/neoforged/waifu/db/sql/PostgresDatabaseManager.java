@@ -67,11 +67,16 @@ public class PostgresDatabaseManager implements DatabaseManager {
     }
 
     @Override
-    public DatabaseSearchHelper search(String gameVersion, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
+    public Jdbi setupReadOnlyConnection(String gameVersion, ModLoader loader) {
         var props = copy();
         props.put("readOnly", "true");
         props.put("currentSchema", schema(gameVersion, loader));
-        return new SQLSearchHelper(jdbi(props), gameVersion, loader, cancellationInvoker);
+        return jdbi(props);
+    }
+
+    @Override
+    public DatabaseSearchHelper search(String gameVersion, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
+        return new SQLSearchHelper(setupReadOnlyConnection(gameVersion, loader), gameVersion, loader, cancellationInvoker);
     }
 
     @Override

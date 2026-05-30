@@ -2,6 +2,7 @@ package net.neoforged.waifu.db;
 
 import net.neoforged.waifu.platform.ModLoader;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.jdbi.v3.core.Jdbi;
 
 import java.util.List;
 import java.util.Objects;
@@ -9,6 +10,8 @@ import java.util.function.Consumer;
 
 public interface DatabaseManager {
     IndexDatabase<?> getDatabase(String gameVersion, ModLoader loader);
+
+    Jdbi setupReadOnlyConnection(String gameVersion, ModLoader loader);
 
     boolean exists(String gameVersion, ModLoader loader);
 

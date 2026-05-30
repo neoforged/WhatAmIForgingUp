@@ -145,6 +145,7 @@ watch(file, newValue => {
           repo.value = repository
           getGitHubBranches(repository.owner, repository.repo)
               .then(repoBranches => {
+                error.value = `Linked repository is empty (https://github.com/${repository.owner}/${repository.repo}).`
                 const [mcVersion, loader] = props.version!!.split('-')
 
                 branches.value = repoBranches

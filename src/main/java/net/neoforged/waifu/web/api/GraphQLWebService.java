@@ -568,7 +568,7 @@ public class GraphQLWebService {
         return success;
     }
 
-    private ModLoader getLoader(String argument) {
+    static ModLoader getLoader(String argument) {
         return switch (argument) {
             case "NeoForge" -> ModLoader.NEOFORGE;
             case "Fabric" -> ModLoader.FABRIC;
