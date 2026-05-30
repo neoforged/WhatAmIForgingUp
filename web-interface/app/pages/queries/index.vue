@@ -2,10 +2,10 @@
   <v-container>
     <h2>Classes</h2>
     <v-card
-        title="Mixins targetting Classes in Package"
-        to="mixins-package" router>
+        title="Annotated Classes"
+        to="annotated-classes" router>
       <template v-slot:text>
-        Find mixins that target classes in a certain package (and its subpackages).
+        Find the classes annotated with a given annotation.
       </template>
     </v-card>
     <br>
@@ -18,10 +18,18 @@
     </v-card>
     <br>
     <v-card
-        title="Annotated Classes"
-        to="annotated-classes" router>
+        title="Method References"
+        to="method-references" router>
       <template v-slot:text>
-        Find the classes annotated with a given annotation.
+        Find direct references to a given method.
+      </template>
+    </v-card>
+    <br>
+    <v-card
+        title="Mixins targetting Classes in Package"
+        to="mixins-package" router>
+      <template v-slot:text>
+        Find mixins that target classes in a certain package (and its subpackages).
       </template>
     </v-card>
 

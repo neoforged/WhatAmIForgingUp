@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import {decompile} from "@run-slicer/vf";
+import type {DataTableSortItem} from "vuetify/framework";
 
 export function getCookieByName(key: string): string | undefined {
   return document.cookie
@@ -55,5 +56,28 @@ export function getRecipeSourceFileName(recipeName: string): FileSelection {
         return {content: await zipFile.async('string')}
       }
     }
+  }
+}
+
+export function grouper(groups: {
+  title: string,
+  key: string
+}[]): {
+  groupBy: Ref<string | undefined>,
+  names: string[],
+  items: Ref<DataTableSortItem[]>
+} {
+  const groupBy = ref<string | undefined>(undefined)
+  const groupByConfiguration = computed<DataTableSortItem[]>(() => {
+    if (!groupBy.value || groupBy.value == 'None') {
+      return []
+    } else {
+      return [{key: groups.filter(g => g.title == groupBy.value)[0]!!.key}]
+    }
+  })
+  return {
+    groupBy: groupBy,
+    items: groupByConfiguration,
+    names: groups.map(g => g.title)
   }
 }

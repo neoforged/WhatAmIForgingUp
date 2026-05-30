@@ -29,7 +29,7 @@ public class PlatformCDNProxy {
         }
 
         String host = uri.getHost();
-        if (host == null || !(host.equals("edge.forgecdn.net") || host.equals("cdn.modrinth.net"))) {
+        if (host == null || !(host.equals("edge.forgecdn.net") || host.equals("cdn.modrinth.com"))) {
             ctx.status(403).result("Domain not allowed");
             return;
         }
