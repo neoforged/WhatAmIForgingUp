@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-dialog v-model="showDialog" max-width="800">
+    <v-dialog v-model="showDialog" :fullscreen="md" max-width="840">
       <v-card :title="fileContent ? `Source of ${file?.file.name}` : 'Attempting to locate source'" :loading="loading">
         <template v-slot:text>
           <v-select v-if="branches && branches.length > 0"
@@ -41,6 +41,7 @@ import {downloadGitHubBranch, downloadZip, getBaseUrl, getGitHubBranches} from "
 import JSZip from "jszip";
 import CodeBlock from "~/components/code-block.vue";
 import type {FileSelection} from "~/utils/utils";
+import {useDisplay} from "vuetify/framework";
 
 const props = defineProps<{
   version?: string,
@@ -62,6 +63,8 @@ const fileExtension = computed(() => {
   const split = props.selectedFile?.file?.name.split('.')
   return split ? split[split.length - 1] : undefined
 })
+
+const md = useDisplay().mdAndDown
 
 const showDialog = ref(false)
 const loading = ref(false)
