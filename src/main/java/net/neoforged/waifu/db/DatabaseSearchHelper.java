@@ -13,6 +13,7 @@ public interface DatabaseSearchHelper {
 
     Object getRecipes(DataFetchingEnvironment env);
     Object getDataMaps(DataFetchingEnvironment env);
+    Object getTagEntries(DataFetchingEnvironment env);
     Object getDataFiles(DataFetchingEnvironment env);
     Object getEnumExtensions(DataFetchingEnvironment env);
 

@@ -29,3 +29,8 @@ export function methodSearch(versionRef: MaybeRef<string | undefined>, clsRef: M
         .then(async res => await res.json() as string[])
   }
 }
+
+const registries = ['minecraft:item', 'minecraft:block', 'minecraft:fluid']
+export function usualRegistries(): AutoCompleteStrategy {
+  return async value => registries
+}

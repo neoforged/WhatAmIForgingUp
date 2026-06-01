@@ -317,6 +317,7 @@ public class GraphQLWebService {
 
                                 .dataFetcher("recipes", dbHelper(DatabaseSearchHelper::getRecipes))
                                 .dataFetcher("dataMaps", dbHelper(DatabaseSearchHelper::getDataMaps))
+                                .dataFetcher("tagEntries", dbHelper(DatabaseSearchHelper::getTagEntries))
                                 .dataFetcher("dataFiles", dbHelper(DatabaseSearchHelper::getDataFiles))
                                 .dataFetcher("enumExtensions", dbHelper(DatabaseSearchHelper::getEnumExtensions))
 

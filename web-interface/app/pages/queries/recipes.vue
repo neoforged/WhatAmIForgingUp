@@ -69,10 +69,9 @@
 
 <script setup lang="ts">
 import QueryComponent from "~/components/query-component.vue";
-import type {DataTableSortItem} from "vuetify";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {type FileSelection, getRecipeSourceFileName} from "~/utils/utils";
-import {RECIPES} from "~~/graphql-requests/recipes";
+import {RECIPES} from "~~/graphql-requests/data_files";
 import type {RecipeFilePredicate} from "~~/graphql-requests/types/__generated__/graphql";
 import {predicateQueryParameter, queryToPredicate, stringQueryParameter} from "~/utils/query-utils";
 

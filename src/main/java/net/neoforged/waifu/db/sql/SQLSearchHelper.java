@@ -1,6 +1,5 @@
 package net.neoforged.waifu.db.sql;
 
-import graphql.GraphQLException;
 import graphql.execution.AbortExecutionException;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.SelectedField;
@@ -66,7 +65,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     private final DatabaseSchema schema;
 
-    private final DatabaseType recipes, data_maps, data_files, enum_extensions, mods, classes, class_defs;
+    private final DatabaseType recipes, data_maps, data_files, tag_entries, enum_extensions, mods, classes, class_defs;
 
     @SuppressWarnings("unchecked")
     public SQLSearchHelper(Jdbi jdbi, String gameVersion, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
@@ -133,6 +132,20 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
                 .filterOnColumn("name", "data_map_name.data_map_name")
         );
+
+        tag_entries = schema.registerType("tags", b -> b
+                .apply(locationArgument("registry", "tag", "tags.tag"))
+
+                .field("tag", "tag_name.tag_name")
+                .field("entry", "tag_entry.constant")
+                .field("mod",  subTable("mods"))
+
+                .filterOnColumn("tag", "tag_name.tag_name")
+                .filterOnColumn("entry", "tag_entry.constant")
+                .filterOnTable("mod", "mods")
+
+                .twoWayJoin("mods", SqlCondition.equals("tags.mod", "mods.id"))
+                .independentJoin("constants", "tag_entry", SqlCondition.equals("tag_entry.id", "tags.entry")));
 
         data_files = schema.registerType("data_files", b -> b
                 .apply(locationArgument("location", "data_file", "data_files.path"))
@@ -546,6 +559,26 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     }
 
     @Override
+    public Object getTagEntries(DataFetchingEnvironment env) {
+        var builder = this.tag_entries.createQuery();
+        this.tag_entries.applyQueryArguments(builder, getEnvSelection(env));
+        // We always need this join so that the registry filter is applied
+        schema.join(builder, "tags", "tag_path");
+
+        var tags = env.getSelectionSet().getFields("edges/node");
+        if (!tags.isEmpty()) {
+            this.tag_entries.apply(builder, tags.getFirst());
+        }
+
+        Map<String, Object> filter = env.getArgument("where");
+        if (filter != null) {
+            this.tag_entries.applyFilter(builder, filter);
+        }
+
+        return paginate(builder, Pagination.parse(env), "tags.mod", "tags.tag", "tags.entry");
+    }
+
+    @Override
     public Object getDataFiles(DataFetchingEnvironment env) {
         var builder = data_files.createQuery();
         this.data_files.applyQueryArguments(builder, getEnvSelection(env));
@@ -910,7 +943,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
             return ctx -> {
                 var testExpression = " = any(" + ctx.insert(ids(file)) + "::int[])";
                 var jijQuery = BASE_JIJ_QUERY + curseforgeColumn + testExpression;
-                return "(" + curseforgeColumn + testExpression + " or " + mavenCoordinatesColumn + " = any((" + jijQuery + ")::text[]))";
+                return "(loader or " + curseforgeColumn + testExpression + " or " + mavenCoordinatesColumn + " = any((" + jijQuery + ")::text[]))";
             };
         }
 
@@ -921,7 +954,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
             return ctx -> {
                 var testExpression = " = any(" + ctx.insert(ids(file)) + "::text[])";
                 var jijQuery = BASE_JIJ_QUERY + modrinthColumn + testExpression;
-                return "(" + modrinthColumn + testExpression + " or " + mavenCoordinatesColumn + " = any((" + jijQuery + ")::text[]))";
+                return "(loader or " + modrinthColumn + testExpression + " or " + mavenCoordinatesColumn + " = any((" + jijQuery + ")::text[]))";
             };
         }
 

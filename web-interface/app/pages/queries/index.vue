@@ -41,6 +41,15 @@
         Find recipes of a given type.
       </template>
     </v-card>
+
+    <h2>Tags</h2>
+    <v-card
+        title="Tags containing element"
+        to="tags/containing" router>
+      <template v-slot:text>
+        Find all tags containing a given element, directly or indirectly (through other tags).
+      </template>
+    </v-card>
   </v-container>
 </template>
 

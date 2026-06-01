@@ -8,6 +8,7 @@
       density="compact"
       variant="underlined"
       menu-icon=""
+      persistent-placeholder
       @update:focused="focused => focused ? querySelections(value) : undefined"
   />
 </template>

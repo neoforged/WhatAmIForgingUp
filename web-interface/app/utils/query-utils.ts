@@ -134,7 +134,7 @@ export function stringQueryParameter(options: {
       return defineComponent({
         setup() {
           return () => h(AutocompleteInput, {
-            modelValue: value.value,
+            modelValue: value.value == '' ? undefined : value.value,
             'onUpdate:modelValue': v => value.value = v,
             label: options.label,
             placeholder: options.placeholder,

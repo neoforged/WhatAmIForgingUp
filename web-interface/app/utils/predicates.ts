@@ -139,6 +139,16 @@ addLogicPredicate('RecipeFilePredicate', {
   }
 })
 
+addLogicPredicate('TagEntryPredicate', {
+  fields: {
+    mod: {
+      type: 'ModPredicate',
+      name: 'Mod',
+      hint: 'Test against the mod that defines the tag entry'
+    }
+  }
+})
+
 function addLogicPredicate(name: string, pred: PredicateType) {
   pred.fields = {
     ...pred.fields,

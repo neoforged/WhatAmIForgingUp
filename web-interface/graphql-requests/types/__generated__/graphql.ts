@@ -428,7 +428,7 @@ export type DataFilePredicate = {
   /** Invert the given filter */
   not?: InputMaybe<DataFilePredicate>;
   /** Filter based on the data file JSON contents */
-  recipe?: InputMaybe<JsonPredicate>;
+  value?: InputMaybe<JsonPredicate>;
 };
 
 /** A NeoForge data map */
@@ -752,6 +752,8 @@ export type GameVersion = {
   modsById: ModConnection;
   /** Get the recipe files known by this game version that optionally match the given predicate */
   recipes: RecipeFileConnection;
+  /** Get the tag entries known by this game version for the given `registry` that optionally match the given predicate. */
+  tagEntries: TagEntryConnection;
   /** The Minecraft version this game version indexes */
   version: Scalars['String']['output'];
 };
@@ -848,6 +850,17 @@ export type GameVersionRecipesArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
   where?: InputMaybe<RecipeFilePredicate>;
+};
+
+
+/** Represents a version of the game on a loader, which WAIFU is indexing */
+export type GameVersionTagEntriesArgs = {
+  after?: InputMaybe<Scalars['ID']['input']>;
+  before?: InputMaybe<Scalars['ID']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  registry?: InputMaybe<Scalars['String']['input']>;
+  where?: InputMaybe<TagEntryPredicate>;
 };
 
 /** Represents an object that is identifiable by an unique ID (within its category) */
@@ -1784,6 +1797,63 @@ export type StringPredicate = {
   startsWith?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** A tag entry */
+export type TagEntry = ModOwned & {
+  __typename: 'TagEntry';
+  /**
+   * The entry that is added to the tag.
+   * This might be a fully qualified registry object (e.g. `minecraft:spruce_door`) or another tag (e.g. `#minecraft:planks`).
+   */
+  entry: Scalars['String']['output'];
+  /** The mod that owns this object */
+  mod: LightweightMod;
+  /** The name of this tag */
+  tag: Scalars['String']['output'];
+};
+
+/** A connection (list) composed of `TagEntry`. */
+export type TagEntryConnection = {
+  __typename: 'TagEntryConnection';
+  /** Identifies the amount of items in the returned edges. */
+  count: Scalars['Int']['output'];
+  /** A list of edges. */
+  edges: Array<TagEntryEdge>;
+  /** Information to aid in pagination. */
+  pageInfo: PageInfo;
+};
+
+/** An edge of a `TagEntry`. */
+export type TagEntryEdge = {
+  __typename: 'TagEntryEdge';
+  /** The cursor ID of the element. */
+  cursor: Scalars['ID']['output'];
+  /** The item at the end of the edge. */
+  node: TagEntry;
+};
+
+/** Used to filter tag entries based on different criteria */
+export type TagEntryPredicate = {
+  /** Match if all of the given filters match */
+  allOf?: InputMaybe<Array<TagEntryPredicate>>;
+  /** Match if any of the given filters matches */
+  anyOf?: InputMaybe<Array<TagEntryPredicate>>;
+  /** Filter based on the entry of the tag */
+  entry?: InputMaybe<StringPredicate>;
+  /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
+  isNull?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Filter based on the mod that defines this tag entry */
+  mod?: InputMaybe<ModPredicate>;
+  /**
+   * Match if none of the given filters match.
+   * Prefer using this instead of `not(anyOf(...))` as it is generally faster.
+   */
+  noneOf?: InputMaybe<Array<TagEntryPredicate>>;
+  /** Invert the given filter */
+  not?: InputMaybe<TagEntryPredicate>;
+  /** Filter based on the tag name */
+  tag?: InputMaybe<StringPredicate>;
+};
+
 /** A Minecraft tag file */
 export type TagFile = {
   __typename: 'TagFile';
@@ -1850,6 +1920,27 @@ export type GetClassesAnnotatedQueryVariables = Exact<{
 
 export type GetClassesAnnotatedQuery = { gameVersion: { __typename: 'GameVersion', classDefinitions: { __typename: 'ClassDefinitionConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'ClassDefinitionEdge', node: { __typename: 'ClassDefinition', name: string, mod: { __typename: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename: 'Annotation', value: unknown | null }> } }> } } | null };
 
+export type GetRecipesQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  predicate: RecipeFilePredicate;
+  cursor?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type GetRecipesQuery = { gameVersion: { __typename: 'GameVersion', recipes: { __typename: 'RecipeFileConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'RecipeFileEdge', node: { __typename: 'RecipeFile', name: string, recipe: unknown, type: string, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };
+
+export type GetTagEntriesQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  registry: Scalars['String']['input'];
+  predicate: TagEntryPredicate;
+  cursor?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type GetTagEntriesQuery = { gameVersion: { __typename: 'GameVersion', tagEntries: { __typename: 'TagEntryConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'TagEntryEdge', node: { __typename: 'TagEntry', tag: string, entry: string, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };
+
 export type GetMethodReferencesQueryVariables = Exact<{
   version: Scalars['String']['input'];
   loader: Loader;
@@ -1871,13 +1962,3 @@ export type GetModInformationQueryVariables = Exact<{
 
 
 export type GetModInformationQuery = { gameVersion: { __typename: 'GameVersion', _modInformation: { __typename: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: unknown | null, mavenCoordinates: string | null, curseforge: { __typename: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };
-
-export type GetRecipesQueryVariables = Exact<{
-  version: Scalars['String']['input'];
-  loader: Loader;
-  predicate: RecipeFilePredicate;
-  cursor?: InputMaybe<Scalars['ID']['input']>;
-}>;
-
-
-export type GetRecipesQuery = { gameVersion: { __typename: 'GameVersion', recipes: { __typename: 'RecipeFileConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'RecipeFileEdge', node: { __typename: 'RecipeFile', name: string, recipe: unknown, type: string, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };

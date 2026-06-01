@@ -1,9 +1,6 @@
 <template>
   <v-container>
     <query-component
-        v-model:version="version"
-        v-model:predicate="filter"
-        predicate-type="ClassDefinitionPredicate"
         :on-load="load"
         :parameters="queryClient.parameters">
       <template v-slot:result-display>

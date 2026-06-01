@@ -140,6 +140,19 @@ type GameVersion {
     ): DataMap @paginated
 
     """
+    Get the tag entries known by this game version for the given `registry` that optionally match the given predicate.
+    """
+    tagEntries(
+        """
+        The registry to get tags for.
+        The format is namespace:registry (e.g. `minecraft:item` or `minecraft:worldgen/biome`)
+        """
+        registry: String!,
+        "An optional filter applied to the returned tags"
+        where: TagEntryPredicate,
+    ): TagEntry @paginated
+
+    """
     Get the data files known by this game version for the given `location` that optionally match the given predicate.
     Note that this will not return files already indexed through other means (i.e. tags, data maps and recipes). Use the dedicated fields to query those.
     """
@@ -148,7 +161,7 @@ type GameVersion {
         The base path of the data files to return.
         For instance, with a base path of `a/b`, data files with a path of `<namespace>/a/b/<path>.json` will be returned.
         """
-        location: String,
+        location: String!,
         "An optional filter applied to the returned data files"
         where: DataFilePredicate,
     ): DataFile @paginated
@@ -350,6 +363,17 @@ type DataFile @implement(interfaces: "ModOwned") {
     name: String!
     "The contents of the data file."
     value: JSON!
+}
+
+"A tag entry"
+type TagEntry @implement(interfaces: "ModOwned") {
+    "The name of this tag"
+    tag: String!
+    """
+    The entry that is added to the tag.
+    This might be a fully qualified registry object (e.g. `minecraft:spruce_door`) or another tag (e.g. `#minecraft:planks`).
+    """
+    entry: String!
 }
 
 "A NeoForge data map file"
@@ -727,7 +751,7 @@ input DataFilePredicate @predicateType @oneOf {
     "Filter based on the data file name"
     name: StringPredicate
     "Filter based on the data file JSON contents"
-    recipe: JSONPredicate
+    value: JSONPredicate
 }
 
 "Used to filter data map files based on different criteria"
@@ -740,6 +764,16 @@ input DataMapFilePredicate @predicateType @oneOf {
 input DataMapPredicate @predicateType @oneOf {
     "Filter based on the data map name"
     name: StringPredicate
+}
+
+"Used to filter tag entries based on different criteria"
+input TagEntryPredicate @predicateType @oneOf {
+    "Filter based on the tag name"
+    tag: StringPredicate
+    "Filter based on the entry of the tag"
+    entry: StringPredicate
+    "Filter based on the mod that defines this tag entry"
+    mod: ModPredicate
 }
 
 "Used to filter enum extension entries based on different criteria"
