@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <div>
     <h2>Classes</h2>
     <v-card
         title="Annotated Classes"
@@ -50,7 +50,7 @@
         Find all tags containing a given element, directly or indirectly (through other tags).
       </template>
     </v-card>
-  </v-container>
+  </div>
 </template>
 
 <script>

@@ -24,7 +24,7 @@
         </v-list>
       </v-navigation-drawer>
       <v-main>
-        <v-container>
+        <v-container class="pa-3">
           <NuxtPage/>
         </v-container>
       </v-main>

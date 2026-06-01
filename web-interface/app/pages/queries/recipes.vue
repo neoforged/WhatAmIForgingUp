@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <div>
     <query-component
         :on-load="load"
         :parameters="queryClient.parameters">
@@ -64,7 +64,7 @@
     </query-component>
     <mod-information-dialog :version="version" v-model:modId="selectedMod" />
     <file-source-dialog :version="version" v-model:selected-file="selectedFile" />
-  </v-container>
+  </div>
 </template>
 
 <script setup lang="ts">
