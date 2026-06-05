@@ -2,6 +2,7 @@ package net.neoforged.waifu;
 
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.javalin.http.ContentType;
+import io.javalin.http.Header;
 import io.javalin.http.staticfiles.Location;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.DatabaseManager;
@@ -94,7 +95,15 @@ public class Main {
 
         WebService web = new WebService(cfg -> {
             cfg.concurrency.useVirtualThreads = true;
-            cfg.staticFiles.add("/web/static", Location.CLASSPATH);
+            cfg.staticFiles.add(sf -> {
+                sf.directory = "/web/static";
+                sf.location = Location.CLASSPATH;
+                sf.headers = Map.of(
+                        Header.CACHE_CONTROL, "no-cache, no-store, must-revalidate",
+                        Header.PRAGMA, "no-cache",
+                        Header.EXPIRES, "0"
+                );
+            });
 
             cfg.bundledPlugins.enableCors(cors -> cors.addRule(r -> {
                 r.anyHost();

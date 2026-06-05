@@ -1,6 +1,6 @@
+import type {ApolloClient} from "@apollo/client/core";
 import {ApolloError, type OperationVariables, type ServerError, type TypedDocumentNode} from "@apollo/client/core"
 import {type InputMaybe, Loader} from "~~/graphql-requests/types/__generated__/graphql";
-import type {ApolloClient} from "@apollo/client/core";
 import {addAlert} from "~/utils/alerts";
 
 export type RelayConnection<Node> = {
@@ -87,13 +87,12 @@ async function reportError(error: { message: any } | ApolloError) {
 
   const netErr: ServerError | undefined = (err.networkError as any)?.response ? err.networkError as any : undefined
   if (netErr?.statusCode === 429) {
-    const isAuthenticated: boolean = JSON.parse(getCookieByName('discord-identification') ?? '{}').name
     const tryAgainIn = `${netErr.response.headers.get('x-ratelimit-reset')} seconds`
     addAlert({
       title: 'GraphQL fetch error',
       description: `
 Rate limit reached!
-${!isAuthenticated ? `Consider authenticating or try again in ${tryAgainIn}.` : `Try again in ${tryAgainIn}.`}
+${getCookieByName('discord-token') ? `Try again in ${tryAgainIn}.` : `Consider authenticating or try again in ${tryAgainIn}.`}
 If this error persists, it is likely that your query is too large. Consider narrowing its scope (for instance, to just a modpack).
 `
     })
