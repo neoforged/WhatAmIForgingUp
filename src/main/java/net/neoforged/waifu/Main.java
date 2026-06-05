@@ -3,7 +3,6 @@ package net.neoforged.waifu;
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.javalin.http.ContentType;
 import io.javalin.http.staticfiles.Location;
-import io.javalin.plugin.bundled.CorsPluginConfig;
 import net.neoforged.waifu.db.DataSanitizer;
 import net.neoforged.waifu.db.DatabaseManager;
 import net.neoforged.waifu.db.IndexDatabase;
@@ -97,7 +96,10 @@ public class Main {
             cfg.concurrency.useVirtualThreads = true;
             cfg.staticFiles.add("/web/static", Location.CLASSPATH);
 
-            cfg.bundledPlugins.enableCors(cors -> cors.addRule(CorsPluginConfig.CorsRule::anyHost));
+            cfg.bundledPlugins.enableCors(cors -> cors.addRule(r -> {
+                r.anyHost();
+                r.exposeHeader("x-ratelimit-reset");
+            }));
 
             if (Main.class.getResource("/web/static/404.html") != null) {
                 cfg.routes.error(404, ctx -> ctx.contentType(ContentType.HTML).result(Main.class.getResourceAsStream("/web/static/404.html")));

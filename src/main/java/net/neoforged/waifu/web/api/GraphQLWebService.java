@@ -492,7 +492,8 @@ public class GraphQLWebService {
 
                 if (!executionResult.getErrors().isEmpty()) {
                     Main.LOGGER.error("Failure during GraphQL query: {}: {}", body, executionResult.getErrors());
-                    ctx.json(Map.of("error", executionResult.getErrors().get(0).getMessage())).status(HttpStatus.BAD_REQUEST);
+                    ctx.json(Map.of("errors", executionResult.getErrors().stream().map(er ->
+                            Map.of("message", er.getMessage())).toList()));
                     return;
                 }
                 ctx.json(Utils.GSON.toJson(Map.of("data", executionResult.getData())));

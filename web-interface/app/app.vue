@@ -28,6 +28,27 @@
           <NuxtPage/>
         </v-container>
       </v-main>
+
+      <v-dialog v-model="hasAlerts" max-width="840" @close="alerts = []">
+        <v-card>
+          <v-card-text>
+            <v-alert
+                v-for="alert of alerts"
+                :title="alert.title"
+                color="#C51162"
+                class="mb-1"
+            >
+              <template v-slot:text>
+                {{ alert.description }}
+              </template>
+            </v-alert>
+          </v-card-text>
+
+          <v-card-actions>
+            <v-btn @click="alerts = []" block>Close</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </v-app>
   </NuxtLayout>
 </template>
@@ -35,6 +56,10 @@
 <script setup lang="ts">
 import {getOAuthURL, redirectToOAuth} from '~/utils/api-utils'
 import {deleteCookieByName} from '~/utils/utils'
+import {useAlerts} from "~/utils/alerts";
+
+const alerts = useAlerts()
+const hasAlerts = computed(() => alerts.value.length > 0)
 
 const route = useRoute()
 const logout = () => {

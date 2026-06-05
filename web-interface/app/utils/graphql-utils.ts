@@ -1,6 +1,7 @@
-import type {OperationVariables, TypedDocumentNode} from "@apollo/client"
+import {ApolloError, type OperationVariables, type ServerError, type TypedDocumentNode} from "@apollo/client/core"
 import {type InputMaybe, Loader} from "~~/graphql-requests/types/__generated__/graphql";
 import type {ApolloClient} from "@apollo/client/core";
+import {addAlert} from "~/utils/alerts";
 
 export type RelayConnection<Node> = {
   edges: Array<{ node: Node }>
@@ -35,7 +36,7 @@ export async function fetchWithVersion<
   }).catch(reason => ({data: undefined as TData, error: {message: reason}}))
 
   if (error) {
-    alert(`Request failed: ${error.message}`)
+    await reportError(error)
     return undefined
   }
 
@@ -67,7 +68,7 @@ export async function loadAll<
     }).catch(reason => ({data: undefined as TData, error: {message: reason}}))
 
     if (error) {
-      alert(`Request failed: ${error.message}`)
+      await reportError(error)
       return []
     }
 
@@ -79,4 +80,36 @@ export async function loadAll<
   }
 
   return allNodes
+}
+
+async function reportError(error: { message: any } | ApolloError) {
+  const err = error instanceof ApolloError ? error : error.message as ApolloError
+
+  const netErr: ServerError | undefined = (err.networkError as any)?.response ? err.networkError as any : undefined
+  if (netErr?.statusCode === 429) {
+    const isAuthenticated: boolean = JSON.parse(getCookieByName('discord-identification') ?? '{}').name
+    const tryAgainIn = `${netErr.response.headers.get('x-ratelimit-reset')} seconds`
+    addAlert({
+      title: 'GraphQL fetch error',
+      description: `
+Rate limit reached!
+${!isAuthenticated ? `Consider authenticating or try again in ${tryAgainIn}.` : `Try again in ${tryAgainIn}.`}
+If this error persists, it is likely that your query is too large. Consider narrowing its scope (for instance, to just a modpack).
+`
+    })
+    return
+  }
+
+  if (netErr) {
+    addAlert({
+      title: 'GraphQL fetch error',
+      description: await netErr.response.text()
+    })
+    return
+  }
+
+  addAlert({
+    title: 'GraphQL fetch error',
+    description: error.message
+  })
 }

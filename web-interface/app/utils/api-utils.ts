@@ -6,8 +6,9 @@ export async function getAllVersions(): Promise<{
   loader: Loader,
   activelyIndexed: boolean
 }[]> {
-  const result = await fetch(`${getBaseUrl()}/api/internal/indexed-versions`)
-  return await result.json()
+  return fetchReportError(`${getBaseUrl()}/api/internal/indexed-versions`, 'available versions')
+      .then(async result => await result.json())
+      .catch(() => [])
 }
 
 export function getOAuthURL(): string {
@@ -40,4 +41,28 @@ export async function downloadZip(url: string): Promise<JSZip> {
   const res = await fetch(url)
   const zip = new JSZip()
   return await zip.loadAsync(res.arrayBuffer())
+}
+
+export async function fetchReportError(url: string, context: string): Promise<Response> {
+  return await fetch(url)
+      .then(async result => {
+        if (result.ok) {
+          return result
+        } else {
+          addAlert({
+            title: `Failed to fetch ${context}`,
+            description: `
+Status code: ${result.status}
+Response: ${await result.text()}`
+          })
+          return Promise.reject()
+        }
+      })
+      .catch(error => {
+        addAlert({
+          title: `Failed to fetch ${context}`,
+          description: error
+        })
+        return Promise.reject()
+      })
 }
