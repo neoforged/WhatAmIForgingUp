@@ -18,7 +18,7 @@ onMounted(() => {
 
   getUserInformation(discordToken).then(info => {
     document.cookie = `discord-identification=${JSON.stringify(info)}; Path=/`
-    const redirectUrl = getCookieByName('redirect-url') ?? window.location.origin
+    const redirectUrl = getCookieByName('redirect-url') ? decodeURIComponent(getCookieByName('redirect-url')!) : window.location.origin
 
     deleteCookieByName('redirect-url')
     window.location.href = redirectUrl

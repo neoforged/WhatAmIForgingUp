@@ -16,7 +16,7 @@ export function getOAuthURL(): string {
 }
 
 export function redirectToOAuth() {
-  document.cookie = `redirect-url=${window.location.href}; Path=/`
+  document.cookie = `redirect-url=${encodeURIComponent(window.location.href)}; Path=/`
   window.location.href = getOAuthURL()
 }
 
