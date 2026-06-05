@@ -7,9 +7,17 @@
       </template>
       <template v-slot:text v-if="!loading">
         <p>{{ platformProject?.description }}</p>
+        <p v-if="modIds?.length ?? 0 > 0">Mod IDs: <code v-for="mid of modIds" class="text-cyan">{{ mid }}</code></p>
         <p v-if="mavenCoordinates">Maven Coordinates: <code>{{ mavenCoordinates }}</code></p>
         <p v-if="curseforge">CurseForge Project: <a :href="curseforge?.projectUrl" target="_blank">{{ curseforge?.title }}</a></p>
         <p v-if="modrinth">Modrinth Project: <a :href="modrinth?.projectUrl" target="_blank">{{ modrinth?.title }}</a></p>
+        <p v-if="declaredDependencies?.length ?? 0 > 0">
+          Declared dependencies:
+          <span v-for="dep of declaredDependencies">
+            <br />
+            - <code class="text-blue">{{ dep.modId }}</code> ({{ dep.versionRange }} <b v-if="dep.type">{{ dep.type }}</b>)
+          </span>
+        </p>
         <v-chip-group column>
           <v-chip :disabled="!platformProject?.sourceUrl"
                   :href="platformProject?.sourceUrl ?? undefined"
@@ -66,6 +74,7 @@ const sm = useDisplay().smAndDown
 const loading = ref(false)
 
 const title = ref(null as string | null)
+const modIds = ref(null as string[] | null)
 const metadata = ref(null as any | null)
 const authors = ref(null as string | null)
 const license = ref(null as string | null)
@@ -74,6 +83,8 @@ const platformProject = ref(null as PlatformInformationFragment | null)
 const curseforge = ref(null as PlatformInformationFragment | null)
 const modrinth = ref(null as PlatformInformationFragment | null)
 const mavenCoordinates = ref(null as string | null)
+
+const declaredDependencies = ref(null as {modId: string, versionRange: string, type?: string}[] | null)
 
 const showDialog = ref(false)
 
@@ -105,6 +116,7 @@ watch(modId, newValue => {
         const mod = result?.gameVersion?._modInformation!!
 
         title.value = mod.name
+        modIds.value = mod.modIds
         metadata.value = mod.metadata
         authors.value = mod.authors
         license.value = mod.license
@@ -113,6 +125,26 @@ watch(modId, newValue => {
         modrinth.value = mod.modrinth
         curseforge.value = mod.curseforge
 
+        if (props.version!!.toLowerCase().endsWith('-fabric')) {
+          declaredDependencies.value = Object.entries(metadata.value?.depends ?? {})
+              .map(([key, value]) => {
+                return {
+                  modId: key,
+                  versionRange: value as string,
+                  type: 'required' // TODO - the other dep types
+                }
+              })
+        } else {
+          declaredDependencies.value = Object.values(metadata.value?.dependencies ?? {})
+              .flatMap((entry: any) => entry)
+              .map((dependency: any) => {
+                return {
+                  ...dependency,
+                  type: dependency.type ?? 'required'
+                }
+              })
+        }
+
         platformProject.value = merge(mod.curseforge, mod.modrinth)
       })
 })
@@ -120,7 +152,7 @@ watch(modId, newValue => {
 watch(showDialog, newValue => {
   if (newValue == false) {
     modId.value = undefined;
-    [title, metadata, authors, license, modVersion, platformProject, mavenCoordinates, curseforge, modrinth].forEach(v => v.value = null)
+    [title, modIds, metadata, authors, license, modVersion, platformProject, mavenCoordinates, curseforge, modrinth, declaredDependencies].forEach(v => v.value = null)
   }
 })
 

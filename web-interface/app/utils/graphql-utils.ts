@@ -58,17 +58,17 @@ export async function loadAll<
   let afterCursor: string | null = null
   let hasNext = true
   while (hasNext) {
-    const {data, error} = await client.query({
+    const {data, error, errors} = await client.query({
       query: query,
       variables: {
         ...variables,
         cursor: afterCursor
       },
       errorPolicy: 'all'
-    }).catch(reason => ({data: undefined as TData, error: {message: reason}}))
+    }).catch(reason => ({data: undefined as TData, error: {message: reason}, errors: []}))
 
-    if (error) {
-      await reportError(error)
+    if (error || (errors?.length ?? 0) > 0) {
+      await reportError(error ?? { message: errors![0]!.message })
       return []
     }
 
