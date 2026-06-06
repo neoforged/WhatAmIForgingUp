@@ -81,3 +81,7 @@ export function grouper(groups: {
     names: groups.map(g => g.title)
   }
 }
+
+export function sanitise<T>(array: (T | undefined)[]): T[] {
+  return array.filter(t => t !== undefined)
+}

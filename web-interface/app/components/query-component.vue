@@ -39,15 +39,25 @@
       </v-form>
     </v-card>
   </v-dialog>
+  <mod-information-dialog :version="version" v-model:modId="selectedMod" />
+  <file-source-dialog :version="version" v-model:selected-file="selectedFile" />
 </template>
 
 <script setup lang="ts">
 import type {QueryParameter} from "~/utils/query-utils";
+import ModInformationDialog from "~/components/mod-information-dialog.vue";
+import {useFileSelection, useModSelection} from "~/utils/globals";
 
 const props = defineProps<{
   parameters: QueryParameter<any>[]
   onLoad: () => void
 }>()
+
+// The version is always the first parameter
+const version = (props.parameters[0] as QueryParameter<string>).value
+
+const selectedMod = useModSelection()
+const selectedFile = useFileSelection()
 
 const dialog = ref(false)
 
