@@ -182,6 +182,75 @@ export const IMPLEMENTATIONS_QUERY = queryType(
     ])
 )
 
+export const MIXINS_PACKAGE_QUERY = queryType(
+    () => h('span', 'Query mixins targetting classes in the given package. Subpackages are included.'),
+    parameters<{
+      package: string;
+      filter: ClassDefinitionPredicate | undefined;
+    }>(_ => ({
+      package: stringQueryParameter({
+        label: 'Package',
+        placeholder: 'com.example'
+      }),
+      filter: optional(predicateQueryParameter({
+        label: 'Filter',
+        type: 'ClassDefinitionPredicate'
+      }))
+    })),
+    (client, params) =>
+        client.fetchPaginated(CLASSES_ANNOTATED, {
+          predicate: {
+            allOf: sanitise([
+              {
+                anyAnnotation: {
+                  allOf: [
+                    {type: {equals: "org/spongepowered/asm/mixin/Mixin"}},
+                    {
+                      value: {
+                        anyOf: [
+                          {pathExists: `$.value ? (@ like_regex "${params.package.value!.replaceAll('.', '/')}/.*")`},
+                          {pathExists: `$.targets ? (@ like_regex "${params.package.value!.replaceAll('.', '(\\.|/)')}(\\.|/).*")`}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              params.filter.value
+            ])
+          },
+          annotationPredicate: {type: {equals: "org/spongepowered/asm/mixin/Mixin"}}
+        }, data => data.gameVersion?.classDefinitions!)
+            .then((values) =>
+                values.map(item => {
+                  const value = item.annotations[0]!!.value!! as any;
+                  return {
+                    mod: item.mod,
+                    className: item.name.replaceAll('/', '.'),
+                    targets: ((value.value ?? value.targets) as string[]).join(', ').replaceAll('/', '.')
+                  }
+                })!
+            ),
+    renderAsTable([
+      modColumn({
+        title: 'Mod',
+        groupable: true,
+        value: item => item.mod
+      }),
+      fileColumn({
+        title: 'Mixin Class',
+        value: item => item.className,
+        mod: item => item.mod,
+        fileName: getClassSourceFileName
+      }),
+      {
+        title: 'Targets',
+        groupable: true,
+        value: item => item.targets
+      }
+    ])
+)
+
 export const RECIPES_QUERY = queryType(
     () => h('span', 'Query recipes of the given type.'),
     parameters<{
@@ -192,10 +261,10 @@ export const RECIPES_QUERY = queryType(
         label: 'Recipe type',
         placeholder: 'minecraft:crafting_shaped'
       }),
-      filter: predicateQueryParameter({
+      filter: optional(predicateQueryParameter({
         label: 'Filter',
         type: 'RecipeFilePredicate'
-      })
+      }))
     })),
     (client, params) => client.fetchPaginated(RECIPES, {
       predicate: {

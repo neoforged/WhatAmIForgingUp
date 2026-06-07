@@ -69,10 +69,12 @@ export function grouper(groups: {
 } {
   const groupBy = ref<string | undefined>(undefined)
   const groupByConfiguration = computed<DataTableSortItem[]>(() => {
+    console.log(groups)
     if (!groupBy.value || groupBy.value == 'None') {
       return []
     } else {
-      return [{key: groups.filter(g => g.title == groupBy.value)[0]!!.key}]
+      console.log(groups.filter(g => g.title == groupBy.value)[0]!.key)
+      return [{key: groups.filter(g => g.title == groupBy.value)[0]!.key}]
     }
   })
   return {

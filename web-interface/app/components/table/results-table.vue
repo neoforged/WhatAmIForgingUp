@@ -29,7 +29,7 @@
     </template>
 
     <v-data-table density="compact"
-                  :items="items"
+                  :items="computedItems"
                   :loading="loading"
                   :search="search"
                   :group-by="groups.items.value"
@@ -39,7 +39,7 @@
       <template v-for="head in headers" v-slot:[`header.${head.key}`]="{ column }">
         <b>{{ column.title }}</b>
       </template>
-      <template v-for="(column, idx) in columns" v-slot:[`item.${idx}`]="{ item, value }">
+      <template v-for="(column, idx) in columns" v-slot:[`item.col_${idx}`]="{ item, value }">
         <component :is="render(column, item, value)" />
       </template>
     </v-data-table>
@@ -59,13 +59,24 @@ const headers = props.columns.map((col, idx) => {
   return {
     title: col.title,
     value: col.value,
-    key: idx.toString()
+    key: `col_${idx}`
   }
 })
 
+const computedItems = computed(() => props.items.map(it => {
+  const newObject = {...it}
+  props.columns.forEach((col, idx) => {
+    if (col.groupable) {
+      newObject[`col_${idx}`] = col.value(it)
+    }
+  })
+  return newObject
+}))
+
 const search = ref<string | undefined>(undefined)
-const groups = grouper(props.columns.filter(c => c.groupable).map((c, idx) => ({
-  key: idx.toString(),
-  title: c.title
-})))
+const groups = grouper(props.columns.map((c, idx) => ({
+  key: `col_${idx}`,
+  title: c.title,
+  groupable: c.groupable
+})).filter(c => c.groupable))
 </script>
