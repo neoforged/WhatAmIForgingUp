@@ -3,5 +3,5 @@
 </template>
 
 <script setup lang="ts">
-import {METHOD_REFERENCES_QUERY} from "~/utils/query/queries";
+import {METHOD_REFERENCES_QUERY} from "~/query/queries";
 </script>

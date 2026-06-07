@@ -1,55 +1,75 @@
 import {VBtn} from "vuetify/components";
 import type {FileSelection} from "~/utils/utils";
 import {useFileSelection, useModSelection} from "~/utils/globals";
+import CodeBlock from "~/components/code-block.vue";
 
-export interface TableColumn {
+export interface TableColumn<T, Z> {
   title: string
-  key: string
+  value: (item: T) => Z;
 
   groupable?: boolean
 
-  renderer?: (item: any, value: any) => Component
+  renderer?: (item: T, value: Z) => Component
 }
 
-export function render(col: TableColumn, item: any, value: any): Component {
+export function render(col: TableColumn<any, any>, item: any, value: any): Component {
   if (col.renderer) {
     return col.renderer(item, value)
   }
   return h('span', value)
 }
 
-export function modColumn(config: Omit<Omit<TableColumn, 'key'>, 'renderer'>, key: string = 'mod', selectedMod: Ref<number | undefined> = useModSelection()): TableColumn {
+interface Mod {
+  id: number
+  name: string
+}
+
+export function modColumn<T>(
+    config: Omit<TableColumn<T, Mod>, 'renderer'>,
+    selectedMod: Ref<number | undefined> = useModSelection()
+): TableColumn<T, string> {
   return {
     ...config,
-    key: key + '.name',
+    value: item => config.value(item).name,
     renderer: (item, value) => h(VBtn, {
       density: 'compact',
       color: 'primary',
       variant: 'text',
       border: false,
-      onClick: () => selectedMod.value = get(item, key).id
+      onClick: () => selectedMod.value = config.value(item).id
     }, () => value)
   }
 }
 
-export function fileColumn(fileFunction: (value: string) => FileSelection, config: Omit<TableColumn, 'renderer'>, modKey: string = 'mod', selectedFile: Ref<{
-  mod: number,
-  file: FileSelection
-} | undefined> = useFileSelection()): TableColumn {
+export function fileColumn<T>(
+    config: Omit<TableColumn<T, string>, 'renderer'> & {
+      mod: (item: T) => Mod,
+      fileName: (value: string) => FileSelection
+    },
+    selectedFile: Ref<{
+      mod: number,
+      file: FileSelection
+    } | undefined> = useFileSelection()
+): TableColumn<T, string> {
   return {
     ...config,
     renderer: (item, value) => h('span', {
       onClick: () => selectedFile.value = {
-        mod: get(item, modKey).id,
-        file: fileFunction(value)
+        mod: config.mod(item).id,
+        file: config.fileName(value)
       }
     }, value)
   }
 }
 
-function get(object: any, key: string): any {
-  for (let path of key.split('.')) {
-    object = object[path]
+export function codeColumn<T>(
+    config: Omit<TableColumn<T, string>, 'renderer'> & { language: string }
+): TableColumn<T, string> {
+  return {
+    ...config,
+    renderer: (item, value) => h(CodeBlock, {
+      language: config.language,
+      code: value
+    })
   }
-  return object
 }

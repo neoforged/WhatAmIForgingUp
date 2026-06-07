@@ -43,7 +43,7 @@
 import QueryComponent from "~/components/query-component.vue";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import type {TagEntryPredicate} from "~~/graphql-requests/types/__generated__/graphql";
-import {predicateQueryParameter, stringQueryParameter} from "~/utils/query-utils";
+import {predicateQueryParameter, stringQueryParameter} from "~/query/query-parameters";
 import {TAG_ENTRIES} from "~~/graphql-requests/data_files";
 import {usualRegistries} from "~/utils/autocomplete";
 

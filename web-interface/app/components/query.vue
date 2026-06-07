@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import {type QueryType} from '~/utils/query/query-builder'
+import {type QueryType} from '~/query/query-builder'
 import QueryComponent from "~/components/query-component.vue";
 
 const props = defineProps<{

@@ -39,29 +39,33 @@
       <template v-for="head in headers" v-slot:[`header.${head.key}`]="{ column }">
         <b>{{ column.title }}</b>
       </template>
-      <template v-for="column in columns" v-slot:[`item.${column.key}`]="{ item, value }">
+      <template v-for="(column, idx) in columns" v-slot:[`item.${idx}`]="{ item, value }">
         <component :is="render(column, item, value)" />
       </template>
     </v-data-table>
   </v-card>
 </template>
 <script setup lang="ts">
-import {type TableColumn, render} from "~/components/table/results-table-api";
+import {render, type TableColumn} from "~/components/table/results-table-api";
 import {grouper} from "~/utils/utils";
 
 const props = defineProps<{
-  columns: TableColumn[],
+  columns: TableColumn<any, any>[],
   loading: boolean,
   items: any[]
 }>()
 
-const headers = props.columns.map(col => {
+const headers = props.columns.map((col, idx) => {
   return {
     title: col.title,
-    key: col.key
+    value: col.value,
+    key: idx.toString()
   }
 })
 
 const search = ref<string | undefined>(undefined)
-const groups = grouper(props.columns.filter(c => c.groupable))
+const groups = grouper(props.columns.filter(c => c.groupable).map((c, idx) => ({
+  key: idx.toString(),
+  title: c.title
+})))
 </script>

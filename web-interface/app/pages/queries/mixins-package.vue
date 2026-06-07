@@ -73,7 +73,7 @@ import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {CLASSES_ANNOTATED} from "~~/graphql-requests/classes";
 import type {ClassDefinitionPredicate} from "~~/graphql-requests/types/__generated__/graphql";
 import {type FileSelection} from "~/utils/utils";
-import {predicateQueryParameter, stringQueryParameter} from "~/utils/query-utils";
+import {predicateQueryParameter, stringQueryParameter} from "~/query/query-parameters";
 
 definePageMeta({
   title: 'Mixins targetting Classes in Package Query'

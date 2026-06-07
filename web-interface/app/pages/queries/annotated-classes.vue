@@ -3,5 +3,5 @@
 </template>
 
 <script setup lang="ts">
-import {CLASSES_ANNOTATED_QUERY} from "~/utils/query/queries";
+import {CLASSES_ANNOTATED_QUERY} from "~/query/queries";
 </script>

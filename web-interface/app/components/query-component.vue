@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import type {QueryParameter} from "~/utils/query-utils";
+import type {QueryParameter} from "~/query/query-parameters";
 import ModInformationDialog from "~/components/mod-information-dialog.vue";
 import {useFileSelection, useModSelection} from "~/utils/globals";
 
