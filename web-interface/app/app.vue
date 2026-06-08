@@ -29,13 +29,13 @@
               ></v-list-item>
             </template>
             <v-list-item title="All Queries" to="/queries/" router/>
-            <component v-for="group in QUERIES">
+            <div v-for="group in QUERIES">
               <v-divider class="ma-1 ms-10"/>
               <v-list-subheader class="text-high-emphasis text-uppercase font-weight-black" :title="group.group" />
               <v-list-item v-for="q in group.queries"
                            :title="q.name"
                            router :to="`/queries/${group.path}/${q.path}`"/>
-            </component>
+            </div>
           </v-list-group>
         </v-list>
       </v-navigation-drawer>

@@ -1,13 +1,15 @@
-import type {ClassDefinitionPredicate, RecipeFilePredicate} from "~~/graphql-requests/types/__generated__/graphql";
+import type {ClassDefinitionPredicate, RecipeFilePredicate, TagEntryPredicate} from "~~/graphql-requests/types/__generated__/graphql";
 import {optional, parameters, type QueryType, queryType, renderAsTable} from "~/query/query-builder";
 import {queryToPredicate} from "~/utils/query-utils";
-import {classSearch, methodSearch} from "~/utils/autocomplete";
+import {classSearch, methodSearch, usualRegistries} from "~/utils/autocomplete";
 import {METHOD_REFERENCES} from "~~/graphql-requests/methods";
 import {codeColumn, fileColumn, modColumn} from "~/components/table/results-table-api";
 import {fileNamed, getClassSourceFileName, getRecipeSourceFileName, sanitise} from "~/utils/utils";
 import {CLASSES_ANNOTATED, IMPLEMENTATIONS} from "~~/graphql-requests/classes";
 import {GET_ENUM_EXTENSIONS, RECIPES} from "~~/graphql-requests/data_files";
 import {predicateQueryParameter, stringQueryParameter} from "~/query/query-parameters";
+import {buildTagContainmentTree, build} from "~/components/table/tags-containing.vue"
+import TagsContaining from "~/components/table/tags-containing.vue"
 
 export const METHOD_REFERENCES_QUERY = queryType(
     () => h('span', 'Query direct references to the given method.'),
@@ -311,6 +313,46 @@ export const RECIPES_QUERY = queryType(
     ])
 )
 
+export const TAGS_CONTAINING_QUERY = queryType(
+    () => h('span', 'Build a tree of all the tags containing the given element.'),
+    parameters<{
+      registry: string;
+      object: string;
+      filter: TagEntryPredicate | undefined;
+    }>(_ => ({
+      registry: stringQueryParameter({
+        label: 'Registry',
+        placeholder: 'minecraft:item',
+        autocomplete: usualRegistries()
+      }),
+      object: stringQueryParameter({
+        label: 'Element',
+        placeholder: 'minecraft:oak_planks'
+      }),
+      filter: optional(predicateQueryParameter({
+        label: 'Filter',
+        type: 'TagEntryPredicate'
+      }))
+    })),
+    (client, params) => buildTagContainmentTree(client, params.registry.value, params.filter.value, [params.object.value])
+        .then(res => [
+          {
+            title: params.object.value,
+            root: true,
+            children: res[0]!!.get(params.object.value)!!.map(e => build(e, 0, res))
+          }
+        ]),
+    (params, data) => defineComponent({
+      setup() {
+        return () => h(TagsContaining, {
+          registry: params.registry.value,
+          object: params.object.value,
+          graph: data.value
+        })
+      }
+    })
+)
+
 export const ENUM_EXTENSIONS_QUERY = queryType(
     () => h('span', 'Query NeoForge enum extensions for the given enum.'),
     parameters<{
@@ -412,6 +454,17 @@ export const QUERIES: {
         name: 'Recipes',
         path: 'recipes',
         query: RECIPES_QUERY
+      }
+    ]
+  },
+  {
+    group: 'Tags',
+    path: 'tags',
+    queries: [
+      {
+        name: 'Tags containing element',
+        path: 'containing',
+        query: TAGS_CONTAINING_QUERY
       }
     ]
   },
