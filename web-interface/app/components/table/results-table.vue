@@ -42,6 +42,22 @@
       <template v-for="(column, idx) in columns" v-slot:[`item.col_${idx}`]="{ item, value }">
         <component :is="render(column, item, value)" />
       </template>
+
+      <template v-slot:footer.prepend>
+        <v-btn
+            v-bind="props"
+            :loading="loading"
+            density="compact"
+            variant="text"
+            class="mr-1"
+            v-tooltip="'Download data'"
+            size="30"
+            rounded
+            @click="download()"
+        >
+          <v-icon icon="mdi-download-circle" size="30" />
+        </v-btn>
+      </template>
     </v-data-table>
   </v-card>
 </template>
@@ -72,6 +88,20 @@ const computedItems = computed(() => props.items.map(it => {
   })
   return newObject
 }))
+
+const download = () => {
+  const blob = new Blob([JSON.stringify(props.items, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "data.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  URL.revokeObjectURL(url);
+}
 
 const search = ref<string | undefined>(undefined)
 const groups = grouper(props.columns.map((c, idx) => ({
