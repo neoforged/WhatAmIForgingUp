@@ -1,6 +1,7 @@
 import gql from "graphql-tag";
 import type {TypedDocumentNode} from "@apollo/client";
 import type {
+  GetEnumExtensionsQuery, GetEnumExtensionsQueryVariables,
   GetRecipesQuery,
   GetRecipesQueryVariables, GetTagEntriesQuery, GetTagEntriesQueryVariables,
 } from "./types/__generated__/graphql";
@@ -47,6 +48,37 @@ export const TAG_ENTRIES: TypedDocumentNode<
                     node {
                         tag
                         entry
+                        mod {
+                            id
+                            name
+                        }
+                    }
+                }
+            }
+        }
+    }
+`;
+
+export const GET_ENUM_EXTENSIONS: TypedDocumentNode<
+    GetEnumExtensionsQuery,
+    GetEnumExtensionsQueryVariables
+> = gql`
+    query GetEnumExtensions($version: String!, $loader: Loader!, $enum: String!, $cursor: ID) {
+        gameVersion(loader: $loader, version: $version) {
+            enumExtensions(after: $cursor, where: {
+                enum: {
+                    equals: $enum
+                }
+            }) {
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+                edges {
+                    node {
+                        name
+                        constructor
+                        parameters
                         mod {
                             id
                             name

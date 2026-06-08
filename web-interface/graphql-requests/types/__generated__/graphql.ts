@@ -602,13 +602,15 @@ export type EnumExtensionPredicate = {
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<EnumExtensionPredicate>>;
   /** Filter based on the enum constructor the extension uses */
-  constructor?: InputMaybe<Scalars['String']['input']>;
+  constructor?: InputMaybe<StringPredicate>;
   /** Filter based on the internal name of the enum the extension is for */
   enum?: InputMaybe<StringPredicate>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
   isNull?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Filter based on the mod that defines this enum extension */
+  mod?: InputMaybe<ModPredicate>;
   /** Filter based on the name of the enum value the extension adds */
-  name?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<StringPredicate>;
   /**
    * Match if none of the given filters match.
    * Prefer using this instead of `not(anyOf(...))` as it is generally faster.
@@ -797,7 +799,7 @@ export type GameVersionDataFilesArgs = {
   before?: InputMaybe<Scalars['ID']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
-  location?: InputMaybe<Scalars['String']['input']>;
+  location: Scalars['String']['input'];
   where?: InputMaybe<DataFilePredicate>;
 };
 
@@ -859,7 +861,7 @@ export type GameVersionTagEntriesArgs = {
   before?: InputMaybe<Scalars['ID']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
-  registry?: InputMaybe<Scalars['String']['input']>;
+  registry: Scalars['String']['input'];
   where?: InputMaybe<TagEntryPredicate>;
 };
 
@@ -1940,6 +1942,16 @@ export type GetTagEntriesQueryVariables = Exact<{
 
 
 export type GetTagEntriesQuery = { gameVersion: { __typename: 'GameVersion', tagEntries: { __typename: 'TagEntryConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'TagEntryEdge', node: { __typename: 'TagEntry', tag: string, entry: string, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };
+
+export type GetEnumExtensionsQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  enum: Scalars['String']['input'];
+  cursor?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type GetEnumExtensionsQuery = { gameVersion: { __typename: 'GameVersion', enumExtensions: { __typename: 'EnumExtensionConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'EnumExtensionEdge', node: { __typename: 'EnumExtension', name: string, constructor: string, parameters: unknown, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };
 
 export type GetMethodReferencesQueryVariables = Exact<{
   version: Scalars['String']['input'];

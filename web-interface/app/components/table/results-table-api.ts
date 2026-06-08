@@ -44,7 +44,7 @@ export function modColumn<T>(
 export function fileColumn<T>(
     config: Omit<TableColumn<T, string>, 'renderer'> & {
       mod: (item: T) => Mod,
-      fileName: (value: string) => FileSelection
+      fileName: (value: string, item: T) => FileSelection | undefined
     },
     selectedFile: Ref<{
       mod: number,
@@ -54,9 +54,14 @@ export function fileColumn<T>(
   return {
     ...config,
     renderer: (item, value) => h('span', {
-      onClick: () => selectedFile.value = {
-        mod: config.mod(item).id,
-        file: config.fileName(value)
+      onClick: () => {
+        const selection = config.fileName(value, item)
+        if (selection) {
+          selectedFile.value = {
+            mod: config.mod(item).id,
+            file: selection
+          }
+        }
       }
     }, value)
   }

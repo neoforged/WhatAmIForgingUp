@@ -170,6 +170,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                 .filterOnColumn("enum", "extension_enum.name")
                 .filterOnColumn("constructor", "extension_ctor.constant")
                 .filterOnColumn("name", "extension_name.constant")
+                .filterOnTable("mod", "mods")
         );
         schema.registerIndependentJoin("enum_extensions", "classes", "extension_enum", SqlCondition.equals("enum_extensions.enum", "extension_enum.id"));
         schema.registerIndependentJoin("enum_extensions", "constants", "extension_name", SqlCondition.equals("enum_extensions.name", "extension_name.id"));

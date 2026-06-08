@@ -1429,13 +1429,15 @@ input EnumExtensionPredicate {
     "Match if any of the given filters matches"
     anyOf: [EnumExtensionPredicate!]
     "Filter based on the enum constructor the extension uses"
-    constructor: String
+    constructor: StringPredicate
     "Filter based on the internal name of the enum the extension is for"
     enum: StringPredicate
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
     isNull: Boolean
+    "Filter based on the mod that defines this enum extension"
+    mod: ModPredicate
     "Filter based on the name of the enum value the extension adds"
-    name: String
+    name: StringPredicate
     """
 
     Match if none of the given filters match.

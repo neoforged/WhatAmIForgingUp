@@ -6,7 +6,7 @@ import {METHOD_REFERENCES} from "~~/graphql-requests/methods";
 import {codeColumn, fileColumn, modColumn} from "~/components/table/results-table-api";
 import {getClassSourceFileName, getRecipeSourceFileName, sanitise} from "~/utils/utils";
 import {CLASSES_ANNOTATED, IMPLEMENTATIONS} from "~~/graphql-requests/classes";
-import {RECIPES} from "~~/graphql-requests/data_files";
+import {GET_ENUM_EXTENSIONS, RECIPES} from "~~/graphql-requests/data_files";
 import {predicateQueryParameter, stringQueryParameter} from "~/query/query-parameters";
 
 export const METHOD_REFERENCES_QUERY = queryType(
@@ -307,6 +307,56 @@ export const RECIPES_QUERY = queryType(
         title: 'Recipe content',
         language: 'json',
         value: item => item.recipe
+      })
+    ])
+)
+
+export const ENUM_EXTENSIONS_QUERY = queryType(
+    () => h('span', 'Query NeoForge enum extensions for the given enum.'),
+    parameters<{
+      enum: string;
+    }>(params => ({
+      enum: stringQueryParameter({
+        label: 'Enum',
+        placeholder:' com.example.ExampleEnum',
+        autocomplete: classSearch(params.version)
+      })
+    })),
+    async (client, params) => client.fetchPaginated(
+        GET_ENUM_EXTENSIONS,
+        {
+          enum: params.enum.value!.replaceAll('.', '/')
+        },
+        data => data.gameVersion!.enumExtensions
+    ).then(data => data.map(value => ({
+      mod: value.mod,
+      name: value.name,
+      constructor: value.constructor,
+      parameters: Array.isArray(value.parameters)
+        ? `(${value.parameters.join(', ')})`
+        : `${(value.parameters as any)?.class.replaceAll('/', '.')}.${(value.parameters as any).field ?? (value.parameters as any).method}`,
+      parametersClass: (value.parameters as any).class
+    }))),
+    renderAsTable([
+      modColumn({
+        title: 'Mod',
+        groupable: true,
+        value: item => item.mod
+      }),
+      {
+        title: 'Extension name',
+        value: item => item.name
+      },
+      {
+        title: 'Constructor',
+        groupable: true,
+        value: item => item.constructor
+      },
+      fileColumn({
+        title: 'Parameters',
+        value: item => item.parameters,
+        mod: item => item.mod,
+        fileName: (_, item) => item.parametersClass ? getClassSourceFileName(item.parametersClass) : undefined
       })
     ])
 )

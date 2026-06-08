@@ -781,9 +781,11 @@ input EnumExtensionPredicate @predicateType @oneOf {
     "Filter based on the internal name of the enum the extension is for"
     enum: StringPredicate
     "Filter based on the enum constructor the extension uses"
-    constructor: String
+    constructor: StringPredicate
     "Filter based on the name of the enum value the extension adds"
-    name: String
+    name: StringPredicate
+    "Filter based on the mod that defines this enum extension"
+    mod: ModPredicate
 }
 
 "Used to filter mods based on different criteria"

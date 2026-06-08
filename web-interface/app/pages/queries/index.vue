@@ -50,6 +50,15 @@
         Find all tags containing a given element, directly or indirectly (through other tags).
       </template>
     </v-card>
+
+    <h2>NeoForge</h2>
+    <v-card
+        title="Enum extensions"
+        to="neoforge/enum-extensions" router>
+      <template v-slot:text>
+        Find all NeoForge enum extensions for a given enum.
+      </template>
+    </v-card>
   </div>
 </template>
 
