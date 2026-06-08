@@ -3,7 +3,7 @@
     <h2>Classes</h2>
     <v-card
         title="Annotated Classes"
-        to="annotated-classes" router>
+        to="/queries/classes/annotated-classes" router>
       <template v-slot:text>
         Find the classes annotated with a given annotation.
       </template>
@@ -11,7 +11,7 @@
     <br>
     <v-card
         title="Implementations"
-        to="implementations" router>
+        to="/queries/classes/implementations" router>
       <template v-slot:text>
         Find the implementations of a given class.
       </template>
@@ -19,7 +19,7 @@
     <br>
     <v-card
         title="Method References"
-        to="method-references" router>
+        to="/queries/classes/method-references" router>
       <template v-slot:text>
         Find direct references to a given method.
       </template>
@@ -27,7 +27,7 @@
     <br>
     <v-card
         title="Mixins targetting Classes in Package"
-        to="mixins-package" router>
+        to="/queries/mixin/mixins-package" router>
       <template v-slot:text>
         Find mixins that target classes in a certain package (and its subpackages).
       </template>
@@ -36,7 +36,7 @@
     <h2>Data Files</h2>
     <v-card
         title="Recipes by type"
-        to="recipes" router>
+        to="/queries/data-files/recipes" router>
       <template v-slot:text>
         Find recipes of a given type.
       </template>
@@ -54,7 +54,7 @@
     <h2>NeoForge</h2>
     <v-card
         title="Enum extensions"
-        to="neoforge/enum-extensions" router>
+        to="/queries/neoforge/enum-extensions" router>
       <template v-slot:text>
         Find all NeoForge enum extensions for a given enum.
       </template>

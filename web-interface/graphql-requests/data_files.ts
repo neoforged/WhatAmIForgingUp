@@ -82,6 +82,7 @@ export const GET_ENUM_EXTENSIONS: TypedDocumentNode<
                         mod {
                             id
                             name
+                            enumExtensionsFile : metadata(path: "$.mods.enumExtensions")
                         }
                     }
                 }

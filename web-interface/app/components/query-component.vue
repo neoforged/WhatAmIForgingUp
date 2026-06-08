@@ -26,7 +26,7 @@
     <br/>
     <slot name="result-display"></slot>
   </div>
-  <v-dialog eager v-model="dialog" persistent width="auto" class="text-center">
+  <v-dialog eager v-model="dialog" persistent min-width="400" width="auto" class="text-center">
     <v-card
         max-width="800"
         prepend-icon="mdi-database-search"

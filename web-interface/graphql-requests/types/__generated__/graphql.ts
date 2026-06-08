@@ -15,7 +15,7 @@ export type Scalars = {
   /** A slightly refined version of RFC-3339 compliant DateTime Scalar */
   DateTime: { input: unknown; output: unknown; }
   /** A JSON scalar */
-  JSON: { input: unknown; output: unknown; }
+  JSON: { input: any; output: any; }
 };
 
 /** Represents an object that can be annotated - method, field or class definition */
@@ -32,7 +32,7 @@ export type AnnotatableAnnotationsArgs = {
 
 /** An annotation instance (the type and its value as a JSON object) */
 export type Annotation = {
-  __typename: 'Annotation';
+  __typename?: 'Annotation';
   /** The type of the annotation - e.g. `java/lang/Deprecated` */
   type: Scalars['String']['output'];
   /** The value of this annotation as a JSON object */
@@ -176,7 +176,7 @@ export type CastingPredicate = {
 
 /** A class identified by its name (e.g. `java/lang/String`) from which an inheritor search can be started. */
 export type Class = BaseClass & Identifiable & {
-  __typename: 'Class';
+  __typename?: 'Class';
   /** Returns all known concrete definitions of the class */
   definitions: Array<ClassDefinition>;
   /**
@@ -228,7 +228,7 @@ export type ClassMethodsArgs = {
 
 /** A connection (list) composed of `Class`. */
 export type ClassConnection = {
-  __typename: 'ClassConnection';
+  __typename?: 'ClassConnection';
   /** Identifies the amount of items in the returned edges. */
   count: Scalars['Int']['output'];
   /** A list of edges. */
@@ -239,7 +239,7 @@ export type ClassConnection = {
 
 /** A concrete definition of a class */
 export type ClassDefinition = Annotatable & ModOwned & {
-  __typename: 'ClassDefinition';
+  __typename?: 'ClassDefinition';
   /** Returns annotations on this object matching the given predicate */
   annotations: Array<Annotation>;
   /**
@@ -294,7 +294,7 @@ export type ClassDefinitionMethodsArgs = {
 
 /** A connection (list) composed of `ClassDefinition`. */
 export type ClassDefinitionConnection = {
-  __typename: 'ClassDefinitionConnection';
+  __typename?: 'ClassDefinitionConnection';
   /** Identifies the amount of items in the returned edges. */
   count: Scalars['Int']['output'];
   /** A list of edges. */
@@ -305,7 +305,7 @@ export type ClassDefinitionConnection = {
 
 /** An edge of a `ClassDefinition`. */
 export type ClassDefinitionEdge = {
-  __typename: 'ClassDefinitionEdge';
+  __typename?: 'ClassDefinitionEdge';
   /** The cursor ID of the element. */
   cursor: Scalars['ID']['output'];
   /** The item at the end of the edge. */
@@ -349,7 +349,7 @@ export type ClassDefinitionPredicate = {
 
 /** An edge of a `Class`. */
 export type ClassEdge = {
-  __typename: 'ClassEdge';
+  __typename?: 'ClassEdge';
   /** The cursor ID of the element. */
   cursor: Scalars['ID']['output'];
   /** The item at the end of the edge. */
@@ -381,7 +381,7 @@ export type ClassPredicate = {
 
 /** An arbitrary JSON data file */
 export type DataFile = ModOwned & {
-  __typename: 'DataFile';
+  __typename?: 'DataFile';
   /** The mod that owns this object */
   mod: LightweightMod;
   /** The name of this file (e.g. `mymod:my/file` for a file at `data/mymod/somepath/my/file.json`, with the base path of the query being `somepath`) */
@@ -392,7 +392,7 @@ export type DataFile = ModOwned & {
 
 /** A connection (list) composed of `DataFile`. */
 export type DataFileConnection = {
-  __typename: 'DataFileConnection';
+  __typename?: 'DataFileConnection';
   /** Identifies the amount of items in the returned edges. */
   count: Scalars['Int']['output'];
   /** A list of edges. */
@@ -403,7 +403,7 @@ export type DataFileConnection = {
 
 /** An edge of a `DataFile`. */
 export type DataFileEdge = {
-  __typename: 'DataFileEdge';
+  __typename?: 'DataFileEdge';
   /** The cursor ID of the element. */
   cursor: Scalars['ID']['output'];
   /** The item at the end of the edge. */
@@ -433,7 +433,7 @@ export type DataFilePredicate = {
 
 /** A NeoForge data map */
 export type DataMap = {
-  __typename: 'DataMap';
+  __typename?: 'DataMap';
   /** The entries in this file */
   entries: Array<DataMapEntry>;
   /** The name of this data map (e.g. `neoforge:compostables`) */
@@ -442,7 +442,7 @@ export type DataMap = {
 
 /** A connection (list) composed of `DataMap`. */
 export type DataMapConnection = {
-  __typename: 'DataMapConnection';
+  __typename?: 'DataMapConnection';
   /** Identifies the amount of items in the returned edges. */
   count: Scalars['Int']['output'];
   /** A list of edges. */
@@ -453,7 +453,7 @@ export type DataMapConnection = {
 
 /** An edge of a `DataMap`. */
 export type DataMapEdge = {
-  __typename: 'DataMapEdge';
+  __typename?: 'DataMapEdge';
   /** The cursor ID of the element. */
   cursor: Scalars['ID']['output'];
   /** The item at the end of the edge. */
@@ -462,7 +462,7 @@ export type DataMapEdge = {
 
 /** An entry in a NeoForge data map */
 export type DataMapEntry = {
-  __typename: 'DataMapEntry';
+  __typename?: 'DataMapEntry';
   /** The key of this entry. Can either be the location of a registry object (e.g. `minecraft:coal_block`) or a tag, denoted by a # at the start (e.g. `#minecraft:logs`) */
   key: Scalars['String']['output'];
   /** The values assigned to this entry by different mods. */
@@ -471,7 +471,7 @@ export type DataMapEntry = {
 
 /** A NeoForge data map file */
 export type DataMapFile = {
-  __typename: 'DataMapFile';
+  __typename?: 'DataMapFile';
   /** The entries in this file */
   entries: Array<DataMapFileEntry>;
   /** The name of this data map (e.g. `neoforge:compostables`) */
@@ -480,7 +480,7 @@ export type DataMapFile = {
 
 /** An entry in a NeoForge data map file */
 export type DataMapFileEntry = {
-  __typename: 'DataMapFileEntry';
+  __typename?: 'DataMapFileEntry';
   /** The key of this entry. Can either be the location of a registry object (e.g. `minecraft:coal_block`) or a tag, denoted by a # at the start (e.g. `#minecraft:logs`) */
   key: Scalars['String']['output'];
   /**
@@ -532,7 +532,7 @@ export type DataMapPredicate = {
 
 /** A value within a NeoForge data map, associated with an entry */
 export type DataMapValue = ModOwned & {
-  __typename: 'DataMapValue';
+  __typename?: 'DataMapValue';
   /** The mod that owns this object */
   mod: LightweightMod;
   /** The value of this entry - i.e. the object attached to the entry with the `key` ID or to entries within the tag, if the `key` is a tag */
@@ -562,7 +562,7 @@ export type DatePredicate = {
 
 /** A NeoForge enum extension entry */
 export type EnumExtension = ModOwned & {
-  __typename: 'EnumExtension';
+  __typename?: 'EnumExtension';
   /** The descriptor of the constructor this extension uses */
   constructor: Scalars['String']['output'];
   /** The internal name of the enum this extension targets */
@@ -577,7 +577,7 @@ export type EnumExtension = ModOwned & {
 
 /** A connection (list) composed of `EnumExtension`. */
 export type EnumExtensionConnection = {
-  __typename: 'EnumExtensionConnection';
+  __typename?: 'EnumExtensionConnection';
   /** Identifies the amount of items in the returned edges. */
   count: Scalars['Int']['output'];
   /** A list of edges. */
@@ -588,7 +588,7 @@ export type EnumExtensionConnection = {
 
 /** An edge of a `EnumExtension`. */
 export type EnumExtensionEdge = {
-  __typename: 'EnumExtensionEdge';
+  __typename?: 'EnumExtensionEdge';
   /** The cursor ID of the element. */
   cursor: Scalars['ID']['output'];
   /** The item at the end of the edge. */
@@ -622,7 +622,7 @@ export type EnumExtensionPredicate = {
 
 /** Represents a method as returned by `Class.fields` */
 export type Field = Identifiable & Referenceable & {
-  __typename: 'Field';
+  __typename?: 'Field';
   /** The unique ID of this object */
   id: Scalars['Int']['output'];
   /** The name of this field */
@@ -646,7 +646,7 @@ export type FieldReferencesArgs = {
 
 /** A concrete definition of a field */
 export type FieldDefinition = Annotatable & {
-  __typename: 'FieldDefinition';
+  __typename?: 'FieldDefinition';
   /** Returns annotations on this object matching the given predicate */
   annotations: Array<Annotation>;
   /** The name of this method */
@@ -715,7 +715,7 @@ export type FieldPredicate = {
 
 /** Represents a version of the game on a loader, which WAIFU is indexing */
 export type GameVersion = {
-  __typename: 'GameVersion';
+  __typename?: 'GameVersion';
   /**
    * Internal endpoint. It might be removed at any point
    * @deprecated No longer supported
@@ -873,7 +873,7 @@ export type Identifiable = {
 
 /** A class identified by its name (e.g. `java/lang/String`) as returned by `Class.inheritors` which has a certain depth from the root of the inheritance tree. */
 export type InheritanceTreeClass = BaseClass & Identifiable & {
-  __typename: 'InheritanceTreeClass';
+  __typename?: 'InheritanceTreeClass';
   /** Returns all known concrete definitions of the class */
   definitions: Array<ClassDefinition>;
   /**
@@ -946,7 +946,7 @@ export type InheritorPredicate = {
 };
 
 export type IntModInformation = BaseMod & Identifiable & {
-  __typename: 'IntModInformation';
+  __typename?: 'IntModInformation';
   /** The authors of this mod (derived from mod metadata) */
   authors: Maybe<Scalars['String']['output']>;
   curseforge: Maybe<IntPlatformInformation>;
@@ -1004,7 +1004,7 @@ export type IntModInformationMetadataArgs = {
 };
 
 export type IntPlatformInformation = {
-  __typename: 'IntPlatformInformation';
+  __typename?: 'IntPlatformInformation';
   description: Scalars['String']['output'];
   downloads: Scalars['Int']['output'];
   fileDownloadUrl: Maybe<Scalars['String']['output']>;
@@ -1106,7 +1106,7 @@ export type JsonPredicate = {
  * To "upgrade" a lightweight mod to a _Mod_ you can use `modsById`.
  */
 export type LightweightMod = BaseMod & Identifiable & {
-  __typename: 'LightweightMod';
+  __typename?: 'LightweightMod';
   /** The authors of this mod (derived from mod metadata) */
   authors: Maybe<Scalars['String']['output']>;
   /** The ID of the CurseForge project associated with this mod */
@@ -1178,7 +1178,7 @@ export enum Loader {
 
 /** Represents a manifest attribute (e.g. 'Implementation-Version: 1.0') */
 export type ManifestAttribute = {
-  __typename: 'ManifestAttribute';
+  __typename?: 'ManifestAttribute';
   /** The key of this attribute */
   key: Scalars['String']['output'];
   /** The value of this attribute */
@@ -1208,7 +1208,7 @@ export type ManifestAttributePredicate = {
 
 /** Represents a manifest entry (section) */
 export type ManifestEntry = {
-  __typename: 'ManifestEntry';
+  __typename?: 'ManifestEntry';
   /** The attributes in this section */
   attributes: Array<ManifestAttribute>;
   /** The name of this manifest section (the main section has this field blank) */
@@ -1217,7 +1217,7 @@ export type ManifestEntry = {
 
 /** Represents a method as returned by `Class.methods` */
 export type Method = Identifiable & Referenceable & {
-  __typename: 'Method';
+  __typename?: 'Method';
   /** The descriptor of this method */
   descriptor: Scalars['String']['output'];
   /** The unique ID of this object */
@@ -1238,7 +1238,7 @@ export type MethodReferencesArgs = {
 
 /** A concrete definition of a method */
 export type MethodDefinition = Annotatable & {
-  __typename: 'MethodDefinition';
+  __typename?: 'MethodDefinition';
   /** Returns annotations on this object matching the given predicate */
   annotations: Array<Annotation>;
   /** The descriptor of this method */
@@ -1307,7 +1307,7 @@ export type MethodPredicate = {
 
 /** Represents a full mod from which data that requires more complex processing can be queries (classes, tags etc.) */
 export type Mod = BaseMod & Identifiable & {
-  __typename: 'Mod';
+  __typename?: 'Mod';
   /** The authors of this mod (derived from mod metadata) */
   authors: Maybe<Scalars['String']['output']>;
   /** Get the classes this mod defines. Optionally takes in a filter on the class name */
@@ -1426,7 +1426,7 @@ export type ModTagsArgs = {
 
 /** A connection (list) composed of `Mod`. */
 export type ModConnection = {
-  __typename: 'ModConnection';
+  __typename?: 'ModConnection';
   /** Identifies the amount of items in the returned edges. */
   count: Scalars['Int']['output'];
   /** A list of edges. */
@@ -1437,7 +1437,7 @@ export type ModConnection = {
 
 /** An edge of a `Mod`. */
 export type ModEdge = {
-  __typename: 'ModEdge';
+  __typename?: 'ModEdge';
   /** The cursor ID of the element. */
   cursor: Scalars['ID']['output'];
   /** The item at the end of the edge. */
@@ -1502,7 +1502,7 @@ export type ModPredicate = {
 };
 
 export type Mutation = {
-  __typename: 'Mutation';
+  __typename?: 'Mutation';
   /**
    * Stop indexing the given game version.
    * Returns `true` if the game version was indexed before and is now no longer actively indexed.
@@ -1519,7 +1519,7 @@ export type MutationStopIndexingGameVersionArgs = {
 
 /** Represents an artifact nested within another one, in a strictly flat structure. */
 export type NestedArtifact = BaseNestedArtifact & {
-  __typename: 'NestedArtifact';
+  __typename?: 'NestedArtifact';
   /** The ID of this artifact */
   id: Scalars['String']['output'];
   /** The version of this artifact */
@@ -1531,7 +1531,7 @@ export type NestedArtifact = BaseNestedArtifact & {
  * This type provides access to children nested artifacts.
  */
 export type NestedArtifactNode = BaseNestedArtifact & {
-  __typename: 'NestedArtifactNode';
+  __typename?: 'NestedArtifactNode';
   /** The ID of this artifact */
   id: Scalars['String']['output'];
   /** The artifacts this artifact nests further within it */
@@ -1578,7 +1578,7 @@ export enum OrderRule {
 
 /** Information about pagination in a connection. */
 export type PageInfo = {
-  __typename: 'PageInfo';
+  __typename?: 'PageInfo';
   /** The cursor ID that points to the last element returned, if there is one */
   endCursor: Maybe<Scalars['ID']['output']>;
   /** Whether there are more elements past the last element of the response */
@@ -1611,7 +1611,7 @@ export type PlatformProjectIdentifier = {
 };
 
 export type Query = {
-  __typename: 'Query';
+  __typename?: 'Query';
   /** Query a game version based on the Minecraft version and the loader */
   gameVersion: Maybe<GameVersion>;
   /** Get all indexed game versions */
@@ -1631,7 +1631,7 @@ export type QueryGameVersionsArgs = {
 
 /** A Minecraft recipe file */
 export type RecipeFile = ModOwned & {
-  __typename: 'RecipeFile';
+  __typename?: 'RecipeFile';
   /** The mod that owns this object */
   mod: LightweightMod;
   /** The name of this recipe (e.g. `minecraft:composter`) */
@@ -1644,7 +1644,7 @@ export type RecipeFile = ModOwned & {
 
 /** A connection (list) composed of `RecipeFile`. */
 export type RecipeFileConnection = {
-  __typename: 'RecipeFileConnection';
+  __typename?: 'RecipeFileConnection';
   /** Identifies the amount of items in the returned edges. */
   count: Scalars['Int']['output'];
   /** A list of edges. */
@@ -1655,7 +1655,7 @@ export type RecipeFileConnection = {
 
 /** An edge of a `RecipeFile`. */
 export type RecipeFileEdge = {
-  __typename: 'RecipeFileEdge';
+  __typename?: 'RecipeFileEdge';
   /** The cursor ID of the element. */
   cursor: Scalars['ID']['output'];
   /** The item at the end of the edge. */
@@ -1689,7 +1689,7 @@ export type RecipeFilePredicate = {
 
 /** Represents a reference in the form of the class referencing the method/field and how many times it is referenced in that class */
 export type Reference = {
-  __typename: 'Reference';
+  __typename?: 'Reference';
   /** The class in which this reference is contained */
   owner: ClassDefinition;
   /** How many times the referenced method/field was referenced in the class */
@@ -1745,7 +1745,7 @@ export type ReferenceableReferencesArgs = {
 
 /** Represents a reference to a field within a concrete class definition */
 export type ReferencedField = {
-  __typename: 'ReferencedField';
+  __typename?: 'ReferencedField';
   /** The name of the class of the referenced field */
   class: Scalars['String']['output'];
   /** The name of the referenced field */
@@ -1758,7 +1758,7 @@ export type ReferencedField = {
 
 /** Represents a reference to a method within a concrete class definition */
 export type ReferencedMethod = {
-  __typename: 'ReferencedMethod';
+  __typename?: 'ReferencedMethod';
   /** The name of the class of the referenced method */
   class: Scalars['String']['output'];
   /** The descriptor of the referenced method */
@@ -1801,7 +1801,7 @@ export type StringPredicate = {
 
 /** A tag entry */
 export type TagEntry = ModOwned & {
-  __typename: 'TagEntry';
+  __typename?: 'TagEntry';
   /**
    * The entry that is added to the tag.
    * This might be a fully qualified registry object (e.g. `minecraft:spruce_door`) or another tag (e.g. `#minecraft:planks`).
@@ -1815,7 +1815,7 @@ export type TagEntry = ModOwned & {
 
 /** A connection (list) composed of `TagEntry`. */
 export type TagEntryConnection = {
-  __typename: 'TagEntryConnection';
+  __typename?: 'TagEntryConnection';
   /** Identifies the amount of items in the returned edges. */
   count: Scalars['Int']['output'];
   /** A list of edges. */
@@ -1826,7 +1826,7 @@ export type TagEntryConnection = {
 
 /** An edge of a `TagEntry`. */
 export type TagEntryEdge = {
-  __typename: 'TagEntryEdge';
+  __typename?: 'TagEntryEdge';
   /** The cursor ID of the element. */
   cursor: Scalars['ID']['output'];
   /** The item at the end of the edge. */
@@ -1858,7 +1858,7 @@ export type TagEntryPredicate = {
 
 /** A Minecraft tag file */
 export type TagFile = {
-  __typename: 'TagFile';
+  __typename?: 'TagFile';
   /** The entries added to this tag. These can be either normal objects (e.g. minecraft:stone) or other tags, denoted by a # at the start (e.g. #minecraft:head_armor) */
   entries: Array<Scalars['String']['output']>;
   /** The name of this tag (e.g. minecraft:mineable/pickaxe) */
@@ -1909,7 +1909,7 @@ export type GetImplementationsQueryVariables = Exact<{
 }>;
 
 
-export type GetImplementationsQuery = { gameVersion: { __typename: 'GameVersion', class: { __typename: 'Class', inheritors: Array<{ __typename: 'InheritanceTreeClass', name: string, definitions: Array<{ __typename: 'ClassDefinition', mod: { __typename: 'LightweightMod', id: number, name: string } }> }> } | null } | null };
+export type GetImplementationsQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', class: { __typename?: 'Class', inheritors: Array<{ __typename?: 'InheritanceTreeClass', name: string, definitions: Array<{ __typename?: 'ClassDefinition', mod: { __typename?: 'LightweightMod', id: number, name: string } }> }> } | null } | null };
 
 export type GetClassesAnnotatedQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1920,7 +1920,7 @@ export type GetClassesAnnotatedQueryVariables = Exact<{
 }>;
 
 
-export type GetClassesAnnotatedQuery = { gameVersion: { __typename: 'GameVersion', classDefinitions: { __typename: 'ClassDefinitionConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'ClassDefinitionEdge', node: { __typename: 'ClassDefinition', name: string, mod: { __typename: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename: 'Annotation', value: unknown | null }> } }> } } | null };
+export type GetClassesAnnotatedQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', classDefinitions: { __typename?: 'ClassDefinitionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'ClassDefinitionEdge', node: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename?: 'Annotation', value: any | null }> } }> } } | null };
 
 export type GetRecipesQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1930,7 +1930,7 @@ export type GetRecipesQueryVariables = Exact<{
 }>;
 
 
-export type GetRecipesQuery = { gameVersion: { __typename: 'GameVersion', recipes: { __typename: 'RecipeFileConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'RecipeFileEdge', node: { __typename: 'RecipeFile', name: string, recipe: unknown, type: string, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };
+export type GetRecipesQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', recipes: { __typename?: 'RecipeFileConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'RecipeFileEdge', node: { __typename?: 'RecipeFile', name: string, recipe: any, type: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> } } | null };
 
 export type GetTagEntriesQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1941,7 +1941,7 @@ export type GetTagEntriesQueryVariables = Exact<{
 }>;
 
 
-export type GetTagEntriesQuery = { gameVersion: { __typename: 'GameVersion', tagEntries: { __typename: 'TagEntryConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'TagEntryEdge', node: { __typename: 'TagEntry', tag: string, entry: string, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };
+export type GetTagEntriesQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', tagEntries: { __typename?: 'TagEntryConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'TagEntryEdge', node: { __typename?: 'TagEntry', tag: string, entry: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> } } | null };
 
 export type GetEnumExtensionsQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1951,7 +1951,7 @@ export type GetEnumExtensionsQueryVariables = Exact<{
 }>;
 
 
-export type GetEnumExtensionsQuery = { gameVersion: { __typename: 'GameVersion', enumExtensions: { __typename: 'EnumExtensionConnection', pageInfo: { __typename: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename: 'EnumExtensionEdge', node: { __typename: 'EnumExtension', name: string, constructor: string, parameters: unknown, mod: { __typename: 'LightweightMod', id: number, name: string } } }> } } | null };
+export type GetEnumExtensionsQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', enumExtensions: { __typename?: 'EnumExtensionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'EnumExtensionEdge', node: { __typename?: 'EnumExtension', name: string, constructor: string, parameters: any, mod: { __typename?: 'LightweightMod', id: number, name: string, enumExtensionsFile: any | null } } }> } } | null };
 
 export type GetMethodReferencesQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1962,9 +1962,9 @@ export type GetMethodReferencesQueryVariables = Exact<{
 }>;
 
 
-export type GetMethodReferencesQuery = { gameVersion: { __typename: 'GameVersion', class: { __typename: 'Class', methods: Array<{ __typename: 'Method', name: string, descriptor: string, references: Array<{ __typename: 'Reference', owner: { __typename: 'ClassDefinition', name: string, mod: { __typename: 'LightweightMod', id: number, name: string } } }> }> } | null } | null };
+export type GetMethodReferencesQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', class: { __typename?: 'Class', methods: Array<{ __typename?: 'Method', name: string, descriptor: string, references: Array<{ __typename?: 'Reference', owner: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> }> } | null } | null };
 
-export type PlatformInformationFragment = { __typename: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null };
+export type PlatformInformationFragment = { __typename?: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null };
 
 export type GetModInformationQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1973,4 +1973,4 @@ export type GetModInformationQueryVariables = Exact<{
 }>;
 
 
-export type GetModInformationQuery = { gameVersion: { __typename: 'GameVersion', _modInformation: { __typename: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: unknown | null, mavenCoordinates: string | null, curseforge: { __typename: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };
+export type GetModInformationQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', _modInformation: { __typename?: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: any | null, mavenCoordinates: string | null, curseforge: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };

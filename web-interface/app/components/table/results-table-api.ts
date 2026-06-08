@@ -44,7 +44,7 @@ export function modColumn<T>(
 export function fileColumn<T>(
     config: Omit<TableColumn<T, string>, 'renderer'> & {
       mod: (item: T) => Mod,
-      fileName: (value: string, item: T) => FileSelection | undefined
+      fileName: (value: string, item: T) => FileSelection | null
     },
     selectedFile: Ref<{
       mod: number,

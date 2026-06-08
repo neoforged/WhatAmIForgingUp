@@ -1,10 +1,10 @@
 import type {ClassDefinitionPredicate, RecipeFilePredicate} from "~~/graphql-requests/types/__generated__/graphql";
-import {optional, parameters, queryType, renderAsTable} from "~/query/query-builder";
+import {optional, parameters, type QueryType, queryType, renderAsTable} from "~/query/query-builder";
 import {queryToPredicate} from "~/utils/query-utils";
 import {classSearch, methodSearch} from "~/utils/autocomplete";
 import {METHOD_REFERENCES} from "~~/graphql-requests/methods";
 import {codeColumn, fileColumn, modColumn} from "~/components/table/results-table-api";
-import {getClassSourceFileName, getRecipeSourceFileName, sanitise} from "~/utils/utils";
+import {fileNamed, getClassSourceFileName, getRecipeSourceFileName, sanitise} from "~/utils/utils";
 import {CLASSES_ANNOTATED, IMPLEMENTATIONS} from "~~/graphql-requests/classes";
 import {GET_ENUM_EXTENSIONS, RECIPES} from "~~/graphql-requests/data_files";
 import {predicateQueryParameter, stringQueryParameter} from "~/query/query-parameters";
@@ -318,7 +318,7 @@ export const ENUM_EXTENSIONS_QUERY = queryType(
     }>(params => ({
       enum: stringQueryParameter({
         label: 'Enum',
-        placeholder:' com.example.ExampleEnum',
+        placeholder: 'com.example.ExampleEnum',
         autocomplete: classSearch(params.version)
       })
     })),
@@ -334,8 +334,8 @@ export const ENUM_EXTENSIONS_QUERY = queryType(
       constructor: value.constructor,
       parameters: Array.isArray(value.parameters)
         ? `(${value.parameters.join(', ')})`
-        : `${(value.parameters as any)?.class.replaceAll('/', '.')}.${(value.parameters as any).field ?? (value.parameters as any).method}`,
-      parametersClass: (value.parameters as any).class
+        : `${value.parameters.class?.replaceAll('/', '.')}.${value.parameters.field ?? value.parameters.method}`,
+      parametersClass: value.parameters.class
     }))),
     renderAsTable([
       modColumn({
@@ -343,10 +343,12 @@ export const ENUM_EXTENSIONS_QUERY = queryType(
         groupable: true,
         value: item => item.mod
       }),
-      {
+      fileColumn({
         title: 'Extension name',
-        value: item => item.name
-      },
+        value: item => item.name,
+        mod: item => item.mod,
+        fileName: (_, item) => item.mod.enumExtensionsFile ? fileNamed(item.mod.enumExtensionsFile) : null
+      }),
       {
         title: 'Constructor',
         groupable: true,
@@ -356,7 +358,72 @@ export const ENUM_EXTENSIONS_QUERY = queryType(
         title: 'Parameters',
         value: item => item.parameters,
         mod: item => item.mod,
-        fileName: (_, item) => item.parametersClass ? getClassSourceFileName(item.parametersClass) : undefined
+        fileName: (_, item) => item.parametersClass ? getClassSourceFileName(item.parametersClass) : null
       })
     ])
 )
+
+export const QUERIES: {
+  group: string
+  path: string
+  queries: {
+    name: string
+    path: string
+    query: QueryType<any, any>
+  }[]
+}[] = [
+  {
+    group: 'Classes',
+    path: 'classes',
+    queries: [
+      {
+        name: 'Annotated Classes',
+        path: 'annotated-classes',
+        query: CLASSES_ANNOTATED_QUERY
+      },
+      {
+        name: 'Implementations',
+        path: 'implementations',
+        query: IMPLEMENTATIONS_QUERY
+      },
+      {
+        name: 'Method References',
+        path: 'method-references',
+        query: METHOD_REFERENCES_QUERY
+      },
+    ]
+  },
+  {
+    group: 'Mixins',
+    path: 'mixin',
+    queries: [
+      {
+        name: 'Mixins targetting Classes in Package',
+        path: 'mixins-package',
+        query: MIXINS_PACKAGE_QUERY
+      }
+    ]
+  },
+  {
+    group: 'Data Files',
+    path: 'data-files',
+    queries: [
+      {
+        name: 'Recipes',
+        path: 'recipes',
+        query: RECIPES_QUERY
+      }
+    ]
+  },
+  {
+    group: 'NeoForge',
+    path: 'neoforge',
+    queries: [
+      {
+        name: 'Enum Extensions',
+        path: 'enum-extensions',
+        query: ENUM_EXTENSIONS_QUERY
+      }
+    ]
+  }
+]

@@ -148,29 +148,53 @@ watch(file, newValue => {
           repo.value = repository
           getGitHubBranches(repository.owner, repository.repo)
               .then(repoBranches => {
-                const [mcVersion, loader] = props.version!!.split('-')
+                const [mcVersion, loader] = props.version!.split('-')
 
                 branches.value = repoBranches
                 if (repoBranches.length == 0) {
                   error.value = `Linked repository is empty (https://github.com/${repository.owner}/${repository.repo}).`
+                  return
                 }
-
                 // The simplest scenario: repo has only one branch
-                else if (repoBranches.length == 1) {
+                if (repoBranches.length == 1) {
                   selectedBranch.value = repoBranches[0]!!
-                }
-                // Repo has a branch named after the mc version
-                else if (repoBranches.includes(mcVersion!!)) {
-                  selectedBranch.value = mcVersion!!
+                  return
                 }
 
-                // Repo has a branch named loader/mcVersion
-                else if (repoBranches.includes(`${loader!!.toLowerCase()}/${mcVersion}`)) {
-                  selectedBranch.value = `${loader!!.toLowerCase()}/${mcVersion}`
+                const attemptSelection = (branches: (string | null)[]) => {
+                  for (let branch of branches) {
+                    if (branch && repoBranches.includes(branch)) {
+                      selectedBranch.value = branch
+                      return
+                    }
+                  }
                 }
-                // Special case of the above for neo
-                else if (loader?.toLowerCase() == 'neoforge' && repoBranches.includes(`neo/${mcVersion}`)) {
-                  selectedBranch.value = `neo/${mcVersion}`
+
+                const selectBranchAutomatically = (minecraft: string) => {
+                  attemptSelection([
+                    // Repo has a branch named after the mc version
+                    minecraft,
+
+                    // Repo has a branch named loader/mcVersion
+                    `${loader!.toLowerCase()}/${minecraft}`,
+                    // Special case of the above for neo
+                    loader?.toLowerCase() == 'neoforge' ? `neo/${minecraft}` : null,
+
+                    // Repo has a branch named loader-mcVersion
+                    `${loader!.toLowerCase()}-${minecraft}`,
+                    // Special case of the above for neo
+                    loader?.toLowerCase() == 'neoforge' ? `neo-${minecraft}` : null,
+                  ])
+                }
+
+                // First attempt selecting a branch based on the exact Minecraft verison
+                selectBranchAutomatically(mcVersion!)
+
+                // Otherwise keep removing components until a match can be found (e.g. 1.21.1 -> 1.21)
+                const mcSplit = mcVersion!.split('.')
+                while (mcSplit.length > 1 && !selectedBranch.value) {
+                  mcSplit.pop()
+                  selectBranchAutomatically(mcSplit.join('.'))
                 }
               })
         }

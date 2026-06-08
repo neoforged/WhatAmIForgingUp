@@ -19,8 +19,24 @@
           v-model="drawer"
           temporary
       >
-        <v-list nav>
-          <v-list-item prepend-icon="mdi-database-search" title="Queries" to="/queries/" router/>
+        <v-list density="compact" variant="text" rounded slim nav>
+          <v-list-group value="Queries" nav>
+            <template v-slot:activator="{ props }">
+              <v-list-item
+                  v-bind="props"
+                  prepend-icon="mdi-database-search"
+                  title="Queries"
+              ></v-list-item>
+            </template>
+            <v-list-item title="All Queries" to="/queries/" router/>
+            <component v-for="group in QUERIES">
+              <v-divider class="ma-1 ms-10"/>
+              <v-list-subheader class="text-high-emphasis text-uppercase font-weight-black" :title="group.group" />
+              <v-list-item v-for="q in group.queries"
+                           :title="q.name"
+                           router :to="`/queries/${group.path}/${q.path}`"/>
+            </component>
+          </v-list-group>
         </v-list>
       </v-navigation-drawer>
       <v-main>
@@ -57,6 +73,7 @@
 import {getOAuthURL, redirectToOAuth} from '~/utils/api-utils'
 import {deleteCookieByName} from '~/utils/utils'
 import {useAlerts} from "~/utils/alerts";
+import {QUERIES} from "~/query/queries";
 
 const alerts = useAlerts()
 const hasAlerts = computed(() => alerts.value.length > 0)

@@ -1,7 +1,6 @@
 package net.neoforged.waifu;
 
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
-import io.javalin.http.ContentType;
 import io.javalin.http.Header;
 import io.javalin.http.staticfiles.Location;
 import net.neoforged.waifu.db.DataSanitizer;
@@ -105,14 +104,14 @@ public class Main {
                 );
             });
 
+            if (Main.class.getResource("/web/static/index.html") != null) {
+                cfg.spaRoot.addFile("/", "/web/static/index.html");
+            }
+
             cfg.bundledPlugins.enableCors(cors -> cors.addRule(r -> {
                 r.anyHost();
                 r.exposeHeader("x-ratelimit-reset");
             }));
-
-            if (Main.class.getResource("/web/static/404.html") != null) {
-                cfg.routes.error(404, ctx -> ctx.contentType(ContentType.HTML).result(Main.class.getResourceAsStream("/web/static/404.html")));
-            }
         }, db, tokens);
         web.start();
     }

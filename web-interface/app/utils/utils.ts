@@ -33,8 +33,24 @@ export function getClassSourceFileName(className: string): FileSelection {
         const decompResult = await decompile(fileName, {
           source: async (name) => name == fileName ? await zipFile.async('uint8array') : null
         })
-        const content = decompResult[rootClassName]
+        const content = decompResult[className.replaceAll('.', '/')] ?? decompResult[rootClassName]
         return content ? {content: content} : {error: `Decompilation failed or class named ${fileName} does not exist in mod file.`}
+      }
+    }
+  }
+}
+
+export function fileNamed(name: string): FileSelection {
+  return {
+    name,
+    binaryExtractor: async zip => {
+      const zipFile = Object.values(zip.files)
+          .find(f => f.name.endsWith(name))
+
+      if (!zipFile) {
+        return {error: `Cannot find file named ${name} in mod file.`}
+      } else {
+        return {content: await zipFile.async('string')}
       }
     }
   }
@@ -42,21 +58,7 @@ export function getClassSourceFileName(className: string): FileSelection {
 
 export function getRecipeSourceFileName(recipeName: string): FileSelection {
   // TODO - we should try to use the namespace too, for more accurate matching. That will however require being able to find a file based on several names (recipe/recipes)
-  const fileName = recipeName.split(':').pop()!! + '.json'
-  return {
-    name: fileName,
-
-    binaryExtractor: async zip => {
-      const zipFile = Object.values(zip.files)
-          .find(f => f.name.endsWith(fileName))
-
-      if (!zipFile) {
-        return {error: `Cannot find file named ${fileName} in mod file.`}
-      } else {
-        return {content: await zipFile.async('string')}
-      }
-    }
-  }
+  return fileNamed(recipeName.split(':').pop()!! + '.json')
 }
 
 export function grouper(groups: {
