@@ -2,6 +2,7 @@ package net.neoforged.waifu.web.api;
 
 import io.javalin.http.Context;
 import io.javalin.http.Handler;
+import net.neoforged.waifu.Main;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +39,11 @@ public class PlatformCDNProxy {
         HttpURLConnection conn = (HttpURLConnection) target.openConnection();
         conn.setRequestMethod("GET");
         conn.setInstanceFollowRedirects(true);
+
+        // See https://blog.curseforge.com/introducing-api-key-authentication-for-curseforge-file-downloads/
+        if (host.equals("edge.forgecdn.net")) {
+            conn.setRequestProperty("x-api-key", Main.CURSE_FORGE_API.getApiKey());
+        }
 
         int code = conn.getResponseCode();
         if (code >= 400) {
