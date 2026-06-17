@@ -4,10 +4,10 @@ import net.neoforged.srgutils.IMappingFile;
 import net.neoforged.waifu.index.Remapper;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.meta.ModFileReader;
+import net.neoforged.waifu.util.ForgeJarProvider;
 import net.neoforged.waifu.util.MinecraftJarProvider;
 import net.neoforged.waifu.util.MinecraftMetaUtils;
 import net.neoforged.waifu.util.NeoForgeJarProvider;
-import net.neoforged.waifu.util.ThrowingFunction;
 import net.neoforged.waifu.util.Utils;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
@@ -30,8 +30,11 @@ public enum ModLoader {
             NeoForgeJarProvider::provide
     ), ModFileReader.NEOFORGE),
 
-    // TODO - forge jar provider. Will be a bit of a pain because of tool mismatches
-    FORGE("Forge", "https://github.com/minecraftforge.png", null, ModFileReader.FORGE) {
+    FORGE("Forge", "https://github.com/minecraftforge.png", new VersionProvider(
+            "net.minecraftforge:forge",
+            ForgeJarProvider::getLatestVersion,
+            ForgeJarProvider::provide
+    ), ModFileReader.FORGE) {
         private static final ArtifactVersion MC_1_20_6 = new DefaultArtifactVersion("1.20.6");
         private static final String MCP_CONFIG_URL =
                 "https://maven.neoforged.net/releases/de/oceanlabs/mcp/mcp_config/%s/mcp_config-%<s.zip";
@@ -81,7 +84,7 @@ public enum ModLoader {
     FABRIC("Fabric", "https://github.com/fabricmc.png", new VersionProvider(
             "net.minecraft:minecraft",
             Function.identity(), // Fabric only needs to process vanilla Minecraft
-            MinecraftJarProvider::provide
+            (minecraftVersion, loaderVersion) -> MinecraftJarProvider.provide(minecraftVersion)
     ), ModFileReader.FABRIC) {
         private static final ArtifactVersion MC_26_1 = new DefaultArtifactVersion("26.1");
         private static final String INTERMEDIARY_URL = "https://maven.fabricmc.net/net/fabricmc/intermediary/%s/intermediary-%<s-v2.jar";
@@ -164,6 +167,10 @@ public enum ModLoader {
     public record VersionProvider(
             String artifactName,
             Function<String, String> latestVersion,
-            ThrowingFunction<String, List<ModFileInfo>, IOException> jarProvider
+            ModLoaderJarProvider jarProvider
     ) {}
+
+    public interface ModLoaderJarProvider {
+        List<ModFileInfo> provide(String minecraftVersion, String loaderVersion) throws IOException;
+    }
 }

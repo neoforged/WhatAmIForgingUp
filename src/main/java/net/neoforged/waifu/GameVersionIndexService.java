@@ -196,7 +196,7 @@ public class GameVersionIndexService implements Runnable {
             var loaderVersion = loaderProvider.latestVersion().apply(version);
             var loaderDbMod = db.getLoaderMod(loaderProvider.artifactName());
 
-            if (loaderDbMod == null || !loaderDbMod.getVersion().equals(loaderVersion)) {
+            if (loaderVersion != null && (loaderDbMod == null || !loaderDbMod.getVersion().equals(loaderVersion))) {
                 LOGGER.info("Indexing loader {} for game version {}. Found new version: {}", loader, version, loaderVersion);
                 try {
                     var indexer = new ModIndexer<>(platformCache, db, version, loader, Remapper.NOOP, List.of(
@@ -204,7 +204,7 @@ public class GameVersionIndexService implements Runnable {
                             // Otherwise we aren't interested in any other data files
                             DataIndexer.just(TagCollector::new)
                     ));
-                    var loaderMods = loaderProvider.jarProvider().apply(loaderVersion);
+                    var loaderMods = loaderProvider.jarProvider().provide(version, loaderVersion);
                     for (ModFileInfo loaderMod : loaderMods) {
                         indexer.indexLoaderMod(loaderMod);
                         loaderMod.close();

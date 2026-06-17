@@ -12,7 +12,8 @@ public record ModInfo(String modId, DefaultArtifactVersion version, String updat
         return new ModInfo(
                 modId,
                 new DefaultArtifactVersion(config.getOrElse("version", "0.0NONE")
-                    .replace("${file.jarVersion}", jarVersion)),
+                    .replace("${file.jarVersion}", jarVersion)
+                    .replace("${global.forgeVersion}", jarVersion)), // This is cursed, but Forge's jar uses this property in the mods.toml instead of file.jarVersion
                 config.get("updateJSONURL"),
                 Optional.ofNullable(config.get("authors")).map(Object::toString).orElse(null),
                 config.getOrElse("displayName", modId),

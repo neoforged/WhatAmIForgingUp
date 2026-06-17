@@ -42,10 +42,16 @@ public class NeoForgeJarProvider {
         return Utils.getJson(URI.create(LATEST_VERSION_URL.formatted(neoPrefix)), Response.class).version();
     }
 
-    public static List<ModFileInfo> provide(String neoVersion) throws IOException {
-        var mcVersion = getMcVersion(neoVersion);
+    public static List<ModFileInfo> provide(String mcVersion, String neoVersion) throws IOException {
+        return provide("net.neoforged:neoforge", DOWNLOAD_URL, ModFileReader.NEOFORGE, mcVersion, neoVersion, neoVersion);
+    }
 
-        var installationFolder = Main.CACHE.resolve("loader/neoforge").toAbsolutePath();
+    static List<ModFileInfo> provide(String artifact, String downloadUrl, ModFileReader reader, String mcVersion, String neoVersion, String realVersion) throws IOException {
+        var artifactSplit = artifact.split(":");
+        var group = artifactSplit[0].replace('.', '/');
+        var name = artifactSplit[1];
+
+        var installationFolder = Main.CACHE.resolve("loader/" + name).toAbsolutePath();
         Files.createDirectories(installationFolder);
 
         var launcherProfilePath = installationFolder.resolve("launcher_profiles.json");
@@ -54,18 +60,18 @@ public class NeoForgeJarProvider {
         }
 
         var installer = installationFolder.resolve(neoVersion + "-installer.jar");
-        Utils.download(URI.create(DOWNLOAD_URL.replace("${version}", neoVersion).replace("${type}", "installer")), installer);
+        Utils.download(URI.create(downloadUrl.replace("${version}", neoVersion).replace("${type}", "installer")), installer);
 
         execJar(installer, installationFolder,
-                "--install-client", installationFolder);
+                "--installClient", installationFolder);
 
-        var neoJar = installationFolder.resolve("libraries/net/neoforged/neoforge/" + neoVersion + "/neoforge-" + neoVersion + "-universal.jar");
+        var neoJar = installationFolder.resolve("libraries/" + group + "/" + name + "/" + neoVersion + "/" + name + "-" + neoVersion + "-universal.jar");
 
         Path mcJarPath;
 
         // This is the new combined Jar, which includes unpatched, patched and resources for Minecraft
         // This has been the new way since NeoForge 21.10.37-beta
-        var combinedMinecraftJar = installationFolder.resolve("libraries/net/neoforged/minecraft-client-patched/" + neoVersion + "/minecraft-client-patched-" + neoVersion + ".jar");
+        var combinedMinecraftJar = installationFolder.resolve("libraries/" + group + "/minecraft-client-patched/" + neoVersion + "/minecraft-client-patched-" + neoVersion + ".jar");
         if (Files.exists(combinedMinecraftJar)) {
             mcJarPath = combinedMinecraftJar;
         } else {
@@ -76,10 +82,11 @@ public class NeoForgeJarProvider {
             }
 
             // [net.neoforged:neoform:<version>:mappings@txt]
+            // [de.oceanlabs.mcp:mcp_config:<version>:mappings@txt]
             var neoFormVersion = installProfile.data().get("MAPPINGS").client().split(":")[2];
 
             var mcJarOut = installationFolder.resolve(neoVersion + "-mc.jar");
-            var clientJar = installationFolder.resolve("libraries/net/neoforged/neoforge/" + neoVersion + "/neoforge-" + neoVersion + "-client.jar");
+            var clientJar = installationFolder.resolve("libraries/" + group + "/" + name + "/" + neoVersion + "/" + name + "-" + neoVersion + "-client.jar");
             var srgJar = installationFolder.resolve("libraries/net/minecraft/client/" + neoFormVersion + "/client-" + neoFormVersion + "-srg.jar");
             var assetsJar = installationFolder.resolve("libraries/net/minecraft/client/" + neoFormVersion + "/client-" + neoFormVersion + "-extra.jar");
             merge(mcJarOut, assetsJar, mcVersion, clientJar, srgJar);
@@ -87,20 +94,10 @@ public class NeoForgeJarProvider {
             mcJarPath = mcJarOut;
         }
 
-        var neoMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(neoJar, neoJar), "net.neoforged:neoforge", neoVersion));
-        var mcMod = Objects.requireNonNull(ModFileReader.NEOFORGE.read(ModFilePath.create(mcJarPath, mcJarPath), "net.minecraft:minecraft", mcVersion));
+        var neoMod = Objects.requireNonNull(reader.read(ModFilePath.create(neoJar, neoJar), artifact, realVersion));
+        var mcMod = Objects.requireNonNull(reader.read(ModFilePath.create(mcJarPath, mcJarPath), "net.minecraft:minecraft", mcVersion));
 
         return List.of(neoMod, mcMod);
-    }
-
-    private static String getMcVersion(String neoVersion) {
-        var neoSplit = neoVersion.split("\\.");
-        if (neoSplit.length == 3) { // Old versioning scheme
-            return "1." + neoSplit[0] + (neoSplit[1].equals("0") ? "" : ("." + neoSplit[1]));
-        }
-
-        // New versioning scheme
-        return neoSplit[0] + "." + neoSplit[1] + "." + (neoSplit[2].equals("0") ? "" : ("." + neoSplit[2]));
     }
 
     private static int execJar(Path jar, Path workingDir, Object... args) throws IOException {
