@@ -1,4 +1,9 @@
-import type {ClassDefinitionPredicate, RecipeFilePredicate, TagEntryPredicate} from "~~/graphql-requests/types/__generated__/graphql";
+import type {
+  ClassDefinitionPredicate,
+  RecipeFilePredicate,
+  ReferencePredicate,
+  TagEntryPredicate
+} from "~~/graphql-requests/types/__generated__/graphql";
 import {optional, parameters, type QueryType, queryType, renderAsTable} from "~/query/query-builder";
 import {queryToPredicate} from "~/utils/query-utils";
 import {classSearch, methodSearch, usualRegistries} from "~/utils/autocomplete";
@@ -16,6 +21,7 @@ export const METHOD_REFERENCES_QUERY = queryType(
     parameters<{
       class: string;
       method: string;
+      filter: ReferencePredicate | undefined;
     }>(params => ({
       class: stringQueryParameter({
         label: 'Class',
@@ -26,13 +32,18 @@ export const METHOD_REFERENCES_QUERY = queryType(
         label: 'Method',
         placeholder: 'exampleMethod',
         autocomplete: methodSearch(params.version, params.class)
-      })
+      }),
+      filter: optional(predicateQueryParameter({
+        label: 'Filter',
+        type: 'ReferencePredicate'
+      }))
     })),
     async (client, params) => fetchWithVersion(client.apollo, METHOD_REFERENCES, {
       class: params.class.value!.replaceAll('.', '/'),
       methodFilter: {
         name: queryToPredicate(params.method.value)
-      }
+      },
+      filter: params.filter.value
     }, params.version.value)
         .then((result) =>
             result?.gameVersion?.class?.methods?.flatMap(mtd =>

@@ -149,6 +149,16 @@ addLogicPredicate('TagEntryPredicate', {
   }
 })
 
+addLogicPredicate('ReferencePredicate', {
+  fields: {
+    mod: {
+      type: 'ModPredicate',
+      name: 'Mod',
+      hint: 'Test against the mod in which the reference is found'
+    }
+  }
+})
+
 function addLogicPredicate(name: string, pred: PredicateType) {
   pred.fields = {
     ...pred.fields,
