@@ -77,6 +77,21 @@ public class InternalAPI {
                     .execute(this::collectAsList)));
         });
 
+        config.get("/api/internal/autocomplete/field", ctx -> {
+            var jdbi = Main.DB_MANAGER.setupReadOnlyConnection(
+                    Objects.requireNonNull(ctx.queryParam("version")),
+                    GraphQLWebService.getLoader(Objects.requireNonNull(ctx.queryParam("loader")))
+            );
+
+            var clazz = ctx.queryParam("class");
+            var currentQuery = ctx.queryParam("query");
+
+            ctx.json(jdbi.withHandle(handle -> handle.createQuery("select constants.constant from fields join classes on classes.name = ? and fields.cls = classes.id join constants on fields.name = constants.id and constants.constant like ?")
+                    .bind(0, clazz)
+                    .bind(1, "%" + currentQuery + "%")
+                    .execute(this::collectAsList)));
+        });
+
         config.get("/api/internal/cdn-proxy", PlatformCDNProxy::proxy);
     }
 

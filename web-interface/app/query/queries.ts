@@ -6,7 +6,7 @@ import type {
 } from "~~/graphql-requests/types/__generated__/graphql";
 import {optional, parameters, type QueryType, queryType, renderAsTable} from "~/query/query-builder";
 import {queryToPredicate} from "~/utils/query-utils";
-import {classSearch, methodSearch, usualRegistries} from "~/utils/autocomplete";
+import {classSearch, fieldSearch, methodSearch, usualRegistries} from "~/utils/autocomplete";
 import {METHOD_REFERENCES} from "~~/graphql-requests/methods";
 import {codeColumn, fileColumn, modColumn} from "~/components/table/results-table-api";
 import {fileNamed, getClassSourceFileName, getRecipeSourceFileName, sanitise} from "~/utils/utils";
@@ -15,6 +15,7 @@ import {GET_ENUM_EXTENSIONS, RECIPES} from "~~/graphql-requests/data_files";
 import {predicateQueryParameter, stringQueryParameter} from "~/query/query-parameters";
 import {buildTagContainmentTree, build} from "~/components/table/tags-containing.vue"
 import TagsContaining from "~/components/table/tags-containing.vue"
+import {FIELD_REFERENCES} from "~~/graphql-requests/fields";
 
 export const METHOD_REFERENCES_QUERY = queryType(
     () => h('span', 'Query direct references to the given method.'),
@@ -71,6 +72,65 @@ export const METHOD_REFERENCES_QUERY = queryType(
         title: 'Referenced Method',
         groupable: true,
         value: item => item.mtd,
+      }
+    ])
+)
+
+export const FIELD_REFERENCES_QUERY = queryType(
+    () => h('span', 'Query direct references to the given field.'),
+    parameters<{
+      class: string;
+      field: string;
+      filter: ReferencePredicate | undefined;
+    }>(params => ({
+      class: stringQueryParameter({
+        label: 'Class',
+        placeholder: 'com.example.ExampleClass',
+        autocomplete: classSearch(params.version)
+      }),
+      field: stringQueryParameter({
+        label: 'Field',
+        placeholder: 'exampleField',
+        autocomplete: fieldSearch(params.version, params.class)
+      }),
+      filter: optional(predicateQueryParameter({
+        label: 'Filter',
+        type: 'ReferencePredicate'
+      }))
+    })),
+    async (client, params) => fetchWithVersion(client.apollo, FIELD_REFERENCES, {
+      class: params.class.value!.replaceAll('.', '/'),
+      fieldFilter: {
+        name: queryToPredicate(params.field.value)
+      },
+      filter: params.filter.value
+    }, params.version.value)
+        .then((result) =>
+            result?.gameVersion?.class?.fields?.flatMap(fld =>
+                fld.references.map(ref => ({
+                  mod: ref.owner.mod,
+                  cls: ref.owner.name,
+                  fld: fld.name
+                }))
+            ) ?? []),
+
+    renderAsTable([
+      modColumn({
+        title: 'Mod',
+        groupable: true,
+        value: item => item.mod
+      }),
+      fileColumn({
+        title: 'Class',
+        groupable: true,
+        value: item => item.cls,
+        mod: item => item.mod,
+        fileName: getClassSourceFileName
+      }),
+      {
+        title: 'Referenced Field',
+        groupable: true,
+        value: item => item.fld,
       }
     ])
 )
@@ -438,6 +498,11 @@ export const QUERIES: {
         name: 'Implementations',
         path: 'implementations',
         query: IMPLEMENTATIONS_QUERY
+      },
+      {
+        name: 'Field References',
+        path: 'field-references',
+        query: FIELD_REFERENCES_QUERY
       },
       {
         name: 'Method References',

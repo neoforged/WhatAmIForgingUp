@@ -1909,7 +1909,7 @@ export type GetImplementationsQueryVariables = Exact<{
 }>;
 
 
-export type GetImplementationsQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', class: { __typename?: 'Class', inheritors: Array<{ __typename?: 'InheritanceTreeClass', name: string, definitions: Array<{ __typename?: 'ClassDefinition', mod: { __typename?: 'LightweightMod', id: number, name: string } }> }> } | null } | null };
+export type GetImplementationsQuery = { gameVersion: { __typename?: 'GameVersion', class: { __typename?: 'Class', inheritors: Array<{ __typename?: 'InheritanceTreeClass', name: string, definitions: Array<{ __typename?: 'ClassDefinition', mod: { __typename?: 'LightweightMod', id: number, name: string } }> }> } | null } | null };
 
 export type GetClassesAnnotatedQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1920,7 +1920,7 @@ export type GetClassesAnnotatedQueryVariables = Exact<{
 }>;
 
 
-export type GetClassesAnnotatedQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', classDefinitions: { __typename?: 'ClassDefinitionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'ClassDefinitionEdge', node: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename?: 'Annotation', value: any | null }> } }> } } | null };
+export type GetClassesAnnotatedQuery = { gameVersion: { __typename?: 'GameVersion', classDefinitions: { __typename?: 'ClassDefinitionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'ClassDefinitionEdge', node: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename?: 'Annotation', value: any | null }> } }> } } | null };
 
 export type GetRecipesQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1930,7 +1930,7 @@ export type GetRecipesQueryVariables = Exact<{
 }>;
 
 
-export type GetRecipesQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', recipes: { __typename?: 'RecipeFileConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'RecipeFileEdge', node: { __typename?: 'RecipeFile', name: string, recipe: any, type: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> } } | null };
+export type GetRecipesQuery = { gameVersion: { __typename?: 'GameVersion', recipes: { __typename?: 'RecipeFileConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'RecipeFileEdge', node: { __typename?: 'RecipeFile', name: string, recipe: any, type: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> } } | null };
 
 export type GetTagEntriesQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1941,7 +1941,7 @@ export type GetTagEntriesQueryVariables = Exact<{
 }>;
 
 
-export type GetTagEntriesQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', tagEntries: { __typename?: 'TagEntryConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'TagEntryEdge', node: { __typename?: 'TagEntry', tag: string, entry: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> } } | null };
+export type GetTagEntriesQuery = { gameVersion: { __typename?: 'GameVersion', tagEntries: { __typename?: 'TagEntryConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'TagEntryEdge', node: { __typename?: 'TagEntry', tag: string, entry: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> } } | null };
 
 export type GetEnumExtensionsQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1951,7 +1951,18 @@ export type GetEnumExtensionsQueryVariables = Exact<{
 }>;
 
 
-export type GetEnumExtensionsQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', enumExtensions: { __typename?: 'EnumExtensionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'EnumExtensionEdge', node: { __typename?: 'EnumExtension', name: string, constructor: string, parameters: any, mod: { __typename?: 'LightweightMod', id: number, name: string, enumExtensionsFile: any | null } } }> } } | null };
+export type GetEnumExtensionsQuery = { gameVersion: { __typename?: 'GameVersion', enumExtensions: { __typename?: 'EnumExtensionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'EnumExtensionEdge', node: { __typename?: 'EnumExtension', name: string, constructor: string, parameters: any, mod: { __typename?: 'LightweightMod', id: number, name: string, enumExtensionsFile: any | null } } }> } } | null };
+
+export type GetFieldReferencesQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  class: Scalars['String']['input'];
+  fieldFilter: FieldPredicate;
+  filter?: InputMaybe<ReferencePredicate>;
+}>;
+
+
+export type GetFieldReferencesQuery = { gameVersion: { __typename?: 'GameVersion', class: { __typename?: 'Class', fields: Array<{ __typename?: 'Field', name: string, type: string, references: Array<{ __typename?: 'Reference', owner: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> }> } | null } | null };
 
 export type GetMethodReferencesQueryVariables = Exact<{
   version: Scalars['String']['input'];
@@ -1962,7 +1973,7 @@ export type GetMethodReferencesQueryVariables = Exact<{
 }>;
 
 
-export type GetMethodReferencesQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', class: { __typename?: 'Class', methods: Array<{ __typename?: 'Method', name: string, descriptor: string, references: Array<{ __typename?: 'Reference', owner: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> }> } | null } | null };
+export type GetMethodReferencesQuery = { gameVersion: { __typename?: 'GameVersion', class: { __typename?: 'Class', methods: Array<{ __typename?: 'Method', name: string, descriptor: string, references: Array<{ __typename?: 'Reference', owner: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> }> } | null } | null };
 
 export type PlatformInformationFragment = { __typename?: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null };
 
@@ -1973,4 +1984,4 @@ export type GetModInformationQueryVariables = Exact<{
 }>;
 
 
-export type GetModInformationQuery = { __typename?: 'Query', gameVersion: { __typename?: 'GameVersion', _modInformation: { __typename?: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: any | null, mavenCoordinates: string | null, curseforge: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };
+export type GetModInformationQuery = { gameVersion: { __typename?: 'GameVersion', _modInformation: { __typename?: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: any | null, mavenCoordinates: string | null, curseforge: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };

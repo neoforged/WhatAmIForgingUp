@@ -30,6 +30,16 @@ export function methodSearch(versionRef: MaybeRef<string | undefined>, clsRef: M
   }
 }
 
+export function fieldSearch(versionRef: MaybeRef<string | undefined>, clsRef: MaybeRef<string | undefined>): AutoCompleteStrategy {
+  return async value => {
+    const version = unwrap(versionRef), cls = unwrap(clsRef)
+    if (!version || !cls) return []
+    const splitVersion = version.split('-')
+    return await fetch(`${getBaseUrl()}/api/internal/autocomplete/field?version=${splitVersion[0]}&loader=${splitVersion[1]}&class=${cls.replaceAll('.', '/')}&query=${value ?? ''}`)
+        .then(async res => await res.json() as string[])
+  }
+}
+
 const registries = ['minecraft:item', 'minecraft:block', 'minecraft:fluid']
 export function usualRegistries(): AutoCompleteStrategy {
   return async value => registries
