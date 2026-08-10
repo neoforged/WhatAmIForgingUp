@@ -3,7 +3,6 @@ package net.neoforged.waifu.db;
 import net.neoforged.waifu.Main;
 import net.neoforged.waifu.meta.ModFileInfo;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformProject;
 import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.ThrowingConsumer;
 import org.jetbrains.annotations.Nullable;
@@ -17,7 +16,7 @@ public interface IndexDatabase<T extends IndexDatabase.DatabaseMod<T>> extends A
     T getMod(PlatformProjectFile platformModFile);
 
     @Nullable
-    T getMod(PlatformProject platformMod);
+    T getModByProjectId(ModPlatform platform, Object id);
 
     List<T> getMods(ModPlatform platform, List<Object> projectIds);
 

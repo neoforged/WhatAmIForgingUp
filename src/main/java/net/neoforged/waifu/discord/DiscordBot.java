@@ -26,7 +26,6 @@ import net.neoforged.waifu.ModIndexer;
 import net.neoforged.waifu.db.IndexDatabase;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.ModPlatform;
-import net.neoforged.waifu.platform.PlatformProject;
 import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.Counter;
 import net.neoforged.waifu.util.DateUtils;
@@ -368,21 +367,20 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             protected void execute(SlashCommandEvent event) {
                 event.deferReply().complete();
 
-                PlatformProject mod;
+                ModPlatform platform;
+                Object id;
                 if (event.hasOption("curseforge")) {
-                    mod = Main.CURSE_FORGE_PLATFORM.getProjectById(event.getOption("curseforge", OptionMapping::getAsInt));
+                    platform = Main.CURSE_FORGE_PLATFORM;
+                    id = event.getOption("curseforge", OptionMapping::getAsInt);
                 } else {
-                    mod = Main.MODRINTH_PLATFORM.getProjectById(event.optString("modrinth"));
-                }
-                if (mod == null) {
-                    event.getHook().sendMessage("Cannot find a mod with the given ID!").queue();
-                    return;
+                    platform = Main.MODRINTH_PLATFORM;
+                    id = event.optString("modrinth");
                 }
 
                 try (var db = Main.createDatabase(event.optString("version"), ModLoader.valueOf(event.optString("loader")))) {
-                    var dbMod = db.getMod(mod);
+                    var dbMod = db.getModByProjectId(platform, id);
                     if (dbMod == null) {
-                        event.getHook().sendMessage("Mod is not indexed!").queue();
+                        event.getHook().sendMessage("Mod is not indexed or does not exist!").queue();
                     } else {
                         dbMod.delete();
                         event.getHook().sendMessage("Mod `" + dbMod.getName() + "` deleted!").queue();
@@ -432,7 +430,7 @@ public class DiscordBot implements GameVersionIndexService.ListenerFactory {
             {
                 name = "remove-pins";
                 help = "Remove all pins";
-                userPermissions = new Permission[] { Permission.PIN_MESSAGES };
+                userPermissions = new Permission[] {Permission.PIN_MESSAGES};
             }
 
             @Override
