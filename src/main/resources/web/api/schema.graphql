@@ -828,6 +828,9 @@ input ModPredicate @predicateType @oneOf {
 
     "A mod will match if the date it has last been indexed on matches the given predicate"
     indexed: DatePredicate
+
+    "Filter based on whether the mod is a loader mod or not (the Minecraft and Neo/Forge jars)."
+    isLoader: Boolean
 }
 
 "Represents the ID/slug of a project on CurseForge or Modrinth"

@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
 
 @FunctionalInterface
 public interface SqlFilter {
+    FilterType BOOL_FILTER = in -> make((field, ctx) -> field + " is " + (((Boolean) in).toString()), lhs -> lhs + " == " + (((Boolean) in).toString()));
+
     FilterType INT_FILTER = builder()
             .castFromJson("%s::int"::formatted)
 
