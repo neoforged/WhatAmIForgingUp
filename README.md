@@ -14,6 +14,7 @@ You will also need the token of a Discord bot invited in a server with Send Mess
 and a CurseForge API key.
 
 This tool [is on GHCR](https://github.com/neoforged/WhatAmIForgingUp/pkgs/container/whatamiforgingup) as a Docker image at `ghcr.io/neoforged/whatamiforgingup`.
+The image is multi-arch and supports both `linux/amd64` (x86-64) and `linux/arm64` — pulling any tag will automatically select the variant matching your host's architecture.
 WhatAmIForgingUp is configured using environment variables:
 - `CF_API_KEY`: a CurseForge API key used for searching and indexing mods available on CurseForge
 - `MODRINTH_API_TOKEN`: an **optional** Modrinth API token used for searching and indexing mods available on Modrinth
