@@ -45,7 +45,7 @@ dependencies {
     implementation 'com.google.guava:guava:33.4.0-jre'
     implementation 'org.apache.maven:maven-artifact:3.9.9'
 
-    implementation 'net.dv8tion:JDA:6.0.0'
+    implementation 'net.dv8tion:JDA:6.6.0'
 
     // TODO - switch back to the normal maven one once https://github.com/Chew/JDA-Chewtils/pull/93 is merged
     // implementation 'pw.chew:jda-chewtils:2.0'
