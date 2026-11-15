@@ -1,5 +1,5 @@
 import type {
-  ClassDefinitionPredicate,
+  ClassDefinitionPredicate, MethodDefinitionPredicate,
   RecipeFilePredicate,
   ReferencePredicate,
   TagEntryPredicate
@@ -7,7 +7,7 @@ import type {
 import {optional, parameters, type QueryType, queryType, renderAsTable} from "~/query/query-builder";
 import {queryToPredicate} from "~/utils/query-utils";
 import {classSearch, fieldSearch, methodSearch, usualRegistries} from "~/utils/autocomplete";
-import {METHOD_REFERENCES} from "~~/graphql-requests/methods";
+import {CLASSES_DEFINING_METHODS, METHOD_REFERENCES} from "~~/graphql-requests/methods";
 import {codeColumn, fileColumn, modColumn} from "~/components/table/results-table-api";
 import {fileNamed, getClassSourceFileName, getRecipeSourceFileName, sanitise} from "~/utils/utils";
 import {CLASSES_ANNOTATED, IMPLEMENTATIONS} from "~~/graphql-requests/classes";
@@ -254,6 +254,55 @@ export const IMPLEMENTATIONS_QUERY = queryType(
       })
     ])
 )
+
+export const CLASSES_DEFINING_METHODS_QUERY = queryType(
+    () => h('span', 'Query classes that define methods matching the given name and/or descriptor'),
+    parameters<{
+      name: string | undefined;
+      descriptor: string | undefined;
+    }>(params => ({
+      name: optional(stringQueryParameter({
+        label: 'Method Name',
+        placeholder: 'getSomething'
+      })),
+      descriptor: optional(stringQueryParameter({
+        label: 'Method Descriptor',
+        placeholder: '()V'
+      }))
+    })),
+    async (client, params) => {
+      const predicates: MethodDefinitionPredicate[] = []
+      if (params.name.value) {
+        predicates.push({name: queryToPredicate(params.name.value)})
+      }
+      if (params.descriptor.value) {
+        predicates.push({descriptor: queryToPredicate(params.descriptor.value)})
+      }
+      const values = await client.fetchPaginated(CLASSES_DEFINING_METHODS, {
+        methodFilter: {
+          allOf: predicates
+        }
+      }, data => (data.gameVersion?.classDefinitions)!);
+      return values.map(item => ({
+        mod: item.mod,
+        cls: item.name.replaceAll('/', '.')
+      }));
+    },
+    renderAsTable([
+      modColumn({
+        title: 'Mod',
+        groupable: true,
+        value: item => item.mod
+      }),
+      fileColumn({
+        title: 'Class',
+        value: item => item.cls,
+        mod: item => item.mod,
+        fileName: getClassSourceFileName
+      })
+    ])
+)
+
 
 export const MIXINS_PACKAGE_QUERY = queryType(
     () => h('span', 'Query mixins targetting classes in the given package. Subpackages are included.'),
@@ -509,6 +558,12 @@ export const QUERIES: {
         path: 'method-references',
         query: METHOD_REFERENCES_QUERY
       },
+
+      {
+        name: 'Classes defining Methods',
+        path: 'classes-defining-methods',
+        query: CLASSES_DEFINING_METHODS_QUERY
+      }
     ]
   },
   {

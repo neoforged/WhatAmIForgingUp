@@ -1,6 +1,7 @@
 import gql from "graphql-tag";
 import type {TypedDocumentNode} from "@apollo/client";
 import type {
+  GetClassesDefiningMethodsQuery, GetClassesDefiningMethodsQueryVariables,
   GetMethodReferencesQuery, GetMethodReferencesQueryVariables
 } from "./types/__generated__/graphql";
 
@@ -20,6 +21,34 @@ export const METHOD_REFERENCES: TypedDocumentNode<
                                  id
                                  name
                              }
+                            name
+                        }
+                    }
+                }
+            }
+        }
+    }
+`;
+
+export const CLASSES_DEFINING_METHODS: TypedDocumentNode<
+    GetClassesDefiningMethodsQuery,
+    GetClassesDefiningMethodsQueryVariables
+> = gql`
+    query GetClassesDefiningMethods($version: String!, $loader: Loader!, $methodFilter: MethodDefinitionPredicate!, $cursor: ID) {
+        gameVersion(loader: $loader, version: $version) {
+            classDefinitions(
+                where: {anyMethod: $methodFilter}, 
+                after: $cursor
+            ) {
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+                edges {
+                    node {
+                        name
+                        mod {
+                            id
                             name
                         }
                     }

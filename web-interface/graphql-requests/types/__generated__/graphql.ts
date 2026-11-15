@@ -1975,6 +1975,16 @@ export type GetMethodReferencesQueryVariables = Exact<{
 
 export type GetMethodReferencesQuery = { gameVersion: { __typename?: 'GameVersion', class: { __typename?: 'Class', methods: Array<{ __typename?: 'Method', name: string, descriptor: string, references: Array<{ __typename?: 'Reference', owner: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> }> } | null } | null };
 
+export type GetClassesDefiningMethodsQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  methodFilter: MethodDefinitionPredicate;
+  cursor?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type GetClassesDefiningMethodsQuery = { gameVersion: { __typename?: 'GameVersion', classDefinitions: { __typename?: 'ClassDefinitionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'ClassDefinitionEdge', node: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> } } | null };
+
 export type PlatformInformationFragment = { __typename?: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null };
 
 export type GetModInformationQueryVariables = Exact<{
