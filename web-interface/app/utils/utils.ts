@@ -134,4 +134,5 @@ export function isMixinInjection(annotation: string): boolean {
   return annotation == 'org/spongepowered/asm/mixin/Overwrite'
     || annotation.startsWith('org/spongepowered/asm/mixin/injection/')
     || annotation.startsWith('com/llamalad7/mixinextras/injector/')
+    || annotation.startsWith('com/bawnorton/mixinsquared/')
 }
