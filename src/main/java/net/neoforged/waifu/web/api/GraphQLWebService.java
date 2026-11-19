@@ -498,7 +498,7 @@ public class GraphQLWebService {
                 }
                 ctx.json(Utils.GSON.toJson(Map.of("data", executionResult.getData())));
             } catch (TimeoutException timeout) {
-                ctx.json(Map.of("error", "Execution timed out"));
+                ctx.json(Map.of("errors", List.of(Map.of("message", "Execution timed out"))));
                 cancellation.forEach(Runnable::run);
                 future.cancel(true);
             }

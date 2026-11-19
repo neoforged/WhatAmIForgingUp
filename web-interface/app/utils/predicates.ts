@@ -74,11 +74,6 @@ addLogicPredicate('StringPredicate', {
       type: ScalarType.STRING,
       hint: '{object} must match the given regular expression. You must use start/end-of-line assertions if you want only full matches.'
     },
-    contains: {
-      name: 'Contains',
-      type: ScalarType.STRING,
-      hint: '{object} must contain the given string'
-    },
     startsWith: {
       name: 'Starts with',
       type: ScalarType.STRING,
