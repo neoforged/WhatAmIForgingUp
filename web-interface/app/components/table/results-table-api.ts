@@ -68,7 +68,7 @@ export function fileColumn<T>(
 }
 
 export function codeColumn<T>(
-    config: Omit<TableColumn<T, string>, 'renderer'> & { language: string }
+    config: Omit<TableColumn<T, string>, 'renderer'> & { language?: string }
 ): TableColumn<T, string> {
   return {
     ...config,

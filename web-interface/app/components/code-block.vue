@@ -4,7 +4,7 @@
       style="overflow-x: auto;"
       :color="isDark ? 'grey-darken-4' : 'grey-lighten-4'"
   >
-    <pre><code ref="codeRef" :class="`language-${language} pa-3`">{{ code }}</code></pre>
+    <pre><code ref="codeRef" :class="`language-${language} ${language ? 'pa-3' : ''}`">{{ code }}</code></pre>
   </v-sheet>
 </template>
 
@@ -28,8 +28,7 @@ export default {
       required: true
     },
     language: {
-      type: String,
-      default: 'java'
+      type: String
     }
   },
   setup(props) {
@@ -39,7 +38,7 @@ export default {
     const isDark = computed(() => theme.global.current.value.dark);
 
     const highlight = () => {
-      if (codeRef.value) {
+      if (codeRef.value && props.language) {
         hljs.highlightElement(codeRef.value)
       }
     };

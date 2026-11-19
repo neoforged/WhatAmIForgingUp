@@ -87,3 +87,51 @@ export function grouper(groups: {
 export function sanitise<T>(array: (T | undefined)[]): T[] {
   return array.filter(t => t !== undefined)
 }
+
+function formatValue(value: any, keySort: (a: string, b: string) => number): string {
+  if (Array.isArray(value)) {
+    return '{' + (value as any[]).map(v => formatValue(v, keySort)).join(', ') + '}'
+  } else if (value._$tp) {
+    return formatAnnotation(value, value._$tp)
+  } else if (value.enum) {
+    const splitType = value.enum.split('/')
+    return splitType[splitType.length - 1] + '.' + value.value
+  } else if (typeof value == 'string') {
+    return `"${value}"`
+  }
+  return value.toString()
+}
+
+export function formatAnnotation(annotation: any, tp: string, keySort: (a: string, b: string) => number = () => 0): string {
+  const splitType = tp.split('/')
+  const base = '@' + splitType[splitType.length - 1]
+
+  const arg = Object.entries(annotation)
+      .sort(([k1, v1], [k2, v2]) => keySort(k1, k2))
+      .filter(it => it[0] != '_$tp')
+      .map(([key, value]) => key + '=' + formatValue(value, keySort)).join(', ')
+
+  return arg.length == 0 ? base : `${base}(${arg})`
+}
+
+function createPriorityComparator<T>(priorityList: T[]): (a: T, b: T) => number {
+  const priorityMap = new Map<T, number>();
+  priorityList.forEach((item, index) => priorityMap.set(item, index));
+
+  return (a: T, b: T): number => {
+    const indexA = priorityMap.has(a) ? priorityMap.get(a)! : Infinity;
+    const indexB = priorityMap.has(b) ? priorityMap.get(b)! : Infinity;
+
+    if (indexA < indexB) return -1;
+    if (indexA > indexB) return 1;
+    return 0;
+  };
+}
+
+export const MIXIN_INJECTION_ANNOTATION_VALUE_COMPARATOR = createPriorityComparator<string>(['method', 'target'])
+
+export function isMixinInjection(annotation: string): boolean {
+  return annotation == 'org/spongepowered/asm/mixin/Overwrite'
+    || annotation.startsWith('org/spongepowered/asm/mixin/injection/')
+    || annotation.startsWith('com/llamalad7/mixinextras/injector/')
+}

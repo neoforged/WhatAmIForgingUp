@@ -9,7 +9,14 @@ import {queryToPredicate} from "~/utils/query-utils";
 import {classSearch, fieldSearch, methodSearch, usualRegistries} from "~/utils/autocomplete";
 import {CLASSES_DEFINING_METHODS, METHOD_REFERENCES} from "~~/graphql-requests/methods";
 import {codeColumn, fileColumn, modColumn} from "~/components/table/results-table-api";
-import {fileNamed, getClassSourceFileName, getRecipeSourceFileName, sanitise} from "~/utils/utils";
+import {
+  fileNamed,
+  formatAnnotation,
+  getClassSourceFileName,
+  getRecipeSourceFileName,
+  isMixinInjection, MIXIN_INJECTION_ANNOTATION_VALUE_COMPARATOR,
+  sanitise
+} from "~/utils/utils";
 import {CLASSES_ANNOTATED, IMPLEMENTATIONS} from "~~/graphql-requests/classes";
 import {GET_ENUM_EXTENSIONS, RECIPES} from "~~/graphql-requests/data_files";
 import {predicateQueryParameter, stringQueryParameter} from "~/query/query-parameters";
@@ -152,29 +159,6 @@ export const CLASSES_ANNOTATED_QUERY = queryType(
       }))
     })),
     async (client, params) => {
-      const formatValue = (value: any): string => {
-        if (Array.isArray(value)) {
-          return '{' + (value as any[]).map(formatValue).join(', ') + '}'
-        } else if (value._$tp) {
-          return formatAnnotation(value, value._$tp)
-        } else if (value.enum) {
-          const splitType = value.enum.split('/')
-          return splitType[splitType.length - 1] + '.' + value.value
-        } else if (typeof value == 'string') {
-          return `"${value}"`
-        }
-        return value.toString()
-      }
-
-      const formatAnnotation = (annotation: any, tp: string): string => {
-        const splitType = tp.split('/')
-        const base = '@' + splitType[splitType.length - 1]
-
-        const arg = Object.entries(annotation).map(([key, value]) => key + '=' + formatValue(value)).join(', ')
-
-        return arg.length == 0 ? base : `${base}(${arg})`
-      }
-
       const values = await client.fetchPaginated(CLASSES_ANNOTATED, {
         predicate: {
           allOf: sanitise([
@@ -304,6 +288,76 @@ export const CLASSES_DEFINING_METHODS_QUERY = queryType(
 )
 
 
+export const MIXINS_CLASS_QUERY = queryType(
+    () => h('span', 'Query mixins targetting the given class.'),
+    parameters<{
+      clazz: string;
+      filter: ClassDefinitionPredicate | undefined;
+    }>(props => ({
+      clazz: stringQueryParameter({
+        label: 'Class',
+        placeholder: 'com.example.ExampleClass',
+        autocomplete: classSearch(props.version)
+      }),
+      filter: optional(predicateQueryParameter({
+        label: 'Filter',
+        type: 'ClassDefinitionPredicate'
+      }))
+    })),
+    (client, params) =>
+        client.fetchPaginated(CLASSES_ANNOTATED, {
+          predicate: {
+            allOf: sanitise([
+              {
+                anyAnnotation: {
+                  allOf: [
+                    {type: {equals: "org/spongepowered/asm/mixin/Mixin"}},
+                    {
+                      value: {
+                        anyOf: [
+                          {pathExists: `$.value ? (@ == "${params.clazz.value!.replaceAll('.', '/')}")`},
+                          {pathExists: `$.targets ? (@ like_regex "${params.clazz.value!.replaceAll('.', '(\\.|/)')}$")`}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              params.filter.value
+            ])
+          },
+          annotationPredicate: {type: {equals: "org/spongepowered/asm/mixin/Mixin"}}
+        }, data => data.gameVersion?.classDefinitions!)
+            .then((values) =>
+                values.map(item => ({
+                    mod: item.mod,
+                    className: item.name.replaceAll('/', '.'),
+                    injections: item.methods
+                        .flatMap(m => m.annotations.filter(ann => isMixinInjection(ann.type)))
+                        .map(ann => formatAnnotation(ann.value, ann.type, MIXIN_INJECTION_ANNOTATION_VALUE_COMPARATOR))
+                        .join('\n')
+                  }
+                ))!
+            ),
+    renderAsTable([
+      modColumn({
+        title: 'Mod',
+        groupable: true,
+        value: item => item.mod
+      }),
+      fileColumn({
+        title: 'Mixin Class',
+        value: item => item.className,
+        mod: item => item.mod,
+        fileName: getClassSourceFileName
+      }),
+      codeColumn({
+        title: 'Injections',
+        value: item => item.injections
+      })
+    ])
+)
+
 export const MIXINS_PACKAGE_QUERY = queryType(
     () => h('span', 'Query mixins targetting classes in the given package. Subpackages are included.'),
     parameters<{
@@ -349,7 +403,11 @@ export const MIXINS_PACKAGE_QUERY = queryType(
                   return {
                     mod: item.mod,
                     className: item.name.replaceAll('/', '.'),
-                    targets: ((value.value ?? value.targets) as string[]).join(', ').replaceAll('/', '.')
+                    targets: ((value.value ?? value.targets) as string[]).join(', ').replaceAll('/', '.'),
+                    injections: item.methods
+                        .flatMap(m => m.annotations.filter(ann => isMixinInjection(ann.type)))
+                        .map(ann => formatAnnotation(ann.value, ann.type, MIXIN_INJECTION_ANNOTATION_VALUE_COMPARATOR))
+                        .join('\n')
                   }
                 })!
             ),
@@ -369,7 +427,11 @@ export const MIXINS_PACKAGE_QUERY = queryType(
         title: 'Targets',
         groupable: true,
         value: item => item.targets
-      }
+      },
+      codeColumn({
+        title: 'Injections',
+        value: item => item.injections
+      })
     ])
 )
 
@@ -570,6 +632,11 @@ export const QUERIES: {
     group: 'Mixins',
     path: 'mixin',
     queries: [
+      {
+        name: 'Mixins targetting Class',
+        path: 'mixins-class',
+        query: MIXINS_CLASS_QUERY
+      },
       {
         name: 'Mixins targetting Classes in Package',
         path: 'mixins-package',

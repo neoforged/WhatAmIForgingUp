@@ -28,6 +28,7 @@ export const IMPLEMENTATIONS: TypedDocumentNode<
     }
 `;
 
+// TODO - consider splitting this into two as we only need methods.annotations for the mixin queries not general "annotated with" queries
 export const CLASSES_ANNOTATED: TypedDocumentNode<
     GetClassesAnnotatedQuery,
     GetClassesAnnotatedQueryVariables
@@ -51,6 +52,12 @@ export const CLASSES_ANNOTATED: TypedDocumentNode<
             }
             annotations(where: $annotationPredicate) {
               value
+            }
+            methods {
+              annotations {
+                type
+                value
+              }
             }
           }
         }
