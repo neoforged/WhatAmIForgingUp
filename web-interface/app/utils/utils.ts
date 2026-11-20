@@ -88,6 +88,19 @@ export function sanitise<T>(array: (T | undefined)[]): T[] {
   return array.filter(t => t !== undefined)
 }
 
+export function browserDownload(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob)
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  URL.revokeObjectURL(url);
+}
+
 function formatValue(value: any, keySort: (a: string, b: string) => number): string {
   if (Array.isArray(value)) {
     return '{' + (value as any[]).map(v => formatValue(v, keySort)).join(', ') + '}'

@@ -10,6 +10,11 @@ export interface TableColumn<T, Z> {
   groupable?: boolean
 
   renderer?: (item: T, value: Z) => Component
+
+  sourceDownloader?: (item: T, value: Z) => {
+    mod: number;
+    selection: FileSelection;
+  } | null
 }
 
 export function render(col: TableColumn<any, any>, item: any, value: any): Component {
@@ -37,7 +42,8 @@ export function modColumn<T>(
       variant: 'text',
       border: false,
       onClick: () => selectedMod.value = config.value(item).id
-    }, () => value)
+    }, () => value),
+    sourceDownloader: undefined
   }
 }
 
@@ -53,6 +59,16 @@ export function fileColumn<T>(
 ): TableColumn<T, string> {
   return {
     ...config,
+    sourceDownloader: (item, value) => {
+      const selection = config.fileName(value, item)
+      if (selection) {
+        return {
+          mod: config.mod(item).id,
+          selection: selection
+        }
+      }
+      return null
+    },
     renderer: (item, value) => h('span', {
       onClick: () => {
         const selection = config.fileName(value, item)

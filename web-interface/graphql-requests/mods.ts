@@ -1,6 +1,11 @@
 import gql from "graphql-tag";
 import type {TypedDocumentNode} from "@apollo/client";
-import type {GetModInformationQuery, GetModInformationQueryVariables} from "./types/__generated__/graphql";
+import type {
+  GetModDownloadUrlsQuery,
+  GetModDownloadUrlsQueryVariables,
+  GetModInformationQuery,
+  GetModInformationQueryVariables
+} from "./types/__generated__/graphql";
 
 export const MOD_INFORMATION: TypedDocumentNode<
   GetModInformationQuery,
@@ -37,6 +42,20 @@ export const MOD_INFORMATION: TypedDocumentNode<
                     ...PlatformInformation
                     fileDownloadUrl(version: $version, loader: $loader)
                 }
+            }
+        }
+    }
+`;
+
+export const MOD_DOWNLOAD_URLS: TypedDocumentNode<
+  GetModDownloadUrlsQuery,
+  GetModDownloadUrlsQueryVariables
+> = gql`
+    query GetModDownloadUrls($version: String!, $loader: Loader!, $ids: [Int!]!) {
+        gameVersion(loader: $loader, version: $version) {
+            _modDownloadUrls(ids: $ids) {
+                modId
+                downloadUrl
             }
         }
     }

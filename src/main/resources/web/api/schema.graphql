@@ -94,7 +94,9 @@ type GameVersion {
     ): Mod @paginated
 
     "Internal endpoint. It might be removed at any point"
-    _modInformation(id: Int!): IntModInformation! @deprecated
+    _modInformation(id: Int!): IntModInformation! @deprecated(reason: "Internal")
+    "Internal endpoint. It may be removed at any time."
+    _modDownloadUrls(ids: [Int!]!): [IntModDownloadUrl]! @deprecated(reason: "Internal")
 
     "Get the classes known by this game version that optionally match the given predicate"
     classes(
@@ -1024,6 +1026,10 @@ input OrderMethod {
 type IntModInformation @implement(interfaces: ["Identifiable", "BaseMod"]) {
     curseforge: IntPlatformInformation
     modrinth: IntPlatformInformation
+}
+type IntModDownloadUrl {
+    downloadUrl: String!
+    modId: String!
 }
 
 type IntPlatformInformation {

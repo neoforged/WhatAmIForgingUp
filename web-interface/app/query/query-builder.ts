@@ -54,10 +54,11 @@ export function queryType<P extends QueryParameterSet, D>(
 }
 
 export function renderAsTable<T extends QueryParameterSet, D>(columns: TableColumn<D, any>[]): QueryRenderer<T, D[]> {
-  return (_, data) => {
+  return (params, data) => {
     return defineComponent({
       setup() {
         return () => h(ResultsTable, {
+          version: params.version.value,
           columns: columns,
           items: data.value ?? [],
           loading: data.value === undefined

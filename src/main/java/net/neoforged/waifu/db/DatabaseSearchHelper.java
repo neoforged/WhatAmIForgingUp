@@ -19,4 +19,5 @@ public interface DatabaseSearchHelper {
 
     // Internal
     Object getInternalModInformation(DataFetchingEnvironment env);
+    Object getModDownloadUrls(DataFetchingEnvironment env);
 }

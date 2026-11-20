@@ -440,6 +440,11 @@ public class CurseForgePlatform implements ModPlatform {
             }
 
             @Override
+            public Instant getReleaseDate() {
+                return getFile().getFileDateAsInstant();
+            }
+
+            @Override
             public InputStream download() throws IOException {
                 try {
                     return Main.HTTP_CLIENT.send(HttpRequest.newBuilder(URI.create(getDownloadUrl()))

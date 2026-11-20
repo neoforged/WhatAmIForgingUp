@@ -24,6 +24,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -174,6 +175,18 @@ public class ModrinthPlatform implements ModPlatform {
         }
 
         return mods;
+    }
+
+    public Map<String, PlatformProjectFile> getFilesByHashes(List<String> hashes) {
+        var body = new JsonObject();
+        body.addProperty("algorithm", "sha1");
+        var hashesProperty = new JsonArray();
+        hashes.forEach(hashesProperty::add);
+        body.add("hashes", hashesProperty);
+        Map<String, Version> response = sendPostRequest("/version_files", body, new TypeToken<>() {});
+        Map<String, PlatformProjectFile> result = new HashMap<>(response.size());
+        response.forEach((hash, version) -> result.put(hash, createModFile(null, version)));
+        return result;
     }
 
     @Override
@@ -342,6 +355,11 @@ public class ModrinthPlatform implements ModPlatform {
             @Override
             public String getDownloadUrl() {
                 return downloadFile.url;
+            }
+
+            @Override
+            public Instant getReleaseDate() {
+                return version.date_published;
             }
 
             @Override

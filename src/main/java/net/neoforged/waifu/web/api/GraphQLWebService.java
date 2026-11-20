@@ -62,12 +62,14 @@ import net.neoforged.waifu.MainDatabase;
 import net.neoforged.waifu.db.DatabaseSearchHelper;
 import net.neoforged.waifu.platform.ModLoader;
 import net.neoforged.waifu.platform.PlatformProject;
+import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.Utils;
 import org.jetbrains.annotations.Nullable;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -326,26 +328,38 @@ public class GraphQLWebService {
 
                                 // Internal
                                 .dataFetcher("_modInformation", dbHelper(DatabaseSearchHelper::getInternalModInformation))
+                                .dataFetcher("_modDownloadUrls", dbHelper(DatabaseSearchHelper::getModDownloadUrls))
                 )
 
                 // Internal types
                 .type("IntModInformation", builder ->
-                        builder.dataFetcher("curseforge", this.<Map<String, Object>>fetcher(map -> Objects.equals(map.get("cpid"), null) ? null : Main.CURSE_FORGE_PLATFORM.getProjectById(map.get("cpid"))))
-                                .dataFetcher("modrinth", this.<Map<String, Object>>fetcher(map -> Objects.equals(map.get("mpid"), null) ? null : Main.MODRINTH_PLATFORM.getProjectById(map.get("mpid"))))
+                        builder.dataFetcher("curseforge", this.<Map<String, Object>>fetcher(map -> Objects.equals(map.get("cpid"), null) ? null : new PlatformIndexDatePair(Main.CURSE_FORGE_PLATFORM.getProjectById(map.get("cpid")), (OffsetDateTime) map.get("idate"))))
+                                .dataFetcher("modrinth", this.<Map<String, Object>>fetcher(map -> Objects.equals(map.get("mpid"), null) ? null : new PlatformIndexDatePair(Main.MODRINTH_PLATFORM.getProjectById(map.get("mpid")), (OffsetDateTime) map.get("idate"))))
                 )
                 .type("IntPlatformInformation", builder ->
-                        builder.dataFetcher("projectUrl", fetcher(PlatformProject::getUrl))
-                                .dataFetcher("iconUrl", fetcher(PlatformProject::getIconUrl))
-                                .dataFetcher("sourceUrl", fetcher(PlatformProject::getSourceUrl))
-                                .dataFetcher("issuesUrl", fetcher(PlatformProject::getIssuesUrl))
-                                .dataFetcher("title", fetcher(PlatformProject::getTitle))
-                                .dataFetcher("description", fetcher(PlatformProject::getDescription))
-                                .dataFetcher("downloads", fetcher(PlatformProject::getDownloads))
+                        builder.dataFetcher("projectUrl", this.<PlatformIndexDatePair>fetcher(p -> p.project().getUrl()))
+                                .dataFetcher("iconUrl", this.<PlatformIndexDatePair>fetcher(p -> p.project().getIconUrl()))
+                                .dataFetcher("sourceUrl", this.<PlatformIndexDatePair>fetcher(p -> p.project().getSourceUrl()))
+                                .dataFetcher("issuesUrl", this.<PlatformIndexDatePair>fetcher(p -> p.project().getIssuesUrl()))
+                                .dataFetcher("title", this.<PlatformIndexDatePair>fetcher(p -> p.project().getTitle()))
+                                .dataFetcher("description", this.<PlatformIndexDatePair>fetcher(p -> p.project().getDescription()))
+                                .dataFetcher("downloads", this.<PlatformIndexDatePair>fetcher(p -> p.project().getDownloads()))
                                 .dataFetcher("fileDownloadUrl", environment -> {
-                                    var project = environment.<PlatformProject>getSource();
-                                    assert project != null;
-                                    var latestFile = project.getLatestFile(environment.getArgument("version"), getLoader(environment.getArgumentOrDefault("loader", "")));
-                                    return latestFile == null ? null : latestFile.getDownloadUrl();
+                                    var source = environment.<PlatformIndexDatePair>getSource();
+                                    assert source != null;
+                                    var releaseCutoff = source.date() == null ? null : source.date().toInstant();
+
+                                    PlatformProjectFile file = null;
+                                    var itr = source.project().getFilesForVersion(environment.getArgument("version"), getLoader(environment.getArgumentOrDefault("loader", "")));
+                                    while (itr.hasNext()) {
+                                        var next = itr.next();
+                                        if (file == null) file = next;
+                                        if (releaseCutoff != null && next.getReleaseDate().isBefore(releaseCutoff)) {
+                                            file = next;
+                                            break;
+                                        }
+                                    }
+                                    return file == null ? null : file.getDownloadUrl();
                                 }));
 
         typesToAdd.forEach((key, def) -> {
@@ -665,6 +679,8 @@ public class GraphQLWebService {
     private static GraphQLType unwrap(GraphQLType output) {
         return output instanceof GraphQLNonNull nn ? nn.getWrappedType() : output;
     }
+
+    private record PlatformIndexDatePair(PlatformProject project, @Nullable OffsetDateTime date) {}
 
     private static final class ConsiderAliasDataFetcher<T> extends PropertyDataFetcher<T> {
         public ConsiderAliasDataFetcher(String propertyName) {

@@ -494,8 +494,10 @@ type FieldDefinition implements Annotatable {
 
 "Represents a version of the game on a loader, which WAIFU is indexing"
 type GameVersion {
+    "Internal endpoint. It may be removed at any time."
+    _modDownloadUrls(ids: [Int!]!): [IntModDownloadUrl]! @deprecated(reason: "Internal")
     "Internal endpoint. It might be removed at any point"
-    _modInformation(id: Int!): IntModInformation! @deprecated(reason: "No longer supported")
+    _modInformation(id: Int!): IntModInformation! @deprecated(reason: "Internal")
     """
 
     Get the class with the given `name`. If no such class exists in this game version, this will return `null`.
@@ -710,6 +712,11 @@ type InheritanceTreeClass implements BaseClass & Identifiable {
     ): [Method!]!
     "The name of this class"
     name: String!
+}
+
+type IntModDownloadUrl {
+    downloadUrl: String!
+    modId: String!
 }
 
 type IntModInformation implements BaseMod & Identifiable {
@@ -1712,6 +1719,8 @@ input ModPredicate {
     inPack: PlatformProjectIdentifier
     "A mod will match if the date it has last been indexed on matches the given predicate"
     indexed: DatePredicate
+    "Filter based on whether the mod is a loader mod or not (the Minecraft and Neo/Forge jars)."
+    isLoader: Boolean
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
     isNull: Boolean
     "Filter based on the mod's license (derived from mod metadata)"

@@ -717,8 +717,13 @@ export type FieldPredicate = {
 export type GameVersion = {
   __typename?: 'GameVersion';
   /**
+   * Internal endpoint. It may be removed at any time.
+   * @deprecated Internal
+   */
+  _modDownloadUrls: Array<Maybe<IntModDownloadUrl>>;
+  /**
    * Internal endpoint. It might be removed at any point
-   * @deprecated No longer supported
+   * @deprecated Internal
    */
   _modInformation: IntModInformation;
   /**
@@ -758,6 +763,12 @@ export type GameVersion = {
   tagEntries: TagEntryConnection;
   /** The Minecraft version this game version indexes */
   version: Scalars['String']['output'];
+};
+
+
+/** Represents a version of the game on a loader, which WAIFU is indexing */
+export type GameVersion_ModDownloadUrlsArgs = {
+  ids: Array<Scalars['Int']['input']>;
 };
 
 
@@ -943,6 +954,12 @@ export type InheritorPredicate = {
   noneOf?: InputMaybe<Array<InheritorPredicate>>;
   /** Invert the given filter */
   not?: InputMaybe<InheritorPredicate>;
+};
+
+export type IntModDownloadUrl = {
+  __typename?: 'IntModDownloadUrl';
+  downloadUrl: Scalars['String']['output'];
+  modId: Scalars['String']['output'];
 };
 
 export type IntModInformation = BaseMod & Identifiable & {
@@ -1475,6 +1492,8 @@ export type ModPredicate = {
   inPack?: InputMaybe<PlatformProjectIdentifier>;
   /** A mod will match if the date it has last been indexed on matches the given predicate */
   indexed?: InputMaybe<DatePredicate>;
+  /** Filter based on whether the mod is a loader mod or not (the Minecraft and Neo/Forge jars). */
+  isLoader?: InputMaybe<Scalars['Boolean']['input']>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
   isNull?: InputMaybe<Scalars['Boolean']['input']>;
   /** Filter based on the mod's license (derived from mod metadata) */
@@ -1995,3 +2014,12 @@ export type GetModInformationQueryVariables = Exact<{
 
 
 export type GetModInformationQuery = { gameVersion: { __typename?: 'GameVersion', _modInformation: { __typename?: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: any | null, mavenCoordinates: string | null, curseforge: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };
+
+export type GetModDownloadUrlsQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  ids: Array<Scalars['Int']['input']> | Scalars['Int']['input'];
+}>;
+
+
+export type GetModDownloadUrlsQuery = { gameVersion: { __typename?: 'GameVersion', _modDownloadUrls: Array<{ __typename?: 'IntModDownloadUrl', modId: string, downloadUrl: string } | null> } | null };

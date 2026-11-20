@@ -34,7 +34,8 @@
                   :search="search"
                   :group-by="groups.items.value"
                   :headers="headers"
-                  items-per-page="25"
+                  v-model:itemsPerPage="itemsPerPage"
+                  v-model:page="page"
     >
       <template v-for="head in headers" v-slot:[`header.${head.key}`]="{ column }">
         <b>{{ column.title }}</b>
@@ -46,6 +47,20 @@
       <template v-slot:footer.prepend>
         <v-btn
             v-bind="props"
+            :loading="loading || loadingSourcesDownload"
+            density="compact"
+            variant="text"
+            class="mr-1"
+            v-tooltip="'Download and decompile classes on this page'"
+            size="30"
+            rounded
+            @click="downloadSources()"
+            v-if="columns.find(c => c.sourceDownloader)"
+        >
+          <v-icon icon="mdi-source-repository-multiple" size="25" />
+        </v-btn>
+        <v-btn
+            v-bind="props"
             :loading="loading"
             density="compact"
             variant="text"
@@ -55,7 +70,7 @@
             rounded
             @click="download()"
         >
-          <v-icon icon="mdi-download-circle" size="30" />
+          <v-icon icon="mdi-file-download-outline" size="25" />
         </v-btn>
       </template>
     </v-data-table>
@@ -63,9 +78,18 @@
 </template>
 <script setup lang="ts">
 import {render, type TableColumn} from "~/components/table/results-table-api";
-import {grouper} from "~/utils/utils";
+import {browserDownload, grouper} from "~/utils/utils";
+import JSZip from "jszip";
+import {useApolloClient} from "@vue/apollo-composable";
+import {fetchWithVersion} from "~/utils/graphql-utils";
+import {MOD_DOWNLOAD_URLS} from "~~/graphql-requests/mods";
+import {downloadZip, getBaseUrl} from "~/utils/api-utils";
+import {addAlert} from "~/utils/alerts";
+
+const client = useApolloClient().client
 
 const props = defineProps<{
+  version: string;
   columns: TableColumn<any, any>[],
   loading: boolean,
   items: any[]
@@ -79,6 +103,9 @@ const headers = props.columns.map((col, idx) => {
   }
 })
 
+const itemsPerPage = ref(25)
+const page = ref(1)
+
 const computedItems = computed(() => props.items.map(it => {
   const newObject = {...it}
   props.columns.forEach((col, idx) => {
@@ -91,16 +118,67 @@ const computedItems = computed(() => props.items.map(it => {
 
 const download = () => {
   const blob = new Blob([JSON.stringify(props.items, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
+  browserDownload(blob, 'data.json')
+}
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "data.json";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+const loadingSourcesDownload = ref(false)
 
-  URL.revokeObjectURL(url);
+const downloadSources = async () => {
+  if (loadingSourcesDownload.value) return
+  loadingSourcesDownload.value = true
+
+  const selections: {
+    mod: number;
+    selection: FileSelection;
+  }[] = []
+
+  for (let column of props.columns) {
+    if (!column.sourceDownloader) continue
+
+    for (let i = (page.value - 1) * itemsPerPage.value; i < Math.min(props.items.length, page.value * itemsPerPage.value); i++) {
+      const item = props.items[i]
+      const source = column.sourceDownloader(item, column.value(item))
+      if (source) {
+        selections.push(source)
+      }
+    }
+  }
+
+  const modIds = [...new Set(selections.map(s => s.mod))]
+  if (modIds.length > 50) {
+    addAlert({
+      title: 'Too many results',
+      description: 'Cannot decompile in bulk more than 50 mods! Reduce the page size and try again.'
+    })
+    loadingSourcesDownload.value = false
+    return
+  }
+
+  fetchWithVersion(client, MOD_DOWNLOAD_URLS, {
+    ids: modIds
+  }, props.version).then(async (data) => {
+    const mods = data?.gameVersion?._modDownloadUrls
+    if (!mods) return
+    const sourcesZip = new JSZip()
+
+    for (let i = 0; i < modIds.length; i++) {
+      const modId = modIds[i]
+      const mod = mods[i]
+      if (!mod) continue
+
+      const zip = await downloadZip(`${getBaseUrl()}/api/internal/cdn-proxy?url=${mod.downloadUrl}`)
+      for (let value of selections.filter(s => s.mod == modId)) {
+        const result: any = await value.selection.binaryExtractor!!(zip)
+        if (result.content) {
+          sourcesZip.file(modId + '-' + mod.modId + '_' + value.selection.name.replaceAll('/', '_'), result.content)
+        }
+      }
+    }
+
+    const blob = await sourcesZip.generateAsync({ type: 'blob' })
+    browserDownload(blob, 'data.zip')
+    loadingSourcesDownload.value = false
+  }).catch(_ => loadingSourcesDownload.value = false)
 }
 
 const search = ref<string | undefined>(undefined)

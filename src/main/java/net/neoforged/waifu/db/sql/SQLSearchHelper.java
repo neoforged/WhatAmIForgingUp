@@ -28,6 +28,7 @@ import java.sql.Array;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -62,6 +64,8 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     private final Jdbi jdbi;
     private final Consumer<Runnable> cancellationInvoker;
+    private final String gameVersion;
+    private final ModLoader loader;
 
     private final DatabaseSchema schema;
 
@@ -71,6 +75,8 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     public SQLSearchHelper(Jdbi jdbi, String gameVersion, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
         this.jdbi = jdbi;
         this.cancellationInvoker = cancellationInvoker;
+        this.gameVersion = gameVersion;
+        this.loader = loader;
         jdbi.getConfig(SqlStatements.class).setSqlParser(new HashPrefixSqlParser());
 
         schema = new DatabaseSchema();
@@ -499,10 +505,81 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
         builder.requestColumn("curseforge_project_id", "cpid");
         builder.requestColumn("modrinth_project_id", "mpid");
+        builder.requestColumn("index_date", "idate");
 
         builder.where(SqlCondition.columnFilter("mods.id", SqlFilter.eq(env.getArguments().get("id"))));
 
         return executeQuery(builder);
+    }
+
+    @Override
+    public Object getModDownloadUrls(DataFetchingEnvironment env) {
+        var ids = env.<List<Integer>>getArgument("ids");
+        assert ids != null;
+
+        record ModInfo(Instant indexDate, int curseforgeId, String modId) {}
+        var modInfo = new HashMap<Integer, ModInfo>();
+        var mod2Hashes = jdbi.withHandle(handle -> handle.createQuery("select known_files.mod, known_files.sha1, mods.index_date, mods.curseforge_project_id, mods.mod_ids[1] from known_files join mods on mods.id = known_files.mod where mod = any(?)")
+                .bindArray(0, Integer.class, ids)
+                .execute((statementSupplier, ctx) -> {
+                    try (var stmt = statementSupplier.get()) {
+                        var result = stmt.getResultSet();
+                        Map<Integer, List<String>> byMod = new HashMap<>();
+                        while (result.next()) {
+                            byMod.computeIfAbsent(result.getInt(1), k -> new ArrayList<>()).add(result.getString(2));
+                            modInfo.put(result.getInt(1), new ModInfo(result.getTimestamp(3).toInstant(), result.getInt(4), result.getString(5)));
+                        }
+                        return byMod;
+                    }
+                }));
+
+        var byHash = Main.MODRINTH_PLATFORM.getFilesByHashes(mod2Hashes.values().stream().flatMap(List::stream).toList());
+        var result = new ArrayList<Map<String, Object>>(ids.size());
+        for (int i = 0; i < ids.size(); i++) result.add(null);
+
+        var helper = new Object() {
+            void process(int index, Iterator<PlatformProjectFile> itr) {
+                PlatformProjectFile file = null;
+                ModInfo info = modInfo.get(ids.get(index));
+                while (itr.hasNext()) {
+                    var next = itr.next();
+                    if (file == null) file = next;
+                    // If the file is before the index date, consider it only if the currently chosen file is either too new (after the index date) or too old (before this file)
+                    if (info.indexDate != null && next.getReleaseDate().isBefore(info.indexDate) && (file.getReleaseDate().isAfter(info.indexDate) || file.getReleaseDate().isBefore(file.getReleaseDate()))) {
+                        file = next;
+                    }
+                }
+
+                if (file != null) result.set(index, Map.of(
+                        "downloadUrl", file.getDownloadUrl(),
+                        "modId", info.modId()
+                ));
+            }
+        };
+
+        // We try to find them on Modrinth first because it's more efficent (only one request)
+        for (int i = 0; i < ids.size(); i++) {
+            var hashes = mod2Hashes.getOrDefault(ids.get(i), List.of());
+            helper.process(i, hashes.stream()
+                    .map(byHash::get)
+                    .filter(Objects::nonNull)
+                    .iterator());
+        }
+
+        for (int i = 0; i < ids.size(); i++) {
+            if (result.get(i) != null) continue;
+            var id = ids.get(i);
+            ModInfo info = modInfo.get(id);
+            if (info.curseforgeId() == 0) continue;
+
+            try {
+                helper.process(i, Main.CURSE_FORGE_PLATFORM.getProjectById(info.curseforgeId).getFilesForVersion(gameVersion, loader));
+            } catch (Exception ignored) {
+                // Exception thrown if project doesn't exist
+            }
+        }
+
+        return result;
     }
 
     @Override
