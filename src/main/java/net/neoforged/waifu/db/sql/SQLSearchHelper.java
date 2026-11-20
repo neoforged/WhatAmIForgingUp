@@ -340,6 +340,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
                 .filterOnColumn("name", "method_name.constant")
                 .filterOnColumn("descriptor", "method_desc.constant")
+                .filterOnTable("anyAnnotation", method_annotations)
         );
         schema.registerTwoWayJoin("methods", "method_defs", SqlCondition.equals("methods.id", "method_defs.type"));
         schema.registerTwoWayJoin("method_defs", "method_annotations", SqlCondition.equals("method_defs.id", "method_annotations.owner"));
@@ -380,6 +381,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
                 .filterOnColumn("name", "field_name.constant")
                 .filterOnColumn("type", "field_type.name")
+                .filterOnTable("anyAnnotation", field_annotations)
         );
         schema.registerTwoWayJoin("fields", "field_defs", SqlCondition.equals("fields.id", "field_defs.type"));
         schema.registerTwoWayJoin("field_defs", "field_annotations", SqlCondition.equals("field_defs.id", "field_annotations.owner"));

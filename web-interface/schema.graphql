@@ -1467,6 +1467,8 @@ input FieldDefinitionOrdering {
 input FieldDefinitionPredicate {
     "Match if all of the given filters match"
     allOf: [FieldDefinitionPredicate!]
+    "A field definition will match if any of its annotations match the given predicate"
+    anyAnnotation: AnnotationPredicate
     "Match if any of the given filters matches"
     anyOf: [FieldDefinitionPredicate!]
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
@@ -1655,6 +1657,8 @@ input MethodDefinitionOrdering {
 input MethodDefinitionPredicate {
     "Match if all of the given filters match"
     allOf: [MethodDefinitionPredicate!]
+    "A method definition will match if any of its annotations match the given predicate"
+    anyAnnotation: AnnotationPredicate
     "Match if any of the given filters matches"
     anyOf: [MethodDefinitionPredicate!]
     "Filter based on the method's descriptor"

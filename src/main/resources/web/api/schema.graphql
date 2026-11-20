@@ -692,6 +692,9 @@ input MethodDefinitionPredicate @predicateType @oneOf {
     name: StringPredicate
     "Filter based on the method's descriptor"
     descriptor: StringPredicate
+
+    "A method definition will match if any of its annotations match the given predicate"
+    anyAnnotation: AnnotationPredicate
 }
 
 "Used to filter fields based on different criteria"
@@ -711,6 +714,9 @@ input FieldDefinitionPredicate @predicateType @oneOf {
     name: StringPredicate
     "Filter based on the field's type"
     type: StringPredicate
+
+    "A field definition will match if any of its annotations match the given predicate"
+    anyAnnotation: AnnotationPredicate
 }
 
 "Used to filter references based on different criteria"
