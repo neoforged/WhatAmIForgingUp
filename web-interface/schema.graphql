@@ -716,7 +716,7 @@ type InheritanceTreeClass implements BaseClass & Identifiable {
 
 type IntModDownloadUrl {
     downloadUrl: String!
-    modId: String!
+    modId: String
 }
 
 type IntModInformation implements BaseMod & Identifiable {

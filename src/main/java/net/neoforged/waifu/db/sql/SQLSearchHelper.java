@@ -552,10 +552,12 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
                     }
                 }
 
-                if (file != null) result.set(index, Map.of(
-                        "downloadUrl", file.getDownloadUrl(),
-                        "modId", info.modId()
-                ));
+                if (file != null) {
+                    var map = new HashMap<String, Object>();
+                    map.put("downloadUrl", file.getDownloadUrl());
+                    map.put("modId", info.modId());
+                    result.set(index, map);
+                }
             }
         };
 

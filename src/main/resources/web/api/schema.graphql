@@ -1035,7 +1035,7 @@ type IntModInformation @implement(interfaces: ["Identifiable", "BaseMod"]) {
 }
 type IntModDownloadUrl {
     downloadUrl: String!
-    modId: String!
+    modId: String
 }
 
 type IntPlatformInformation {

@@ -170,7 +170,7 @@ const downloadSources = async () => {
       for (let value of selections.filter(s => s.mod == modId)) {
         const result: any = await value.selection.binaryExtractor!!(zip)
         if (result.content) {
-          sourcesZip.file(modId + '-' + mod.modId + '_' + value.selection.name.replaceAll('/', '_'), result.content)
+          sourcesZip.file(modId + (mod.modId ? '-' + mod.modId : '') + '_' + value.selection.name.replaceAll('/', '_'), result.content)
         }
       }
     }

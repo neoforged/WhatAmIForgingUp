@@ -673,6 +673,8 @@ export type FieldDefinitionOrdering = {
 export type FieldDefinitionPredicate = {
   /** Match if all of the given filters match */
   allOf?: InputMaybe<Array<FieldDefinitionPredicate>>;
+  /** A field definition will match if any of its annotations match the given predicate */
+  anyAnnotation?: InputMaybe<AnnotationPredicate>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<FieldDefinitionPredicate>>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
@@ -959,7 +961,7 @@ export type InheritorPredicate = {
 export type IntModDownloadUrl = {
   __typename?: 'IntModDownloadUrl';
   downloadUrl: Scalars['String']['output'];
-  modId: Scalars['String']['output'];
+  modId: Maybe<Scalars['String']['output']>;
 };
 
 export type IntModInformation = BaseMod & Identifiable & {
@@ -1282,6 +1284,8 @@ export type MethodDefinitionOrdering = {
 export type MethodDefinitionPredicate = {
   /** Match if all of the given filters match */
   allOf?: InputMaybe<Array<MethodDefinitionPredicate>>;
+  /** A method definition will match if any of its annotations match the given predicate */
+  anyAnnotation?: InputMaybe<AnnotationPredicate>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<MethodDefinitionPredicate>>;
   /** Filter based on the method's descriptor */
@@ -2022,4 +2026,4 @@ export type GetModDownloadUrlsQueryVariables = Exact<{
 }>;
 
 
-export type GetModDownloadUrlsQuery = { gameVersion: { __typename?: 'GameVersion', _modDownloadUrls: Array<{ __typename?: 'IntModDownloadUrl', modId: string, downloadUrl: string } | null> } | null };
+export type GetModDownloadUrlsQuery = { gameVersion: { __typename?: 'GameVersion', _modDownloadUrls: Array<{ __typename?: 'IntModDownloadUrl', modId: string | null, downloadUrl: string } | null> } | null };
