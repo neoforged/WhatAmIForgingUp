@@ -34,8 +34,8 @@
                   :search="search"
                   :group-by="groups.items.value"
                   :headers="headers"
-                  v-model:itemsPerPage="itemsPerPage"
-                  v-model:page="page"
+                  items-per-page="25"
+                  @update:current-items="value => currentItems = (value as any[]).flatMap(expandCurrentItem)"
     >
       <template v-for="head in headers" v-slot:[`header.${head.key}`]="{ column }">
         <b>{{ column.title }}</b>
@@ -103,9 +103,6 @@ const headers = props.columns.map((col, idx) => {
   }
 })
 
-const itemsPerPage = ref(25)
-const page = ref(1)
-
 const computedItems = computed(() => props.items.map(it => {
   const newObject = {...it}
   props.columns.forEach((col, idx) => {
@@ -115,6 +112,15 @@ const computedItems = computed(() => props.items.map(it => {
   })
   return newObject
 }))
+
+const currentItems = ref<any[]>([])
+function expandCurrentItem(item: any): any[] {
+  if (item.type == 'group') {
+    return (item.items as any[]).flatMap(expandCurrentItem)
+  } else {
+    return [item.raw]
+  }
+}
 
 const download = () => {
   const blob = new Blob([JSON.stringify(props.items, null, 2)], { type: 'application/json' })
@@ -137,8 +143,7 @@ const downloadSources = async () => {
 
     const uniqueValues = new Set()
 
-    for (let i = (page.value - 1) * itemsPerPage.value; i < Math.min(props.items.length, page.value * itemsPerPage.value); i++) {
-      const item = props.items[i]
+    for (let item of currentItems.value) {
       const value = column.value(item)
       if (!uniqueValues.has(value)) {
         uniqueValues.add(value)
@@ -182,7 +187,7 @@ const downloadSources = async () => {
     }
 
     const blob = await sourcesZip.generateAsync({ type: 'blob' })
-    browserDownload(blob, 'data.zip')
+    browserDownload(blob, 'sources.zip')
     loadingSourcesDownload.value = false
   }).catch(_ => loadingSourcesDownload.value = false)
 }
