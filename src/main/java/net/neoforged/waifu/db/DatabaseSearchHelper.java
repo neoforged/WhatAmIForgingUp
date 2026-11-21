@@ -10,6 +10,8 @@ public interface DatabaseSearchHelper {
     Object getClass(DataFetchingEnvironment env);
 
     Object getClassDefinitions(DataFetchingEnvironment env);
+    Object getMethodDefinitions(DataFetchingEnvironment env);
+    Object getFieldDefinitions(DataFetchingEnvironment env);
 
     Object getRecipes(DataFetchingEnvironment env);
     Object getDataMaps(DataFetchingEnvironment env);

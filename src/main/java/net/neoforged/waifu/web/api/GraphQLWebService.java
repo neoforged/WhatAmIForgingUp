@@ -208,7 +208,7 @@ public class GraphQLWebService {
                                     .type(GraphQLList.list(GraphQLNonNull.nonNull(GraphQLTypeReference.typeRef(typeName))))
                                     .description("Match if any of the given filters matches"));
                             b.field(f -> f.name("allOf")
-                                    .type(GraphQLList.list(GraphQLNonNull.nonNull(GraphQLTypeReference.typeRef(typeName))))
+                                    .type(GraphQLList.list(GraphQLTypeReference.typeRef(typeName)))
                                     .description("Match if all of the given filters match"));
                             b.field(f -> f.name("noneOf")
                                     .type(GraphQLList.list(GraphQLNonNull.nonNull(GraphQLTypeReference.typeRef(typeName))))
@@ -315,7 +315,10 @@ public class GraphQLWebService {
                                 .dataFetcher("modsById", dbHelper(DatabaseSearchHelper::getModsById))
                                 .dataFetcher("classes", dbHelper(DatabaseSearchHelper::getClasses))
                                 .dataFetcher("class", dbHelper(DatabaseSearchHelper::getClass))
+
                                 .dataFetcher("classDefinitions", dbHelper(DatabaseSearchHelper::getClassDefinitions))
+                                .dataFetcher("methodDefinitions", dbHelper(DatabaseSearchHelper::getMethodDefinitions))
+                                .dataFetcher("fieldDefinitions", dbHelper(DatabaseSearchHelper::getFieldDefinitions))
 
                                 .dataFetcher("recipes", dbHelper(DatabaseSearchHelper::getRecipes))
                                 .dataFetcher("dataMaps", dbHelper(DatabaseSearchHelper::getDataMaps))

@@ -4,6 +4,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -50,7 +51,7 @@ public interface SqlCondition {
     static SqlCondition parseAsCriterion(Map<String, Object> filter, Function<String, FilterCriterion> criteria, @Nullable Set<String> appliedCriteria) {
         var allOf = (List<Map<String, Object>>) filter.get("allOf");
         if (allOf != null) {
-            return SqlCondition.allOf(allOf.stream().map(f -> parseAsCriterion(f, criteria, appliedCriteria)).toList());
+            return SqlCondition.allOf(allOf.stream().filter(Objects::nonNull).map(f -> parseAsCriterion(f, criteria, appliedCriteria)).toList());
         }
 
         var anyOf = (List<Map<String, Object>>) filter.get("anyOf");

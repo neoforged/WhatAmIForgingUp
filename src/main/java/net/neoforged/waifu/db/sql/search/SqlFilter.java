@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -271,7 +272,7 @@ public interface SqlFilter {
                     case "not" -> SqlFilter.not(parse(filterEntry.getValue()));
 
                     case "allOf" -> SqlFilter.allOf(((List<Map<String, Object>>) filterEntry.getValue())
-                            .stream().map(this::parse).toList());
+                            .stream().filter(Objects::nonNull).map(this::parse).toList());
                     case "anyOf" -> SqlFilter.anyOf(((List<Map<String, Object>>) filterEntry.getValue())
                             .stream().map(this::parse).toList());
 

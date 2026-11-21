@@ -271,7 +271,7 @@ type ClassDefinition implements Annotatable & ModOwned {
         "Optional ordering to apply to the returned elements"
         order: FieldDefinitionOrdering,
         "Optional filter to apply to the query"
-        where: FieldPredicate
+        where: FieldDefinitionPredicate
     ): [FieldDefinition!]!
     """
 
@@ -284,7 +284,7 @@ type ClassDefinition implements Annotatable & ModOwned {
         "Optional ordering to apply to the returned elements"
         order: MethodDefinitionOrdering,
         "Optional filter to apply to the query"
-        where: MethodPredicate
+        where: MethodDefinitionPredicate
     ): [MethodDefinition!]!
     "The mod that owns this object"
     mod: LightweightMod!
@@ -480,12 +480,16 @@ type Field implements Identifiable & Referenceable {
 }
 
 "A concrete definition of a field"
-type FieldDefinition implements Annotatable {
+type FieldDefinition implements Annotatable & Identifiable {
     "Returns annotations on this object matching the given predicate"
     annotations(
         "An optional filter to apply to the query"
         where: AnnotationPredicate
     ): [Annotation!]!
+    "The class that defines this field"
+    class: ClassDefinition!
+    "The unique ID of this object"
+    id: Int!
     "The name of this method"
     name: String!
     "The type of this field. This is not a descriptor so classes are in internal JVM format (e.g. `java/lang/String` instead of `Ljava/lang/String;`)"
@@ -595,6 +599,19 @@ type GameVersion {
     ): EnumExtensionConnection!
     "The loader this game version indexes"
     loader: Loader!
+    "Get the method definitions known by this game version that optionally match the given predicate"
+    methodDefinitions(
+        "Returns the elements in the list that come after the specified cursor."
+        after: ID,
+        "Returns the elements in the list that come before the specified cursor."
+        before: ID,
+        "Returns the first _n_ elements from the list."
+        first: Int,
+        "Returns the last _n_ elements from the list."
+        last: Int,
+        "Optional filter applied to the query"
+        where: MethodDefinitionPredicate
+    ): MethodDefinitionConnection!
     "Query mods from the database"
     mods(
         "Returns the elements in the list that come after the specified cursor."
@@ -890,16 +907,38 @@ type Method implements Identifiable & Referenceable {
 }
 
 "A concrete definition of a method"
-type MethodDefinition implements Annotatable {
+type MethodDefinition implements Annotatable & Identifiable {
     "Returns annotations on this object matching the given predicate"
     annotations(
         "An optional filter to apply to the query"
         where: AnnotationPredicate
     ): [Annotation!]!
+    "The class that defines this method"
+    class: ClassDefinition!
     "The descriptor of this method"
     descriptor: String!
+    "The unique ID of this object"
+    id: Int!
     "The name of this method"
     name: String!
+}
+
+"A connection (list) composed of `MethodDefinition`."
+type MethodDefinitionConnection {
+    "Identifies the amount of items in the returned edges."
+    count: Int!
+    "A list of edges."
+    edges: [MethodDefinitionEdge!]!
+    "Information to aid in pagination."
+    pageInfo: PageInfo!
+}
+
+"An edge of a `MethodDefinition`."
+type MethodDefinitionEdge {
+    "The cursor ID of the element."
+    cursor: ID!
+    "The item at the end of the edge."
+    node: MethodDefinition!
 }
 
 "Represents a full mod from which data that requires more complex processing can be queries (classes, tags etc.)"
@@ -1258,7 +1297,7 @@ scalar JSON
 "Used to filter annotations based on different criteria"
 input AnnotationPredicate {
     "Match if all of the given filters match"
-    allOf: [AnnotationPredicate!]
+    allOf: [AnnotationPredicate]
     "Match if any of the given filters matches"
     anyOf: [AnnotationPredicate!]
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
@@ -1294,7 +1333,7 @@ input ClassDefinitionOrdering {
 "Used to filter class definitions based on different criteria"
 input ClassDefinitionPredicate {
     "Match if all of the given filters match"
-    allOf: [ClassDefinitionPredicate!]
+    allOf: [ClassDefinitionPredicate]
     "A class definition will match if any of its annotations match the given predicate"
     anyAnnotation: AnnotationPredicate
     "A class definition will match if any of the fields it defines matches the given predicate"
@@ -1324,7 +1363,7 @@ input ClassDefinitionPredicate {
 "Used to filter classes based on different criteria"
 input ClassPredicate {
     "Match if all of the given filters match"
-    allOf: [ClassPredicate!]
+    allOf: [ClassPredicate]
     "A class will match if any of its fields match the given predicate"
     anyField: FieldPredicate
     "A class will match if any of its methods match the given predicate"
@@ -1348,7 +1387,7 @@ input ClassPredicate {
 "Used to filter data files based on different criteria"
 input DataFilePredicate {
     "Match if all of the given filters match"
-    allOf: [DataFilePredicate!]
+    allOf: [DataFilePredicate]
     "Match if any of the given filters matches"
     anyOf: [DataFilePredicate!]
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
@@ -1370,7 +1409,7 @@ input DataFilePredicate {
 "Used to filter data map files based on different criteria"
 input DataMapFilePredicate {
     "Match if all of the given filters match"
-    allOf: [DataMapFilePredicate!]
+    allOf: [DataMapFilePredicate]
     "Match if any of the given filters matches"
     anyOf: [DataMapFilePredicate!]
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
@@ -1390,7 +1429,7 @@ input DataMapFilePredicate {
 "Used to filter data maps based on different criteria"
 input DataMapPredicate {
     "Match if all of the given filters match"
-    allOf: [DataMapPredicate!]
+    allOf: [DataMapPredicate]
     "Match if any of the given filters matches"
     anyOf: [DataMapPredicate!]
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
@@ -1412,7 +1451,7 @@ input DatePredicate {
     "Matches if the date is after (greater than) the given date"
     after: DateTime
     "Match if all of the given filters match"
-    allOf: [DatePredicate!]
+    allOf: [DatePredicate]
     "Match if any of the given filters matches"
     anyOf: [DatePredicate!]
     "Matches if the date is before (smaller than) the given date"
@@ -1432,7 +1471,7 @@ input DatePredicate {
 "Used to filter enum extension entries based on different criteria"
 input EnumExtensionPredicate {
     "Match if all of the given filters match"
-    allOf: [EnumExtensionPredicate!]
+    allOf: [EnumExtensionPredicate]
     "Match if any of the given filters matches"
     anyOf: [EnumExtensionPredicate!]
     "Filter based on the enum constructor the extension uses"
@@ -1466,7 +1505,7 @@ input FieldDefinitionOrdering {
 "Used to filter field definitions based on different criteria"
 input FieldDefinitionPredicate {
     "Match if all of the given filters match"
-    allOf: [FieldDefinitionPredicate!]
+    allOf: [FieldDefinitionPredicate]
     "A field definition will match if any of its annotations match the given predicate"
     anyAnnotation: AnnotationPredicate
     "Match if any of the given filters matches"
@@ -1490,11 +1529,13 @@ input FieldDefinitionPredicate {
 "Used to filter fields based on different criteria"
 input FieldPredicate {
     "Match if all of the given filters match"
-    allOf: [FieldPredicate!]
+    allOf: [FieldPredicate]
     "Match if any of the given filters matches"
     anyOf: [FieldPredicate!]
     "A field will match if any of the (direct) references to it match the given predicate"
     anyReference: ReferencePredicate
+    "Filter based on the class that defines the field"
+    class: ClassDefinitionPredicate
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
     isNull: Boolean
     "Filter based on the field's name"
@@ -1520,7 +1561,7 @@ input InheritanceTreeClassOrdering {
 "Used to filter inheriting classes based on different criteria"
 input InheritorPredicate {
     "Match if all of the given filters match"
-    allOf: [InheritorPredicate!]
+    allOf: [InheritorPredicate]
     "Match if any of the given filters matches"
     anyOf: [InheritorPredicate!]
     "Filter based on the class' depth in the inheritance tree"
@@ -1548,7 +1589,7 @@ input IntPredicate {
     "The number being filtered will pass this predicate if its absolute value matches the given predicate."
     abs: IntPredicate
     "Match if all of the given filters match"
-    allOf: [IntPredicate!]
+    allOf: [IntPredicate]
     "Match if any of the given filters matches"
     anyOf: [IntPredicate!]
     "The number being filtered must be equal to the given number."
@@ -1604,7 +1645,7 @@ on other filters (NOT, AND, OR) or JSON queries.
 """
 input JSONPredicate {
     "Match if all of the given filters match"
-    allOf: [JSONPredicate!]
+    allOf: [JSONPredicate]
     "Match if any of the given filters matches"
     anyOf: [JSONPredicate!]
     "A JSON value will match if at least one object extracted from the given path matches the given predicate"
@@ -1626,7 +1667,7 @@ input JSONPredicate {
 "Used to filter manifest attributes based on their name and/or value"
 input ManifestAttributePredicate {
     "Match if all of the given filters match"
-    allOf: [ManifestAttributePredicate!]
+    allOf: [ManifestAttributePredicate]
     "Match if any of the given filters matches"
     anyOf: [ManifestAttributePredicate!]
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
@@ -1656,11 +1697,13 @@ input MethodDefinitionOrdering {
 "Used to filter method definitions based on different criteria"
 input MethodDefinitionPredicate {
     "Match if all of the given filters match"
-    allOf: [MethodDefinitionPredicate!]
+    allOf: [MethodDefinitionPredicate]
     "A method definition will match if any of its annotations match the given predicate"
     anyAnnotation: AnnotationPredicate
     "Match if any of the given filters matches"
     anyOf: [MethodDefinitionPredicate!]
+    "Filter based on the class that defines the method"
+    class: ClassDefinitionPredicate
     "Filter based on the method's descriptor"
     descriptor: StringPredicate
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
@@ -1680,7 +1723,7 @@ input MethodDefinitionPredicate {
 "Used to filter methods based on different criteria"
 input MethodPredicate {
     "Match if all of the given filters match"
-    allOf: [MethodPredicate!]
+    allOf: [MethodPredicate]
     "Match if any of the given filters matches"
     anyOf: [MethodPredicate!]
     "A method will match if any of the (direct) references to it match the given predicate"
@@ -1704,7 +1747,7 @@ input MethodPredicate {
 "Used to filter mods based on different criteria"
 input ModPredicate {
     "Match if all of the given filters match"
-    allOf: [ModPredicate!]
+    allOf: [ModPredicate]
     "A mod will match if any of the classes it defines matches the given predicate"
     anyClass: ClassDefinitionPredicate
     "A mod will match if any of the manifest attributes its jar has matches the given filter"
@@ -1756,7 +1799,7 @@ input ModPredicate {
 "Used to filter nested artifact coordinates based on their ID and/or version"
 input NestedArtifactPredicate {
     "Match if all of the given filters match"
-    allOf: [NestedArtifactPredicate!]
+    allOf: [NestedArtifactPredicate]
     "Match if any of the given filters matches"
     anyOf: [NestedArtifactPredicate!]
     "Filter based on the nested artifact ID"
@@ -1795,7 +1838,7 @@ input PlatformProjectIdentifier {
 "Used to filter recipes based on different criteria"
 input RecipeFilePredicate {
     "Match if all of the given filters match"
-    allOf: [RecipeFilePredicate!]
+    allOf: [RecipeFilePredicate]
     "Match if any of the given filters matches"
     anyOf: [RecipeFilePredicate!]
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
@@ -1827,7 +1870,7 @@ input ReferenceOrdering {
 "Used to filter references based on different criteria"
 input ReferencePredicate {
     "Match if all of the given filters match"
-    allOf: [ReferencePredicate!]
+    allOf: [ReferencePredicate]
     "Match if any of the given filters matches"
     anyOf: [ReferencePredicate!]
     "If `true`, match if the value tested is null. Otherwise, match if non-null."
@@ -1853,7 +1896,7 @@ on other filters (NOT, AND, OR) or exact / regex matches.
 """
 input StringPredicate {
     "Match if all of the given filters match"
-    allOf: [StringPredicate!]
+    allOf: [StringPredicate]
     "Match if any of the given filters matches"
     anyOf: [StringPredicate!]
     "The string being filtered must be equal to the given string."
@@ -1881,7 +1924,7 @@ input StringPredicate {
 "Used to filter tag entries based on different criteria"
 input TagEntryPredicate {
     "Match if all of the given filters match"
-    allOf: [TagEntryPredicate!]
+    allOf: [TagEntryPredicate]
     "Match if any of the given filters matches"
     anyOf: [TagEntryPredicate!]
     "Filter based on the entry of the tag"
@@ -1905,7 +1948,7 @@ input TagEntryPredicate {
 "Used to filter tags based on different criteria"
 input TagFilePredicate {
     "Match if all of the given filters match"
-    allOf: [TagFilePredicate!]
+    allOf: [TagFilePredicate]
     "A tag file will match this predicate if any of its direct entries matches the given predicate"
     anyEntry: StringPredicate
     "Match if any of the given filters matches"

@@ -42,7 +42,7 @@ export type Annotation = {
 /** Used to filter annotations based on different criteria */
 export type AnnotationPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<AnnotationPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<AnnotationPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<AnnotationPredicate>>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
@@ -281,7 +281,7 @@ export type ClassDefinitionAnnotationsArgs = {
 export type ClassDefinitionFieldsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   order?: InputMaybe<FieldDefinitionOrdering>;
-  where?: InputMaybe<FieldPredicate>;
+  where?: InputMaybe<FieldDefinitionPredicate>;
 };
 
 
@@ -289,7 +289,7 @@ export type ClassDefinitionFieldsArgs = {
 export type ClassDefinitionMethodsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   order?: InputMaybe<MethodDefinitionOrdering>;
-  where?: InputMaybe<MethodPredicate>;
+  where?: InputMaybe<MethodDefinitionPredicate>;
 };
 
 /** A connection (list) composed of `ClassDefinition`. */
@@ -321,7 +321,7 @@ export type ClassDefinitionOrdering = {
 /** Used to filter class definitions based on different criteria */
 export type ClassDefinitionPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<ClassDefinitionPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<ClassDefinitionPredicate>>>;
   /** A class definition will match if any of its annotations match the given predicate */
   anyAnnotation?: InputMaybe<AnnotationPredicate>;
   /** A class definition will match if any of the fields it defines matches the given predicate */
@@ -359,7 +359,7 @@ export type ClassEdge = {
 /** Used to filter classes based on different criteria */
 export type ClassPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<ClassPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<ClassPredicate>>>;
   /** A class will match if any of its fields match the given predicate */
   anyField?: InputMaybe<FieldPredicate>;
   /** A class will match if any of its methods match the given predicate */
@@ -413,7 +413,7 @@ export type DataFileEdge = {
 /** Used to filter data files based on different criteria */
 export type DataFilePredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<DataFilePredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<DataFilePredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<DataFilePredicate>>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
@@ -495,7 +495,7 @@ export type DataMapFileEntry = {
 /** Used to filter data map files based on different criteria */
 export type DataMapFilePredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<DataMapFilePredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<DataMapFilePredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<DataMapFilePredicate>>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
@@ -514,7 +514,7 @@ export type DataMapFilePredicate = {
 /** Used to filter data maps based on different criteria */
 export type DataMapPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<DataMapPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<DataMapPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<DataMapPredicate>>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
@@ -544,7 +544,7 @@ export type DatePredicate = {
   /** Matches if the date is after (greater than) the given date */
   after?: InputMaybe<Scalars['DateTime']['input']>;
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<DatePredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<DatePredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<DatePredicate>>;
   /** Matches if the date is before (smaller than) the given date */
@@ -598,7 +598,7 @@ export type EnumExtensionEdge = {
 /** Used to filter enum extension entries based on different criteria */
 export type EnumExtensionPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<EnumExtensionPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<EnumExtensionPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<EnumExtensionPredicate>>;
   /** Filter based on the enum constructor the extension uses */
@@ -645,10 +645,14 @@ export type FieldReferencesArgs = {
 };
 
 /** A concrete definition of a field */
-export type FieldDefinition = Annotatable & {
+export type FieldDefinition = Annotatable & Identifiable & {
   __typename?: 'FieldDefinition';
   /** Returns annotations on this object matching the given predicate */
   annotations: Array<Annotation>;
+  /** The class that defines this field */
+  class: ClassDefinition;
+  /** The unique ID of this object */
+  id: Scalars['Int']['output'];
   /** The name of this method */
   name: Scalars['String']['output'];
   /** The type of this field. This is not a descriptor so classes are in internal JVM format (e.g. `java/lang/String` instead of `Ljava/lang/String;`) */
@@ -672,7 +676,7 @@ export type FieldDefinitionOrdering = {
 /** Used to filter field definitions based on different criteria */
 export type FieldDefinitionPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<FieldDefinitionPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<FieldDefinitionPredicate>>>;
   /** A field definition will match if any of its annotations match the given predicate */
   anyAnnotation?: InputMaybe<AnnotationPredicate>;
   /** Match if any of the given filters matches */
@@ -695,11 +699,13 @@ export type FieldDefinitionPredicate = {
 /** Used to filter fields based on different criteria */
 export type FieldPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<FieldPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<FieldPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<FieldPredicate>>;
   /** A field will match if any of the (direct) references to it match the given predicate */
   anyReference?: InputMaybe<ReferencePredicate>;
+  /** Filter based on the class that defines the field */
+  class?: InputMaybe<ClassDefinitionPredicate>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
   isNull?: InputMaybe<Scalars['Boolean']['input']>;
   /** Filter based on the field's name */
@@ -752,6 +758,8 @@ export type GameVersion = {
   enumExtensions: EnumExtensionConnection;
   /** The loader this game version indexes */
   loader: Loader;
+  /** Get the method definitions known by this game version that optionally match the given predicate */
+  methodDefinitions: MethodDefinitionConnection;
   /** Query mods from the database */
   mods: ModConnection;
   /**
@@ -835,6 +843,16 @@ export type GameVersionEnumExtensionsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
   where?: InputMaybe<EnumExtensionPredicate>;
+};
+
+
+/** Represents a version of the game on a loader, which WAIFU is indexing */
+export type GameVersionMethodDefinitionsArgs = {
+  after?: InputMaybe<Scalars['ID']['input']>;
+  before?: InputMaybe<Scalars['ID']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<MethodDefinitionPredicate>;
 };
 
 
@@ -940,7 +958,7 @@ export type InheritanceTreeClassOrdering = {
 /** Used to filter inheriting classes based on different criteria */
 export type InheritorPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<InheritorPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<InheritorPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<InheritorPredicate>>;
   /** Filter based on the class' depth in the inheritance tree */
@@ -1048,7 +1066,7 @@ export type IntPredicate = {
   /** The number being filtered will pass this predicate if its absolute value matches the given predicate. */
   abs?: InputMaybe<IntPredicate>;
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<IntPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<IntPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<IntPredicate>>;
   /** The number being filtered must be equal to the given number. */
@@ -1101,7 +1119,7 @@ export type JsonExtractPredicate = {
  */
 export type JsonPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<JsonPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<JsonPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<JsonPredicate>>;
   /** A JSON value will match if at least one object extracted from the given path matches the given predicate */
@@ -1207,7 +1225,7 @@ export type ManifestAttribute = {
 /** Used to filter manifest attributes based on their name and/or value */
 export type ManifestAttributePredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<ManifestAttributePredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<ManifestAttributePredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<ManifestAttributePredicate>>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
@@ -1256,12 +1274,16 @@ export type MethodReferencesArgs = {
 };
 
 /** A concrete definition of a method */
-export type MethodDefinition = Annotatable & {
+export type MethodDefinition = Annotatable & Identifiable & {
   __typename?: 'MethodDefinition';
   /** Returns annotations on this object matching the given predicate */
   annotations: Array<Annotation>;
+  /** The class that defines this method */
+  class: ClassDefinition;
   /** The descriptor of this method */
   descriptor: Scalars['String']['output'];
+  /** The unique ID of this object */
+  id: Scalars['Int']['output'];
   /** The name of this method */
   name: Scalars['String']['output'];
 };
@@ -1270,6 +1292,26 @@ export type MethodDefinition = Annotatable & {
 /** A concrete definition of a method */
 export type MethodDefinitionAnnotationsArgs = {
   where?: InputMaybe<AnnotationPredicate>;
+};
+
+/** A connection (list) composed of `MethodDefinition`. */
+export type MethodDefinitionConnection = {
+  __typename?: 'MethodDefinitionConnection';
+  /** Identifies the amount of items in the returned edges. */
+  count: Scalars['Int']['output'];
+  /** A list of edges. */
+  edges: Array<MethodDefinitionEdge>;
+  /** Information to aid in pagination. */
+  pageInfo: PageInfo;
+};
+
+/** An edge of a `MethodDefinition`. */
+export type MethodDefinitionEdge = {
+  __typename?: 'MethodDefinitionEdge';
+  /** The cursor ID of the element. */
+  cursor: Scalars['ID']['output'];
+  /** The item at the end of the edge. */
+  node: MethodDefinition;
 };
 
 /** Type used to order `MethodDefinition`s */
@@ -1283,11 +1325,13 @@ export type MethodDefinitionOrdering = {
 /** Used to filter method definitions based on different criteria */
 export type MethodDefinitionPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<MethodDefinitionPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<MethodDefinitionPredicate>>>;
   /** A method definition will match if any of its annotations match the given predicate */
   anyAnnotation?: InputMaybe<AnnotationPredicate>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<MethodDefinitionPredicate>>;
+  /** Filter based on the class that defines the method */
+  class?: InputMaybe<ClassDefinitionPredicate>;
   /** Filter based on the method's descriptor */
   descriptor?: InputMaybe<StringPredicate>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
@@ -1306,7 +1350,7 @@ export type MethodDefinitionPredicate = {
 /** Used to filter methods based on different criteria */
 export type MethodPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<MethodPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<MethodPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<MethodPredicate>>;
   /** A method will match if any of the (direct) references to it match the given predicate */
@@ -1477,7 +1521,7 @@ export type ModOwned = {
 /** Used to filter mods based on different criteria */
 export type ModPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<ModPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<ModPredicate>>>;
   /** A mod will match if any of the classes it defines matches the given predicate */
   anyClass?: InputMaybe<ClassDefinitionPredicate>;
   /** A mod will match if any of the manifest attributes its jar has matches the given filter */
@@ -1566,7 +1610,7 @@ export type NestedArtifactNode = BaseNestedArtifact & {
 /** Used to filter nested artifact coordinates based on their ID and/or version */
 export type NestedArtifactPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<NestedArtifactPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<NestedArtifactPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<NestedArtifactPredicate>>;
   /** Filter based on the nested artifact ID */
@@ -1688,7 +1732,7 @@ export type RecipeFileEdge = {
 /** Used to filter recipes based on different criteria */
 export type RecipeFilePredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<RecipeFilePredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<RecipeFilePredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<RecipeFilePredicate>>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
@@ -1728,7 +1772,7 @@ export type ReferenceOrdering = {
 /** Used to filter references based on different criteria */
 export type ReferencePredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<ReferencePredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<ReferencePredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<ReferencePredicate>>;
   /** If `true`, match if the value tested is null. Otherwise, match if non-null. */
@@ -1798,7 +1842,7 @@ export type ReferencedMethod = {
  */
 export type StringPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<StringPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<StringPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<StringPredicate>>;
   /** The string being filtered must be equal to the given string. */
@@ -1859,7 +1903,7 @@ export type TagEntryEdge = {
 /** Used to filter tag entries based on different criteria */
 export type TagEntryPredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<TagEntryPredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<TagEntryPredicate>>>;
   /** Match if any of the given filters matches */
   anyOf?: InputMaybe<Array<TagEntryPredicate>>;
   /** Filter based on the entry of the tag */
@@ -1902,7 +1946,7 @@ export type TagFileEntriesArgs = {
 /** Used to filter tags based on different criteria */
 export type TagFilePredicate = {
   /** Match if all of the given filters match */
-  allOf?: InputMaybe<Array<TagFilePredicate>>;
+  allOf?: InputMaybe<Array<InputMaybe<TagFilePredicate>>>;
   /** A tag file will match this predicate if any of its direct entries matches the given predicate */
   anyEntry?: InputMaybe<StringPredicate>;
   /** Match if any of the given filters matches */
@@ -1997,6 +2041,17 @@ export type GetMethodReferencesQueryVariables = Exact<{
 
 
 export type GetMethodReferencesQuery = { gameVersion: { __typename?: 'GameVersion', class: { __typename?: 'Class', methods: Array<{ __typename?: 'Method', name: string, descriptor: string, references: Array<{ __typename?: 'Reference', owner: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> }> } | null } | null };
+
+export type GetMethodsAnnotatedQueryVariables = Exact<{
+  version: Scalars['String']['input'];
+  loader: Loader;
+  predicate?: InputMaybe<MethodDefinitionPredicate>;
+  annotationPredicate: AnnotationPredicate;
+  cursor?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type GetMethodsAnnotatedQuery = { gameVersion: { __typename?: 'GameVersion', methodDefinitions: { __typename?: 'MethodDefinitionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'MethodDefinitionEdge', node: { __typename?: 'MethodDefinition', name: string, descriptor: string, class: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string } }, annotations: Array<{ __typename?: 'Annotation', type: string, value: any | null }> } }> } } | null };
 
 export type GetClassesDefiningMethodsQueryVariables = Exact<{
   version: Scalars['String']['input'];

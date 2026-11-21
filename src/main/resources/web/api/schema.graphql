@@ -119,6 +119,12 @@ type GameVersion {
         where: ClassDefinitionPredicate
     ): ClassDefinition @paginated
 
+    "Get the method definitions known by this game version that optionally match the given predicate"
+    methodDefinitions(
+        "Optional filter applied to the query"
+        where: MethodDefinitionPredicate
+    ): MethodDefinition @paginated
+
     "Get the recipe files known by this game version that optionally match the given predicate"
     recipes(
         "Optional filter applied to the query"
@@ -606,7 +612,7 @@ type ClassDefinition @implement(interfaces: ["ModOwned", "Annotatable"]) {
     """
     methods(
         "Optional filter to apply to the query"
-        where: MethodPredicate,
+        where: MethodDefinitionPredicate,
         "Limit the amount of methods returned"
         limit: Int
     ): [MethodDefinition!]!
@@ -617,7 +623,7 @@ type ClassDefinition @implement(interfaces: ["ModOwned", "Annotatable"]) {
     """
     fields(
         "Optional filter to apply to the query"
-        where: FieldPredicate,
+        where: FieldDefinitionPredicate,
         "Limit the amount of fields returned"
         limit: Int
     ): [FieldDefinition!]!
@@ -660,19 +666,25 @@ type ReferencedField {
 }
 
 "A concrete definition of a method"
-type MethodDefinition @implement(interfaces: "Annotatable") {
+type MethodDefinition @implement(interfaces: ["Annotatable", "Identifiable"]) {
     "The name of this method"
     name: String! @orderBy
     "The descriptor of this method"
     descriptor: String! @orderBy
+
+    "The class that defines this method"
+    class: ClassDefinition!
 }
 
 "A concrete definition of a field"
-type FieldDefinition @implement(interfaces: "Annotatable") {
+type FieldDefinition @implement(interfaces: ["Annotatable", "Identifiable"]) {
     "The name of this method"
     name: String! @orderBy
     "The type of this field. This is not a descriptor so classes are in internal JVM format (e.g. `java/lang/String` instead of `Ljava/lang/String;`)"
     type: String! @orderBy
+
+    "The class that defines this field"
+    class: ClassDefinition!
 }
 
 "Used to filter methods based on different criteria"
@@ -693,6 +705,9 @@ input MethodDefinitionPredicate @predicateType @oneOf {
     "Filter based on the method's descriptor"
     descriptor: StringPredicate
 
+    "Filter based on the class that defines the method"
+    class: ClassDefinitionPredicate
+
     "A method definition will match if any of its annotations match the given predicate"
     anyAnnotation: AnnotationPredicate
 }
@@ -703,6 +718,9 @@ input FieldPredicate @predicateType @oneOf {
     name: StringPredicate
     "Filter based on the field's type"
     type: StringPredicate
+
+    "Filter based on the class that defines the field"
+    class: ClassDefinitionPredicate
 
     "A field will match if any of the (direct) references to it match the given predicate"
     anyReference: ReferencePredicate

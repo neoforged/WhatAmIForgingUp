@@ -2,7 +2,7 @@ import { CodegenConfig } from "@graphql-codegen/cli";
 
 const config: CodegenConfig = {
   overwrite: true,
-  schema: "schema.graphql",
+  schema: "_web_schema.graphql",
   documents: ["graphql-requests/*.{ts,tsx}"],
   // Don't exit with non-zero status when there are no documents
   ignoreNoDocuments: true,

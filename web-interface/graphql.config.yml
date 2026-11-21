@@ -1,4 +1,4 @@
-schema: ./schema.graphql
+schema: ./_web_schema.graphql
 extensions:
   endpoints:
     Default GraphQL Endpoint:

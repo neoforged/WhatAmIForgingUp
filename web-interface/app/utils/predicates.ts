@@ -119,6 +119,21 @@ addLogicPredicate('ClassDefinitionPredicate', {
   }
 })
 
+addLogicPredicate('MethodDefinitionPredicate', {
+  fields: {
+    class: {
+      type: 'ClassDefinitionPredicate',
+      name: 'Class',
+      hint: 'Test against the class that defines the method'
+    },
+    name: {
+      type: 'StringPredicate',
+      name: 'Name',
+      hint: 'Test against the name of the method'
+    }
+  }
+})
+
 addLogicPredicate('RecipeFilePredicate', {
   fields: {
     mod: {

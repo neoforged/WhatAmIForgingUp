@@ -69,7 +69,7 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     private final DatabaseSchema schema;
 
-    private final DatabaseType recipes, data_maps, data_files, tag_entries, enum_extensions, mods, classes, class_defs;
+    private final DatabaseType recipes, data_maps, data_files, tag_entries, enum_extensions, mods, classes, method_defs, field_defs, class_defs;
 
     @SuppressWarnings("unchecked")
     public SQLSearchHelper(Jdbi jdbi, String gameVersion, ModLoader loader, Consumer<Runnable> cancellationInvoker) {
@@ -333,13 +333,16 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         schema.registerIndependentJoin("methods", "constants", "method_name", SqlCondition.equals("methods.name", "method_name.id"));
         schema.registerIndependentJoin("methods", "constants", "method_desc", SqlCondition.equals("methods.descriptor", "method_desc.id"));
 
-        var method_defs = schema.registerType("method_defs", b -> b
+        method_defs = schema.registerType("method_defs", b -> b
+                .directFields("id")
                 .field("name", "method_name.constant")
                 .field("descriptor", "method_desc.constant")
                 .field("annotations", listSubTable(method_annotations))
+                .field("class", subTable("class_defs"))
 
                 .filterOnColumn("name", "method_name.constant")
                 .filterOnColumn("descriptor", "method_desc.constant")
+                .filterOnTable("class", "class_defs")
                 .filterOnTable("anyAnnotation", method_annotations)
         );
         schema.registerTwoWayJoin("methods", "method_defs", SqlCondition.equals("methods.id", "method_defs.type"));
@@ -374,13 +377,16 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
         schema.registerIndependentJoin("fields", "constants", "field_name", SqlCondition.equals("fields.name", "field_name.id"));
         schema.registerIndependentJoin("fields", "classes", "field_type", SqlCondition.equals("fields.descriptor", "field_type.id"));
 
-        var field_defs = schema.registerType("field_defs", b -> b
+        field_defs = schema.registerType("field_defs", b -> b
+                .directFields("id")
                 .field("name", "field_name.constant")
                 .field("type", "field_type.name")
                 .field("annotations", listSubTable(field_annotations))
+                .field("class", subTable("class_defs"))
 
                 .filterOnColumn("name", "field_name.constant")
                 .filterOnColumn("type", "field_type.name")
+                .filterOnTable("class", "class_defs")
                 .filterOnTable("anyAnnotation", field_annotations)
         );
         schema.registerTwoWayJoin("fields", "field_defs", SqlCondition.equals("fields.id", "field_defs.type"));
@@ -608,6 +614,16 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
     @Override
     public Object getClassDefinitions(DataFetchingEnvironment env) {
         return executePaginatedRequest(class_defs, env, "class_defs.id");
+    }
+
+    @Override
+    public Object getMethodDefinitions(DataFetchingEnvironment env) {
+        return executePaginatedRequest(method_defs, env, "method_defs.id");
+    }
+
+    @Override
+    public Object getFieldDefinitions(DataFetchingEnvironment env) {
+        return executePaginatedRequest(field_defs, env, "field_defs.id");
     }
 
     @Override

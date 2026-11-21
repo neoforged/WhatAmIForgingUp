@@ -135,11 +135,17 @@ const downloadSources = async () => {
   for (let column of props.columns) {
     if (!column.sourceDownloader) continue
 
+    const uniqueValues = new Set()
+
     for (let i = (page.value - 1) * itemsPerPage.value; i < Math.min(props.items.length, page.value * itemsPerPage.value); i++) {
       const item = props.items[i]
-      const source = column.sourceDownloader(item, column.value(item))
-      if (source) {
-        selections.push(source)
+      const value = column.value(item)
+      if (!uniqueValues.has(value)) {
+        uniqueValues.add(value)
+        const source = column.sourceDownloader(item, value)
+        if (source) {
+          selections.push(source)
+        }
       }
     }
   }

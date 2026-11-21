@@ -7,7 +7,7 @@ import type {
 import {optional, parameters, type QueryType, queryType, renderAsTable} from "~/query/query-builder";
 import {queryToPredicate} from "~/utils/query-utils";
 import {classSearch, fieldSearch, methodSearch, usualRegistries} from "~/utils/autocomplete";
-import {CLASSES_DEFINING_METHODS, METHOD_REFERENCES} from "~~/graphql-requests/methods";
+import {CLASSES_DEFINING_METHODS, METHOD_REFERENCES, METHODS_ANNOTATED} from "~~/graphql-requests/methods";
 import {codeColumn, fileColumn, modColumn} from "~/components/table/results-table-api";
 import {
   fileNamed,
@@ -80,6 +80,60 @@ export const METHOD_REFERENCES_QUERY = queryType(
         groupable: true,
         value: item => item.mtd,
       }
+    ])
+)
+
+export const METHODS_ANNOTATED_QUERY = queryType(
+    () => h('span', 'Query methods annotated with the given annotation.'),
+    parameters<{
+      annotation: string;
+      filter: MethodDefinitionPredicate | undefined;
+    }>(params => ({
+      annotation: stringQueryParameter({
+        label: 'Annotation',
+        placeholder: 'com.example.ExampleAnnotation',
+        autocomplete: classSearch(params.version)
+      }),
+      filter: optional(predicateQueryParameter({
+        label: 'Filter',
+        type: 'MethodDefinitionPredicate'
+      }))
+    })),
+    async (client, params) => {
+      const values = await client.fetchPaginated(METHODS_ANNOTATED, {
+        predicate: params.filter.value,
+        annotationPredicate: {
+          type: {equals: params.annotation.value!.replaceAll('.', '/')}
+        }
+      }, data => (data.gameVersion?.methodDefinitions)!);
+      return values.map(item => ({
+        mod: item.class.mod,
+        cls: item.class.name.replaceAll('/', '.'),
+        mtd: item.name + item.descriptor,
+        annotation: formatAnnotation(item.annotations[0]!.value as any, item.annotations[0]!.type)
+      }));
+    },
+    renderAsTable([
+      modColumn({
+        title: 'Mod',
+        groupable: true,
+        value: item => item.mod
+      }),
+      fileColumn({
+        title: 'Class',
+        groupable: true,
+        value: item => item.cls,
+        mod: item => item.mod,
+        fileName: getClassSourceFileName,
+      }),
+      {
+        title: 'Method',
+        value: item => item.mtd
+      },
+      codeColumn({
+        title: 'Annotation',
+        value: item => item.annotation
+      })
     ])
 )
 
@@ -605,6 +659,12 @@ export const QUERIES: {
         path: 'annotated-classes',
         query: CLASSES_ANNOTATED_QUERY
       },
+      {
+        name: 'Annotated Methods',
+        path: 'annotated-methods',
+        query: METHODS_ANNOTATED_QUERY
+      },
+
       {
         name: 'Implementations',
         path: 'implementations',
