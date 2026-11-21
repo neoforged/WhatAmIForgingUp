@@ -74,6 +74,15 @@
         </v-btn>
       </template>
     </v-data-table>
+    <v-snackbar v-model="displaySourcesDownloadProgress" location="bottom right">
+      <v-progress
+          value-format="[value] out of [max] mods"
+          color="primary"
+          label="Decompiling classes..."
+          :max="sourcesDownloadProgress?.totalMods ?? 0"
+          :model-value="sourcesDownloadProgress?.processedMods ?? 0"
+      ></v-progress>
+    </v-snackbar>
   </v-card>
 </template>
 <script setup lang="ts">
@@ -121,6 +130,12 @@ function expandCurrentItem(item: any): any[] {
     return [item.raw]
   }
 }
+
+const sourcesDownloadProgress = ref<{
+  totalMods: number;
+  processedMods: number;
+}>()
+const displaySourcesDownloadProgress = computed(() => loadingSourcesDownload.value && sourcesDownloadProgress.value !== undefined)
 
 const download = () => {
   const blob = new Blob([JSON.stringify(props.items, null, 2)], { type: 'application/json' })
@@ -173,6 +188,11 @@ const downloadSources = async () => {
     const sourcesZip = new JSZip()
 
     for (let i = 0; i < modIds.length; i++) {
+      sourcesDownloadProgress.value = {
+        processedMods: i,
+        totalMods: mods.length
+      }
+
       const modId = modIds[i]
       const mod = mods[i]
       if (!mod) continue
@@ -189,6 +209,7 @@ const downloadSources = async () => {
     const blob = await sourcesZip.generateAsync({ type: 'blob' })
     browserDownload(blob, 'sources.zip')
     loadingSourcesDownload.value = false
+    sourcesDownloadProgress.value = undefined
   }).catch(_ => loadingSourcesDownload.value = false)
 }
 
