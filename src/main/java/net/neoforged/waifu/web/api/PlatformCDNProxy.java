@@ -1,7 +1,6 @@
 package net.neoforged.waifu.web.api;
 
 import io.javalin.http.Context;
-import io.javalin.http.Handler;
 import net.neoforged.waifu.Main;
 
 import java.io.IOException;
@@ -9,6 +8,9 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * A proxy for CurseForge/Modrinth CDN proxy because, while Modrinth's CDN does allow CORS, CurseForge's does not.
@@ -20,10 +22,14 @@ public class PlatformCDNProxy {
             ctx.status(400).result("Missing 'url' query parameter");
             return;
         }
+        if (!url.startsWith("https://")) {
+            ctx.status(400).result("Only https allowed");
+            return;
+        }
 
         URI uri;
         try {
-            uri = URI.create(url);
+            uri = URI.create(encodePath(url));
         } catch (IllegalArgumentException e) {
             ctx.status(400).result("Invalid URL");
             return;
@@ -58,5 +64,19 @@ public class PlatformCDNProxy {
 
         InputStream in = conn.getInputStream();
         ctx.result(in);
+    }
+
+    private static String encodePath(String rawUrl) {
+        int idx = rawUrl.indexOf('/', rawUrl.indexOf("//") + 2);
+
+        String base = rawUrl.substring(0, idx);
+        String path = rawUrl.substring(idx);
+
+        String encodedPath = Arrays.stream(path.split("/"))
+                .map(s -> URLEncoder.encode(s, StandardCharsets.UTF_8).replace("+", "%20"))
+                .reduce((a, b) -> a + "/" + b)
+                .orElse("");
+
+        return base + encodedPath;
     }
 }

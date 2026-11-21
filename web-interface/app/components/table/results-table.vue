@@ -198,6 +198,11 @@ const downloadSources = async () => {
       if (!mod) continue
 
       const zip = await downloadZip(`${getBaseUrl()}/api/internal/cdn-proxy?url=${mod.downloadUrl}`)
+          .catch(reason => {
+            console.log(`Failed to download: ${reason}`)
+            return null
+          })
+      if (!zip) continue
       for (let value of selections.filter(s => s.mod == modId)) {
         const result: any = await value.selection.binaryExtractor!!(zip)
         if (result.content) {
