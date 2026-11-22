@@ -17,6 +17,7 @@ import net.neoforged.waifu.platform.PlatformProject;
 import net.neoforged.waifu.platform.PlatformProjectFile;
 import net.neoforged.waifu.util.Utils;
 import net.neoforged.waifu.web.api.GraphQLTokenPrivilege;
+import net.neoforged.waifu.web.api.GraphQLWebService;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.statement.HashPrefixSqlParser;
 import org.jdbi.v3.core.statement.SqlStatements;
@@ -42,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static net.neoforged.waifu.db.sql.search.DatabaseType.QueryBuilder.directColumn;
@@ -508,22 +510,46 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
 
     @Override
     public Object getInternalModInformation(DataFetchingEnvironment env) {
-        var builder = mods.createQuery();
-        this.mods.apply(builder, getEnvSelection(env));
+        var ids = env.<List<Integer>>getArgument("ids");
+        assert ids != null;
 
-        builder.requestColumn("curseforge_project_id", "cpid");
-        builder.requestColumn("modrinth_project_id", "mpid");
+        var selection = getEnvSelection(env);
+        var builder = mods.createQuery();
+        this.mods.apply(builder, selection);
+
+        builder.requestColumn("id", "id");
+        builder.requestColumn("curseforge_project_id", "curseforge_project_id");
+        builder.requestColumn("modrinth_project_id", "modrinth_project_id");
         builder.requestColumn("index_date", "idate");
 
-        builder.where(SqlCondition.columnFilter("mods.id", SqlFilter.eq(env.getArguments().get("id"))));
+        builder.where(SqlCondition.columnFilter("mods.id", SqlFilter.isIn(ids)));
 
-        return executeQuery(builder);
+        var result = executeListQuery(builder);
+
+        for (ModPlatform modPlatform : Main.PLATFORMS) {
+            var platform = modPlatform.getName();
+            if (selection.getSelectionSet().contains(modPlatform.getName())) {
+                var projectsById = modPlatform.getProjectsById(result.stream().map(e -> e.get(platform + "_project_id")).collect(Collectors.toCollection(ArrayList::new)));
+                for (int i = 0; i < result.size(); i++) {
+                    var project = projectsById.get(i);
+                    if (project != null) {
+                        result.get(i).put(platform, new GraphQLWebService.PlatformIndexDatePair(project, (OffsetDateTime) result.get(i).get("idate")));
+                    }
+                }
+            }
+        }
+
+        Map<Integer, Object> byId = new HashMap<>();
+        result.forEach(e -> byId.put((Integer) e.get("id"), e));
+
+        return ids.stream().map(byId::get).toList();
     }
 
     @Override
     public Object getModDownloadUrls(DataFetchingEnvironment env) {
         var ids = env.<List<Integer>>getArgument("ids");
         assert ids != null;
+        if (ids.size() > 100) throw new IllegalArgumentException("Cannot query download URLs for more than 100 mods!");
 
         record ModInfo(Instant indexDate, int curseforgeId, String modId) {}
         var modInfo = new HashMap<Integer, ModInfo>();
@@ -776,16 +802,33 @@ public class SQLSearchHelper implements DatabaseSearchHelper {
             if (!rs.next()) {
                 return null;
             }
-
-            var map = HashMap.<String, Object>newHashMap(rs.getMetaData().getColumnCount());
-
-            for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
-                var col = columns[i];
-                map.put(col.resultName(), col.read(rs, i));
-            }
-
-            return map;
+            return readRow(rs, columns);
         });
+    }
+
+    /**
+     * {@return a list of mutable maps}
+     */
+    private List<Map<String, Object>> executeListQuery(SqlSearchBuilder builder) {
+        return executeQuery(builder, (rs, ctx, columns) -> {
+            var result = new ArrayList<Map<String, Object>>();
+            while (rs.next()) {
+                result.add(readRow(rs, columns));
+            }
+            return result;
+        });
+    }
+
+    /**
+     * {@return a mutable map}
+     */
+    private Map<String, Object> readRow(ResultSet rs, ColInfo[] columns) throws SQLException {
+        var map = HashMap.<String, Object>newHashMap(rs.getMetaData().getColumnCount());
+        for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+            var col = columns[i];
+            map.put(col.resultName(), col.read(rs, i));
+        }
+        return map;
     }
 
     private <T> T executeQuery(SqlSearchBuilder builder, DBResultProducer<T> producer) {

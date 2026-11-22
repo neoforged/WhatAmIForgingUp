@@ -1,7 +1,11 @@
 package net.neoforged.waifu.platform.impl.cf;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import io.github.matyrobbrt.curseforgeapi.CurseForgeAPI;
 import io.github.matyrobbrt.curseforgeapi.annotation.Nullable;
+import io.github.matyrobbrt.curseforgeapi.request.Method;
+import io.github.matyrobbrt.curseforgeapi.request.Request;
 import io.github.matyrobbrt.curseforgeapi.request.Requests;
 import io.github.matyrobbrt.curseforgeapi.request.query.FileListQuery;
 import io.github.matyrobbrt.curseforgeapi.request.query.ModSearchQuery;
@@ -41,9 +45,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -73,11 +79,6 @@ public class CurseForgePlatform implements ModPlatform {
         }
     }
 
-    private int classId(ProjectType projectType) {
-        // 6 is mods, 4471 is modpacks
-        return projectType == ProjectType.MOD ? 6 : 4471;
-    }
-
     @Override
     public PlatformProject getProjectBySlug(String slug, ProjectType projectType) {
         try {
@@ -90,6 +91,26 @@ public class CurseForgePlatform implements ModPlatform {
         } catch (CurseForgeException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public List<PlatformProject> getProjectsById(List<Object> ids) {
+        var modIds = new JsonArray();
+        ids.stream().filter(Objects::nonNull).distinct().forEach(i -> modIds.add((Integer) i));
+        var body = new JsonObject();
+        body.add("modIds", modIds);
+        try {
+            var mods = (modIds.isEmpty() ? List.<Mod>of() : api.makeRequest(new Request<List<Mod>>("/v1/mods", Method.POST, body, "data", Requests.Types.MOD_LIST)).orElseThrow())
+                    .stream().collect(Collectors.toMap(Mod::id, this::createMod));
+            return ids.stream().map(i -> mods.get((Integer) i)).collect(Collectors.toCollection(ArrayList::new));
+        } catch (CurseForgeException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private int classId(ProjectType projectType) {
+        // 6 is mods, 4471 is modpacks
+        return projectType == ProjectType.MOD ? 6 : 4471;
     }
 
     @Override

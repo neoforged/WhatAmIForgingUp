@@ -22,9 +22,9 @@ export const MOD_INFORMATION: TypedDocumentNode<
         sourceUrl
     }
     
-    query GetModInformation($version: String!, $loader: Loader!, $id: Int!) {
+    query GetModInformation($version: String!, $loader: Loader!, $ids: [Int!]!, $includeDownloadUrl: Boolean!) {
         gameVersion(loader: $loader, version: $version) {
-            _modInformation(id: $id) {
+            _modInformation(ids: $ids) {
                 name
                 authors
                 modIds
@@ -36,11 +36,11 @@ export const MOD_INFORMATION: TypedDocumentNode<
                 mavenCoordinates
                 curseforge {
                     ...PlatformInformation
-                    fileDownloadUrl(version: $version, loader: $loader)
+                    fileDownloadUrl(version: $version, loader: $loader) @include(if: $includeDownloadUrl)
                 }
                 modrinth {
                     ...PlatformInformation
-                    fileDownloadUrl(version: $version, loader: $loader)
+                    fileDownloadUrl(version: $version, loader: $loader) @include(if: $includeDownloadUrl)
                 }
             }
         }

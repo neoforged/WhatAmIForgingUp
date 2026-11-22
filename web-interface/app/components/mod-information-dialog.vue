@@ -109,11 +109,12 @@ watch(modId, newValue => {
   showDialog.value = true
   loading.value = true
   fetchWithVersion(client, MOD_INFORMATION, {
-    id: newValue!!
+    ids: [newValue],
+    includeDownloadUrl: false
   }, props.version!!)
       .then(result => {
         loading.value = false
-        const mod = result?.gameVersion?._modInformation!!
+        const mod = result?.gameVersion?._modInformation[0]!
 
         title.value = mod.name
         modIds.value = mod.modIds

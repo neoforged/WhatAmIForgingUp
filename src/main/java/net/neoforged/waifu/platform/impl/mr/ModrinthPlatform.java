@@ -29,8 +29,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class ModrinthPlatform implements ModPlatform {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModrinthPlatform.class);
@@ -66,6 +68,15 @@ public class ModrinthPlatform implements ModPlatform {
     public PlatformProject getProjectBySlug(String slug, ProjectType projectType) {
         var res = sendRequest("/project/" + slug, new TypeToken<ProjectResponse>() {});
         return res == null ? null : createMod(res.id(), res.slug(), res);
+    }
+
+    @Override
+    public List<@Nullable PlatformProject> getProjectsById(List<Object> ids) {
+        var modIds = new JsonArray();
+        ids.stream().filter(Objects::nonNull).distinct().forEach(i -> modIds.add((String) i));
+        var mods = (modIds.isEmpty() ? List.<ProjectResponse>of() : sendRequest("/projects?ids=" + URLEncoder.encode(Utils.GSON.toJson(modIds), StandardCharsets.UTF_8), new TypeToken<List<ProjectResponse>>() {}))
+                .stream().collect(Collectors.toMap(ProjectResponse::id, p -> createMod(p.id(), p.slug(), p)));
+        return ids.stream().map(i -> mods.get((String) i)).collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override

@@ -101,10 +101,11 @@ watch(file, newValue => {
   showDialog.value = true
   loading.value = true
   fetchWithVersion(client, MOD_INFORMATION, {
-    id: newValue!!.mod
+    ids: [newValue!.mod],
+    includeDownloadUrl: true
   }, props.version!!)
       .then(result => {
-        const mod = result?.gameVersion?._modInformation!!
+        const mod = result?.gameVersion?._modInformation[0]!
         binaryUrl.value = mod.curseforge?.fileDownloadUrl ?? mod.modrinth?.fileDownloadUrl ?? null
 
         let repository: GitHubRepo | null = null;

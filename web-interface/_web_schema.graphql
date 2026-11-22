@@ -501,7 +501,7 @@ type GameVersion {
     "Internal endpoint. It may be removed at any time."
     _modDownloadUrls(ids: [Int!]!): [IntModDownloadUrl]! @deprecated(reason: "Internal")
     "Internal endpoint. It might be removed at any point"
-    _modInformation(id: Int!): IntModInformation! @deprecated(reason: "Internal")
+    _modInformation(ids: [Int!]!): [IntModInformation!]! @deprecated(reason: "Internal")
     """
 
     Get the class with the given `name`. If no such class exists in this game version, this will return `null`.
@@ -800,7 +800,7 @@ type IntPlatformInformation {
     description: String!
     downloads: Int!
     fileDownloadUrl(loader: Loader!, version: String!): String
-    iconUrl: String!
+    iconUrl: String
     issuesUrl: String
     projectUrl: String!
     sourceUrl: String

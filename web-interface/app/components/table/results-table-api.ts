@@ -2,12 +2,21 @@ import {VBtn} from "vuetify/components";
 import type {FileSelection} from "~/utils/utils";
 import {useFileSelection, useModSelection} from "~/utils/globals";
 import CodeBlock from "~/components/code-block.vue";
+import {fetchWithVersion} from "~/utils/graphql-utils";
+import {MOD_INFORMATION} from "~~/graphql-requests/mods";
+import {ApolloClient} from "@apollo/client/core";
+
+export interface AdditionalColumn<T> {
+  title: string;
+  values: (client: ApolloClient, items: T[], version: string) => Promise<any[]>;
+}
 
 export interface TableColumn<T, Z> {
   title: string
   value: (item: T) => Z;
 
   groupable?: boolean
+  additionalColumns?: AdditionalColumn<T>[]
 
   renderer?: (item: T, value: Z) => Component
 
@@ -43,7 +52,18 @@ export function modColumn<T>(
       border: false,
       onClick: () => selectedMod.value = config.value(item).id
     }, () => value),
-    sourceDownloader: undefined
+    additionalColumns: [
+      {
+        title: 'Mod downloads',
+        values: async (client, items, version) => {
+          return (await fetchWithVersion(client, MOD_INFORMATION, {
+            ids: items.map(it => config.value(it).id),
+            includeDownloadUrl: false
+          }, version))?.gameVersion?._modInformation.map(mi => (mi.curseforge?.downloads ?? 0) + (mi.modrinth?.downloads ?? 0)) ?? [];
+        }
+      }
+    ],
+    sourceDownloader: undefined,
   }
 }
 

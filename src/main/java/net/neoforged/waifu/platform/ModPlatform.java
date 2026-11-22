@@ -15,9 +15,10 @@ public interface ModPlatform {
     String getLogoUrl();
 
     PlatformProject getProjectById(Object id);
-
     @Nullable
     PlatformProject getProjectBySlug(String slug, ProjectType type);
+
+    List<@Nullable PlatformProject> getProjectsById(List<Object> ids);
 
     default Iterator<PlatformProject> searchProjects(
             String version, ModLoader loader,

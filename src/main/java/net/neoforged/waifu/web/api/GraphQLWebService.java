@@ -335,10 +335,6 @@ public class GraphQLWebService {
                 )
 
                 // Internal types
-                .type("IntModInformation", builder ->
-                        builder.dataFetcher("curseforge", this.<Map<String, Object>>fetcher(map -> Objects.equals(map.get("cpid"), null) ? null : new PlatformIndexDatePair(Main.CURSE_FORGE_PLATFORM.getProjectById(map.get("cpid")), (OffsetDateTime) map.get("idate"))))
-                                .dataFetcher("modrinth", this.<Map<String, Object>>fetcher(map -> Objects.equals(map.get("mpid"), null) ? null : new PlatformIndexDatePair(Main.MODRINTH_PLATFORM.getProjectById(map.get("mpid")), (OffsetDateTime) map.get("idate"))))
-                )
                 .type("IntPlatformInformation", builder ->
                         builder.dataFetcher("projectUrl", this.<PlatformIndexDatePair>fetcher(p -> p.project().getUrl()))
                                 .dataFetcher("iconUrl", this.<PlatformIndexDatePair>fetcher(p -> p.project().getIconUrl()))
@@ -683,7 +679,7 @@ public class GraphQLWebService {
         return output instanceof GraphQLNonNull nn ? nn.getWrappedType() : output;
     }
 
-    private record PlatformIndexDatePair(PlatformProject project, @Nullable OffsetDateTime date) {}
+    public record PlatformIndexDatePair(PlatformProject project, @Nullable OffsetDateTime date) {}
 
     private static final class ConsiderAliasDataFetcher<T> extends PropertyDataFetcher<T> {
         public ConsiderAliasDataFetcher(String propertyName) {

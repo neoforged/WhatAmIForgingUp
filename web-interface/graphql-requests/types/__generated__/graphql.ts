@@ -733,7 +733,7 @@ export type GameVersion = {
    * Internal endpoint. It might be removed at any point
    * @deprecated Internal
    */
-  _modInformation: IntModInformation;
+  _modInformation: Array<IntModInformation>;
   /**
    * Get the class with the given `name`. If no such class exists in this game version, this will return `null`.
    * In contrast to `GameVersion.classes`, this can only query one class by an exact name match, being easier to use and slightly more efficient.
@@ -784,7 +784,7 @@ export type GameVersion_ModDownloadUrlsArgs = {
 
 /** Represents a version of the game on a loader, which WAIFU is indexing */
 export type GameVersion_ModInformationArgs = {
-  id: Scalars['Int']['input'];
+  ids: Array<Scalars['Int']['input']>;
 };
 
 
@@ -1045,7 +1045,7 @@ export type IntPlatformInformation = {
   description: Scalars['String']['output'];
   downloads: Scalars['Int']['output'];
   fileDownloadUrl: Maybe<Scalars['String']['output']>;
-  iconUrl: Scalars['String']['output'];
+  iconUrl: Maybe<Scalars['String']['output']>;
   issuesUrl: Maybe<Scalars['String']['output']>;
   projectUrl: Scalars['String']['output'];
   sourceUrl: Maybe<Scalars['String']['output']>;
@@ -2063,16 +2063,17 @@ export type GetClassesDefiningMethodsQueryVariables = Exact<{
 
 export type GetClassesDefiningMethodsQuery = { gameVersion: { __typename?: 'GameVersion', classDefinitions: { __typename?: 'ClassDefinitionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'ClassDefinitionEdge', node: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string } } }> } } | null };
 
-export type PlatformInformationFragment = { __typename?: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null };
+export type PlatformInformationFragment = { __typename?: 'IntPlatformInformation', title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string | null, sourceUrl: string | null };
 
 export type GetModInformationQueryVariables = Exact<{
   version: Scalars['String']['input'];
   loader: Loader;
-  id: Scalars['Int']['input'];
+  ids: Array<Scalars['Int']['input']> | Scalars['Int']['input'];
+  includeDownloadUrl: Scalars['Boolean']['input'];
 }>;
 
 
-export type GetModInformationQuery = { gameVersion: { __typename?: 'GameVersion', _modInformation: { __typename?: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: any | null, mavenCoordinates: string | null, curseforge: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null, modrinth: { __typename?: 'IntPlatformInformation', fileDownloadUrl: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string, sourceUrl: string | null } | null } } | null };
+export type GetModInformationQuery = { gameVersion: { __typename?: 'GameVersion', _modInformation: Array<{ __typename?: 'IntModInformation', name: string, authors: string | null, modIds: Array<string> | null, license: string | null, version: string, metadata: any | null, mavenCoordinates: string | null, curseforge: { __typename?: 'IntPlatformInformation', fileDownloadUrl?: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string | null, sourceUrl: string | null } | null, modrinth: { __typename?: 'IntPlatformInformation', fileDownloadUrl?: string | null, title: string, downloads: number, description: string, projectUrl: string, issuesUrl: string | null, iconUrl: string | null, sourceUrl: string | null } | null }> } | null };
 
 export type GetModDownloadUrlsQueryVariables = Exact<{
   version: Scalars['String']['input'];

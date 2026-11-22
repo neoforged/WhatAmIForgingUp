@@ -15,13 +15,26 @@
           ></v-text-field>
         </v-col>
 
-        <v-col sm="4" cols="12">
+        <v-col :sm="additionalColumns.length > 0 ? 2 : 4" cols="12">
           <v-select
               v-model="groups.groupBy.value"
               label="Group by"
               density="compact"
               :items="groups.names"
               hide-details
+              clearable
+          />
+        </v-col>
+
+        <v-col sm="2" cols="12">
+          <v-select
+              v-if="additionalColumns.length > 0"
+              v-model="selectedAdditionalColumns"
+              label="Additional columns"
+              :items="additionalColumns"
+              multiple
+              return-object
+              density="compact"
               clearable
           />
         </v-col>
@@ -43,7 +56,6 @@
       <template v-for="(column, idx) in columns" v-slot:[`item.col_${idx}`]="{ item, value }">
         <component :is="render(column, item, value)" />
       </template>
-
       <template v-slot:footer.prepend>
         <v-btn
             v-bind="props"
@@ -86,7 +98,7 @@
   </v-card>
 </template>
 <script setup lang="ts">
-import {render, type TableColumn} from "~/components/table/results-table-api";
+import {type AdditionalColumn, render, type TableColumn} from "~/components/table/results-table-api";
 import {browserDownload, grouper} from "~/utils/utils";
 import JSZip from "jszip";
 import {useApolloClient} from "@vue/apollo-composable";
@@ -104,21 +116,39 @@ const props = defineProps<{
   items: any[]
 }>()
 
-const headers = props.columns.map((col, idx) => {
-  return {
+const additionalColumns = props.columns.flatMap(ac => ac.additionalColumns ?? [])
+
+const selectedAdditionalColumns = ref<AdditionalColumn<any>[]>([])
+
+const headers = computed(() => {
+  const headers = selectedAdditionalColumns.value.map((col, idx) => {
+    return {
+      title: col.title,
+      key: `add_col_${idx}`
+    }
+  })
+  props.columns.forEach((col, idx) => headers.push({
     title: col.title,
     value: col.value,
     key: `col_${idx}`
-  }
+  } as any))
+  return headers
 })
 
-const computedItems = computed(() => props.items.map(it => {
+const additionalValues = reactive<any[][]>([])
+watch(selectedAdditionalColumns, (nv) => {
+  while (additionalValues.length > 0) additionalValues.pop()
+  nv.forEach((ac, i) => ac.values(client, props.items, props.version).then(res => additionalValues[i] = res))
+})
+
+const computedItems = computed(() => props.items.map((it, itemIndex) => {
   const newObject = {...it}
   props.columns.forEach((col, idx) => {
     if (col.groupable) {
       newObject[`col_${idx}`] = col.value(it)
     }
   })
+  selectedAdditionalColumns.value.forEach((_, idx) => newObject[`add_col_${idx}`] = additionalValues.at(idx)?.at(itemIndex) ?? 'Loading...')
   return newObject
 }))
 

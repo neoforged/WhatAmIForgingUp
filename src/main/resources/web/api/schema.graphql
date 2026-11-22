@@ -94,7 +94,7 @@ type GameVersion {
     ): Mod @paginated
 
     "Internal endpoint. It might be removed at any point"
-    _modInformation(id: Int!): IntModInformation! @deprecated(reason: "Internal")
+    _modInformation(ids: [Int!]!): [IntModInformation!]! @deprecated(reason: "Internal")
     "Internal endpoint. It may be removed at any time."
     _modDownloadUrls(ids: [Int!]!): [IntModDownloadUrl]! @deprecated(reason: "Internal")
 
@@ -1062,7 +1062,7 @@ type IntPlatformInformation {
     downloads: Int!
 
     projectUrl: String!
-    iconUrl: String!
+    iconUrl: String
     sourceUrl: String
     issuesUrl: String
 
