@@ -19,7 +19,7 @@ type ExtractQueryParametersWithVersion<R extends QueryParameterSet> = ExtractQue
 }
 
 type QueryRenderer<P extends QueryParameterSet, D> =
-    (params: ExtractQueryParametersWithVersion<P>, data: Ref<D | undefined>) => Component
+    (client: QueryClient, params: ExtractQueryParametersWithVersion<P>, data: Ref<D | undefined>) => Component
 type QueryDataFetcher<P extends QueryParameterSet, D> =
     (client: QueryClient, params: ExtractQueryParametersWithVersion<P>) => Promise<D>
 
@@ -54,11 +54,11 @@ export function queryType<P extends QueryParameterSet, D>(
 }
 
 export function renderAsTable<T extends QueryParameterSet, D>(columns: TableColumn<D, any>[]): QueryRenderer<T, D[]> {
-  return (params, data) => {
+  return (client, params, data) => {
     return defineComponent({
       setup() {
         return () => h(ResultsTable, {
-          version: params.version.value,
+          client: client,
           columns: columns,
           items: data.value ?? [],
           loading: data.value === undefined

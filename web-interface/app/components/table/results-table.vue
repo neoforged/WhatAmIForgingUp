@@ -101,16 +101,13 @@
 import {type AdditionalColumn, render, type TableColumn} from "~/components/table/results-table-api";
 import {browserDownload, grouper} from "~/utils/utils";
 import JSZip from "jszip";
-import {useApolloClient} from "@vue/apollo-composable";
 import {fetchWithVersion} from "~/utils/graphql-utils";
 import {MOD_DOWNLOAD_URLS} from "~~/graphql-requests/mods";
 import {downloadZip, getBaseUrl} from "~/utils/api-utils";
 import {addAlert} from "~/utils/alerts";
 
-const client = useApolloClient().client
-
 const props = defineProps<{
-  version: string;
+  client: QueryClient;
   columns: TableColumn<any, any>[],
   loading: boolean,
   items: any[]
@@ -138,7 +135,7 @@ const headers = computed(() => {
 const additionalValues = reactive<any[][]>([])
 watch(selectedAdditionalColumns, (nv) => {
   while (additionalValues.length > 0) additionalValues.pop()
-  nv.forEach((ac, i) => ac.values(client, props.items, props.version).then(res => additionalValues[i] = res))
+  nv.forEach((ac, i) => ac.values(props.client, props.items).then(res => additionalValues[i] = res))
 })
 
 const computedItems = computed(() => props.items.map((it, itemIndex) => {
@@ -210,9 +207,9 @@ const downloadSources = async () => {
     return
   }
 
-  fetchWithVersion(client, MOD_DOWNLOAD_URLS, {
+  fetchWithVersion(props.client.apollo, MOD_DOWNLOAD_URLS, {
     ids: modIds
-  }, props.version).then(async (data) => {
+  }, props.client.version.value).then(async (data) => {
     const mods = data?.gameVersion?._modDownloadUrls
     if (!mods) return
     const sourcesZip = new JSZip()

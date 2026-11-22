@@ -4,11 +4,10 @@ import {useFileSelection, useModSelection} from "~/utils/globals";
 import CodeBlock from "~/components/code-block.vue";
 import {fetchWithVersion} from "~/utils/graphql-utils";
 import {MOD_INFORMATION} from "~~/graphql-requests/mods";
-import {ApolloClient} from "@apollo/client/core";
 
 export interface AdditionalColumn<T> {
   title: string;
-  values: (client: ApolloClient, items: T[], version: string) => Promise<any[]>;
+  values: (client: QueryClient, items: T[]) => Promise<any[]>;
 }
 
 export interface TableColumn<T, Z> {
@@ -55,11 +54,11 @@ export function modColumn<T>(
     additionalColumns: [
       {
         title: 'Mod downloads',
-        values: async (client, items, version) => {
-          return (await fetchWithVersion(client, MOD_INFORMATION, {
+        values: async (client, items) => {
+          return (await fetchWithVersion(client.apollo, MOD_INFORMATION, {
             ids: items.map(it => config.value(it).id),
             includeDownloadUrl: false
-          }, version))?.gameVersion?._modInformation.map(mi => (mi.curseforge?.downloads ?? 0) + (mi.modrinth?.downloads ?? 0)) ?? [];
+          }, client.version.value))?.gameVersion?._modInformation.map(mi => (mi.curseforge?.downloads ?? 0) + (mi.modrinth?.downloads ?? 0)) ?? [];
         }
       }
     ],

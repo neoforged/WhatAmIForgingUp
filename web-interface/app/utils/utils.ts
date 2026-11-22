@@ -31,7 +31,7 @@ export function getClassSourceFileName(className: string): FileSelection {
         return {error: `Cannot find file named ${fileName} in mod file.`}
       } else {
         const decompResult = await decompile(fileName, {
-          source: async (name) => name == fileName ? await zipFile.async('uint8array') : null
+          source: async (name) => await zip.file(name)?.async('uint8array') ?? null
         })
         const content = decompResult[className.replaceAll('.', '/')] ?? decompResult[rootClassName]
         return content ? {content: content} : {error: `Decompilation failed or class named ${fileName} does not exist in mod file.`}

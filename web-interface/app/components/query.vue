@@ -49,7 +49,7 @@ Object.entries(props.type.parameters(defineParameters as any)).forEach(entry => 
   }
 })
 
-const component = props.type.renderer(parameters as any, data)
+const component = props.type.renderer(queryClient, parameters as any, data)
 
 function load() {
   data.value = undefined
