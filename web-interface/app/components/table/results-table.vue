@@ -382,6 +382,50 @@ const groups = grouper(props.columns.map((c, idx) => ({
   outline-offset: 3px;
 }
 
+.results-table :deep(.file-source-link) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 1px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.results-table :deep(.file-source-name) {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.82rem;
+  transition: color 120ms ease;
+}
+
+.results-table :deep(.file-source-icon) {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.38);
+  opacity: 0.62;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.results-table :deep(.file-source-link:hover .file-source-name),
+.results-table :deep(.file-source-link:focus-visible .file-source-name) {
+  color: var(--waifu-accent);
+}
+
+.results-table :deep(.file-source-link:hover .file-source-icon),
+.results-table :deep(.file-source-link:focus-visible .file-source-icon) {
+  color: var(--waifu-accent);
+  opacity: 1;
+}
+
+.results-table :deep(.file-source-link:focus-visible) {
+  outline: 2px solid var(--waifu-accent);
+  outline-offset: 3px;
+}
+
 @media (max-width: 600px) {
   .results-card :deep(.v-card-text) {
     padding: 12px;

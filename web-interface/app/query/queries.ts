@@ -231,7 +231,7 @@ export const CLASSES_ANNOTATED_QUERY = queryType(
       return values.map(item => ({
         mod: item.mod,
         cls: item.name.replaceAll('/', '.'),
-        annotation: formatAnnotation(item.annotations[0]!.value! as any, params.annotation.value)
+        annotation: formatAnnotation(item.annotations[0]!.value! as any, item.annotations[0]!.type)
       }));
     },
     renderAsTable([
@@ -246,10 +246,10 @@ export const CLASSES_ANNOTATED_QUERY = queryType(
         mod: item => item.mod,
         fileName: getClassSourceFileName
       }),
-      {
+      codeColumn({
         title: 'Annotation',
         value: item => item.annotation
-      }
+      })
     ])
 )
 
@@ -578,7 +578,7 @@ export const TAGS_CONTAINING_QUERY = queryType(
             children: res[0]!!.get(params.object.value)!!.map(e => build(e, 0, res))
           }
         ]),
-    (params, data) => defineComponent({
+    (_, params, data) => defineComponent({
       setup() {
         return () => h(TagsContaining, {
           registry: params.registry.value,

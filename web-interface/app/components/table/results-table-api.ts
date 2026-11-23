@@ -96,17 +96,33 @@ export function fileColumn<T>(
       }
       return null
     },
-    renderer: (item, value) => h('span', {
-      onClick: () => {
-        const selection = config.fileName(value, item)
-        if (selection) {
+    renderer: (item, value) => {
+      const selection = config.fileName(value, item)
+      if (!selection) {
+        return h('span', {class: 'file-source-name'}, value)
+      }
+
+      return h('button', {
+        type: 'button',
+        class: 'file-source-link',
+        title: `View source for ${value}`,
+        'aria-label': `View source for ${value}`,
+        onClick: () => {
           selectedFile.value = {
             mod: config.mod(item).id,
             file: selection
           }
         }
-      }
-    }, value)
+      }, [
+        h('span', {class: 'file-source-name'}, value),
+        h(VIcon, {
+          icon: 'mdi-file-code-outline',
+          size: 14,
+          class: 'file-source-icon',
+          'aria-hidden': 'true'
+        })
+      ])
+    }
   }
 }
 

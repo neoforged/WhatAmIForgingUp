@@ -51,6 +51,7 @@ export const CLASSES_ANNOTATED: TypedDocumentNode<
               name
             }
             annotations(where: $annotationPredicate) {
+              type
               value
             }
             methods {

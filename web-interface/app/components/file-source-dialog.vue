@@ -275,6 +275,7 @@ watch(showDialog, newValue => {
   max-height: calc(100vh - 32px);
   border-radius: 16px;
   overflow: hidden;
+  background-color: var(--waifu-card);
 }
 
 .source-dialog-content {

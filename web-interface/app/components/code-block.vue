@@ -57,10 +57,10 @@ export default {
 }
 
 .code-block--compact {
-  border: 1px solid rgba(139, 195, 74, 0.18);
+  border: 1px solid rgb(112 137 81 / 0.18);
   border-radius: 6px;
-  background: rgba(139, 195, 74, 0.055);
-  box-shadow: inset 3px 0 0 rgba(139, 195, 74, 0.34);
+  background: rgb(81 96 65 / 0.05);
+  box-shadow: inset 3px 0 0 rgb(80 95 62 / 0.34);
 }
 
 pre {

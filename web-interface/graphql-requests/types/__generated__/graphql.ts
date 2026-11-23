@@ -1987,7 +1987,7 @@ export type GetClassesAnnotatedQueryVariables = Exact<{
 }>;
 
 
-export type GetClassesAnnotatedQuery = { gameVersion: { __typename?: 'GameVersion', classDefinitions: { __typename?: 'ClassDefinitionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'ClassDefinitionEdge', node: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename?: 'Annotation', value: any | null }>, methods: Array<{ __typename?: 'MethodDefinition', annotations: Array<{ __typename?: 'Annotation', type: string, value: any | null }> }> } }> } } | null };
+export type GetClassesAnnotatedQuery = { gameVersion: { __typename?: 'GameVersion', classDefinitions: { __typename?: 'ClassDefinitionConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor: string | null }, edges: Array<{ __typename?: 'ClassDefinitionEdge', node: { __typename?: 'ClassDefinition', name: string, mod: { __typename?: 'LightweightMod', id: number, name: string }, annotations: Array<{ __typename?: 'Annotation', type: string, value: any | null }>, methods: Array<{ __typename?: 'MethodDefinition', annotations: Array<{ __typename?: 'Annotation', type: string, value: any | null }> }> } }> } } | null };
 
 export type GetRecipesQueryVariables = Exact<{
   version: Scalars['String']['input'];
