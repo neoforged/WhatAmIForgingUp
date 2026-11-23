@@ -264,7 +264,7 @@ const groups = grouper(props.columns.map((c, idx) => ({
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   overflow: hidden;
-  background-color: var(--waifu-surface);
+  background-color: var(--waifu-card);
 }
 
 .results-toolbar {
@@ -324,7 +324,7 @@ const groups = grouper(props.columns.map((c, idx) => ({
 
 .results-table {
   min-width: 640px;
-  background-color: var(--waifu-surface)
+  background-color: var(--waifu-card)
 }
 
 .results-table :deep(th) {
@@ -334,6 +334,52 @@ const groups = grouper(props.columns.map((c, idx) => ({
 
 .results-table :deep(td) {
   white-space: nowrap;
+}
+
+/* Mod link styling */
+.results-table :deep(.mod-link) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.results-table :deep(.mod-name) {
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.24);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.results-table :deep(.mod-icon) {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.48);
+  opacity: 0.72;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.results-table :deep(.mod-link:hover .mod-name),
+.results-table :deep(.mod-link:focus-visible .mod-name) {
+  text-decoration-color: var(--waifu-accent);
+}
+
+.results-table :deep(.mod-link:hover .mod-icon),
+.results-table :deep(.mod-link:focus-visible .mod-icon) {
+  color: var(--waifu-accent);
+  opacity: 1;
+}
+
+.results-table :deep(.mod-link:focus-visible) {
+  outline: 2px solid var(--waifu-accent);
+  outline-offset: 3px;
 }
 
 @media (max-width: 600px) {

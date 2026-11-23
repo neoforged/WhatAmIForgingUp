@@ -220,6 +220,7 @@ const close = () => {
 .mod-dialog-card {
   max-height: calc(100vh - 32px);
   border-radius: 12px;
+  background-color: var(--waifu-card);
   overflow: hidden;
 }
 
@@ -272,7 +273,7 @@ const close = () => {
 }
 
 .secondary-text {
-  color: rgba(255, 255, 255, 0.46);
+  color: rgb(255 255 255 / 0.6);
 }
 
 .secondary-text:not(.separator) {

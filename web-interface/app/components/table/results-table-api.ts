@@ -1,4 +1,4 @@
-import {VBtn} from "vuetify/components";
+import {VIcon} from "vuetify/components";
 import type {FileSelection} from "~/utils/utils";
 import {useFileSelection, useModSelection} from "~/utils/globals";
 import CodeBlock from "~/components/code-block.vue";
@@ -44,13 +44,21 @@ export function modColumn<T>(
   return {
     ...config,
     value: item => config.value(item).name,
-    renderer: (item, value) => h(VBtn, {
-      density: 'compact',
-      color: 'primary',
-      variant: 'text',
-      border: false,
+    renderer: (item, value) => h('button', {
+      type: 'button',
+      class: 'mod-link',
+      title: `View information for ${value}`,
+      'aria-label': `View information for ${value}`,
       onClick: () => selectedMod.value = config.value(item).id
-    }, () => value),
+    }, [
+      h('span', {class: 'mod-name'}, value),
+      h(VIcon, {
+        icon: 'mdi-information-outline',
+        size: 14,
+        class: 'mod-icon',
+        'aria-hidden': 'true'
+      })
+    ]),
     additionalColumns: [
       {
         title: 'Mod downloads',

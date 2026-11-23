@@ -114,6 +114,7 @@ onMounted(() => {
   --waifu-accent: #8bc34a;
   --waifu-accent-soft: #8BC34A1F;
   --waifu-surface: #17191c;
+  --waifu-card: #17191c;
 }
 
 body {

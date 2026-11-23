@@ -113,7 +113,7 @@ if (allParametersSet()) {
 <style scoped>
 .parameters-card {
   border-radius: 8px;
-  background: var(--waifu-surface);
+  background: var(--waifu-card);
 }
 
 .parameters-header {
