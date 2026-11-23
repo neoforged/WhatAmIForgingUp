@@ -117,7 +117,8 @@ export function codeColumn<T>(
     ...config,
     renderer: (item, value) => h(CodeBlock, {
       language: config.language,
-      code: value
+      code: value,
+      compact: true
     })
   }
 }
