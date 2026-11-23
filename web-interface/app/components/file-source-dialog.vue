@@ -1,8 +1,9 @@
 <template>
   <div>
-    <v-dialog v-model="showDialog" :fullscreen="md" max-width="840">
-      <v-card :title="fileContent ? `Source of ${file?.file.name}` : 'Attempting to locate source'" :loading="loading">
+    <v-dialog v-model="showDialog" max-width="840">
+      <v-card :title="fileContent ? `Source of ${file?.file.name}` : 'Attempting to locate source'" :loading="loading" class="source-dialog-card">
         <template v-slot:text>
+          <div class="source-dialog-content">
           <v-select v-if="branches && branches.length > 0"
                     :items="branches"
                     v-model="selectedBranch"
@@ -20,6 +21,7 @@
                   target="_blank"
                   text="View on GitHub"
                   append-icon="mdi-open-in-new"/>
+          </div>
         </template>
         <template v-slot:actions>
           <v-btn
@@ -41,8 +43,6 @@ import {downloadGitHubBranch, downloadZip, getBaseUrl, getGitHubBranches} from "
 import JSZip from "jszip";
 import CodeBlock from "~/components/code-block.vue";
 import type {FileSelection} from "~/utils/utils";
-import {useDisplay} from "vuetify/framework";
-
 const props = defineProps<{
   version?: string,
   selectedFile?: {
@@ -63,8 +63,6 @@ const fileExtension = computed(() => {
   const split = props.selectedFile?.file?.name.split('.')
   return split ? split[split.length - 1] : undefined
 })
-
-const md = useDisplay().mdAndDown
 
 const showDialog = ref(false)
 const loading = ref(false)
@@ -271,3 +269,28 @@ watch(showDialog, newValue => {
   }
 })
 </script>
+
+<style scoped>
+.source-dialog-card {
+  max-height: calc(100vh - 32px);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.source-dialog-content {
+  max-height: calc(100vh - 170px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 960px) {
+  .source-dialog-card {
+    max-height: calc(100vh - 24px);
+    border-radius: 12px;
+  }
+
+  .source-dialog-content {
+    max-height: calc(100vh - 132px);
+  }
+}
+</style>

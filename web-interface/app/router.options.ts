@@ -9,6 +9,9 @@ export default {
   routes: _routes => _routes.concat(QUERIES.flatMap(group => group.queries.flatMap(q => ({
     name: q.name,
     path: `/queries/${group.path}/${q.path}`,
+    meta: {
+      title: q.name
+    },
     component: defineComponent({
       setup() {
         useSeoMeta({

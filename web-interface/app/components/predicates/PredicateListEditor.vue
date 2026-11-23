@@ -30,13 +30,15 @@ function updateItem(i: number, v: any) {
 
 <template>
   <div>
-    <div v-if="(modelValue?.length ?? 0) === 0" class="text-medium-emphasis">
-      No items.
+    <div v-if="(modelValue?.length ?? 0) === 0" class="empty-list text-medium-emphasis">
+      No predicates added.
     </div>
 
     <div v-for="(item, idx) in (modelValue ?? [])" :key="idx" class="mb-2">
-      <v-card variant="outlined" class="pa-2">
-        <v-btn size="small" variant="outlined" color="error" @click="removeItem(idx)">Remove item</v-btn>
+      <v-card variant="outlined" class="list-item-card pa-2">
+        <div class="list-item-actions">
+          <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete-outline" @click="removeItem(idx)">Remove</v-btn>
+        </div>
 
         <PredicateFieldEditor
             :type="itemType"
@@ -48,6 +50,26 @@ function updateItem(i: number, v: any) {
       </v-card>
     </div>
 
-    <v-btn size="small" variant="outlined" @click="addItem">Add item</v-btn>
+    <v-btn size="small" class="ma-2" variant="tonal" color="light-green" prepend-icon="mdi-plus" @click="addItem">Add predicate</v-btn>
   </div>
 </template>
+
+<style scoped>
+.list-item-card {
+  border-radius: 10px;
+}
+
+.list-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 32px;
+}
+
+.empty-list {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  font-size: .9rem;
+}
+</style>

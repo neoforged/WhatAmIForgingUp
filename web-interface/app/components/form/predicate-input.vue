@@ -1,6 +1,6 @@
 <template>
-  <v-expansion-panels>
-    <v-expansion-panel title="Optional filter">
+  <v-expansion-panels class="predicate-input">
+    <v-expansion-panel title="Optional filter" elevation="0">
       <v-expansion-panel-text>
         <predicate-builder
             :meta="predicates"
@@ -30,3 +30,11 @@ const value = computed({
 
 
 </script>
+
+<style scoped>
+.predicate-input {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  overflow: hidden;
+}
+</style>

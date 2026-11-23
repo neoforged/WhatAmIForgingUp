@@ -1,50 +1,104 @@
 <template>
-  <v-dialog v-model="showDialog" max-width="500">
-    <v-card :title="title ?? 'Mod Information'" :loading="loading">
-      <template v-slot:subtitle v-if="!loading">
-        <i>by <b>{{ authors }}</b></i> | {{ license }}<br/>
-        Version {{ modVersion }} for {{ version }}
-      </template>
-      <template v-slot:text v-if="!loading">
-        <p>{{ platformProject?.description }}</p>
-        <p v-if="modIds?.length ?? 0 > 0">Mod IDs: <code v-for="mid of modIds" class="text-cyan">{{ mid }}</code></p>
-        <p v-if="mavenCoordinates">Maven Coordinates: <code>{{ mavenCoordinates }}</code></p>
-        <p v-if="curseforge">CurseForge Project: <a :href="curseforge?.projectUrl" target="_blank">{{ curseforge?.title }}</a></p>
-        <p v-if="modrinth">Modrinth Project: <a :href="modrinth?.projectUrl" target="_blank">{{ modrinth?.title }}</a></p>
-        <p v-if="declaredDependencies?.length ?? 0 > 0">
-          Declared dependencies:
-          <span v-for="dep of declaredDependencies">
-            <br />
-            - <code class="text-blue">{{ dep.modId }}</code> ({{ dep.versionRange }} <b v-if="dep.type">{{ dep.type }}</b>)
-          </span>
+  <v-dialog v-model="showDialog" width="min(520px, calc(100vw - 24px))">
+    <v-card :loading="loading" class="mod-dialog-card">
+      <v-card-item class="mod-dialog-header">
+        <template v-slot:prepend>
+          <v-avatar v-if="platformProject?.iconUrl" class="mod-icon" :size="sm ? 44 : 56" rounded="8">
+            <v-img :src="platformProject.iconUrl" :alt="title ?? 'Mod icon'" />
+          </v-avatar>
+          <v-avatar v-else class="mod-icon mod-icon-placeholder" :size="sm ? 44 : 56" rounded="8">
+            <v-icon icon="mdi-nintendo-game-boy" :size="sm ? 22 : 26" />
+          </v-avatar>
+        </template>
+
+        <v-card-title class="mod-title">{{ title ?? 'Mod Information' }}</v-card-title>
+        <v-card-subtitle v-if="!loading" class="mod-subtitle">
+          <span v-if="authors">by <strong>{{ authors }}</strong></span>
+          <span v-if="authors && license" class="secondary-text separator">·</span>
+          <span v-if="license">{{ license }}</span>
+        </v-card-subtitle>
+      </v-card-item>
+
+      <v-divider />
+
+      <v-card-text v-if="!loading" class="mod-dialog-content">
+        <p v-if="platformProject?.description || metadata?.description" class="mod-description">
+          {{ platformProject?.description ?? metadata.description }}
         </p>
-        <v-chip-group column>
-          <v-chip :disabled="!platformProject?.sourceUrl"
-                  :href="platformProject?.sourceUrl ?? undefined"
-                  target="_blank"
-                  text="Source"
-                  append-icon="mdi-open-in-new"/>
-          <v-chip :disabled="!platformProject?.issuesUrl && !metadata?.issueTrackerURL"
-                  :href="platformProject?.issuesUrl ?? metadata?.issueTrackerURL ?? undefined"
-                  target="_blank"
-                  text="Issues"
-                  append-icon="mdi-open-in-new"/>
-        </v-chip-group>
-      </template>
 
-      <template v-slot:append>
-        <v-avatar v-if="platformProject?.iconUrl" rounded="0" :size="sm ? '48' : '64'">
-          <v-img :src="platformProject?.iconUrl" />
-        </v-avatar>
-      </template>
+        <div v-if="version" class="content-section">
+          <span class="section-label">Version:</span>
+          <code v-if="modVersion" class="inline-value">{{ modVersion }}</code>
+          <span v-if="modVersion" class="secondary-text">for {{ version }}</span>
+        </div>
 
-      <template v-slot:actions>
-        <v-btn
-            text="Close"
-            @click="close"
-            variant="tonal"
-        ></v-btn>
-      </template>
+        <div v-if="mavenCoordinates" class="content-section">
+          <span class="section-label">Maven coordinates:</span>
+          <code class="inline-value">{{ mavenCoordinates }}</code>
+        </div>
+
+        <div v-if="modIds?.length" class="content-section">
+          <span class="section-label">Mod IDs:</span>
+          <code v-for="mid of modIds" :key="mid" class="text-cyan inline-value">{{ mid }}</code>
+        </div>
+
+        <div v-if="declaredDependencies?.length" class="content-section">
+          <div class="section-label">Declared dependencies</div>
+          <div class="dependency-list">
+            <div v-for="dep of declaredDependencies" :key="`${dep.modId}-${dep.versionRange}-${dep.type}`" class="dependency-row">
+              <code class="text-blue">{{ dep.modId }}</code>
+              <span class="dependency-range secondary-text">{{ dep.versionRange }}</span>
+              <span v-if="dep.type" class="dependency-type secondary-text">{{ dep.type }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-section">
+          <div class="project-links">
+            <v-btn
+                v-if="curseforge"
+                :href="curseforge.projectUrl"
+                target="_blank"
+                size="small"
+                variant="outlined"
+                color="light-green"
+                append-icon="mdi-open-in-new"
+            >CurseForge</v-btn>
+            <v-btn
+                v-if="modrinth"
+                :href="modrinth.projectUrl"
+                target="_blank"
+                size="small"
+                variant="outlined"
+                color="light-green"
+                append-icon="mdi-open-in-new"
+            >Modrinth</v-btn>
+            <v-btn
+                v-if="platformProject?.sourceUrl"
+                :href="platformProject.sourceUrl"
+                target="_blank"
+                size="small"
+                variant="text"
+                prepend-icon="mdi-code-tags"
+                append-icon="mdi-open-in-new"
+            >Source</v-btn>
+            <v-btn
+                v-if="platformProject?.issuesUrl || metadata?.issueTrackerURL"
+                :href="platformProject?.issuesUrl ?? metadata.issueTrackerURL"
+                target="_blank"
+                size="small"
+                variant="text"
+                prepend-icon="mdi-bug-outline"
+                append-icon="mdi-open-in-new"
+            >Issues</v-btn>
+          </div>
+        </div>
+      </v-card-text>
+
+      <v-divider />
+      <v-card-actions class="mod-dialog-actions">
+        <v-btn text="Close" @click="close" variant="tonal" />
+      </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
@@ -161,3 +215,133 @@ const close = () => {
   showDialog.value = false
 }
 </script>
+
+<style scoped>
+.mod-dialog-card {
+  max-height: calc(100vh - 32px);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.mod-dialog-header {
+  min-height: 78px;
+  padding: 14px 16px;
+}
+
+.mod-icon {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mod-icon-placeholder {
+  color: var(--waifu-accent);
+}
+
+.mod-title {
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-inline: 2px 8px;
+  font-size: 1.18rem;
+  font-weight: 700;
+}
+
+.mod-subtitle {
+  min-height: 20px;
+  padding-inline: 2px 8px;
+  color: rgba(255, 255, 255, 0.62);
+  white-space: normal;
+}
+
+.separator {
+  margin: 0 6px;
+}
+
+.mod-dialog-content {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 16px 18px;
+}
+
+.mod-description {
+  margin: 0 0 14px;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.secondary-text {
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.secondary-text:not(.separator) {
+  margin-inline: 6px;
+}
+
+.inline-value {
+  color: rgb(51 158 230);
+  margin-left: 6px;
+  overflow-wrap: anywhere;
+}
+
+.content-section {
+  margin-top: 18px;
+}
+
+.section-label {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: .95rem;
+  font-weight: 550;
+}
+
+.project-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dependency-list {
+  margin-top: 5px;
+}
+
+.dependency-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(120px, 1.2fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 4px 0;
+}
+
+.dependency-range {
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.dependency-type {
+  justify-self: end;
+  font-size: 0.78rem;
+}
+
+.dependency-row .secondary-text {
+  margin-inline: 0;
+}
+
+.mod-dialog-actions {
+  justify-content: flex-end;
+  padding: 10px 16px;
+}
+
+@media (max-width: 600px) {
+  .mod-dialog-card {
+    max-height: calc(100vh - 24px);
+    border-radius: 12px;
+  }
+
+  .mod-dialog-content {
+    max-height: calc(100vh - 176px);
+    padding: 14px 12px 16px;
+  }
+}
+</style>

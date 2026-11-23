@@ -28,10 +28,12 @@ const emit = defineEmits<{
       v-else-if="props.type === ScalarType.STRING"
       :model-value="modelValue ?? ''"
       label="Value"
+      variant="outlined"
+      density="comfortable"
       hide-details
       @update:model-value="(v) => emit('update:modelValue', v)"
   />
-  <v-card v-else variant="elevated" class="pa-2">
+  <v-card v-else variant="flat" class="predicate-field-card">
     <PredicateBuilder
         v-if="(typeof props.type) == 'string'"
         :typeName="(props.type as string)!!"
@@ -51,3 +53,12 @@ const emit = defineEmits<{
     />
   </v-card>
 </template>
+
+<style scoped>
+.predicate-field-card {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.018);
+}
+</style>

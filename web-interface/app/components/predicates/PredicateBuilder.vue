@@ -50,17 +50,22 @@ function chooseField(fieldName: string | null) {
 </script>
 
 <template>
-  <v-card variant="outlined" class="pa-3">
+  <v-card variant="outlined" class="predicate-builder-card">
     <v-select
         label="Predicate kind"
         :items="fieldItems"
         :model-value="activeFieldName"
         @update:model-value="chooseField"
         :clearable="clearable"
+        variant="outlined"
+        density="comfortable"
         hide-details
     />
 
-    <div v-if="activeFieldName" class="mt-3">
+    <div v-if="activeFieldName" class="predicate-field">
+      <div v-if="activeField?.hint" class="predicate-hint">
+        {{ activeField.hint.replaceAll('{object}', hintObject ?? 'The value') }}
+      </div>
       <PredicateFieldEditor
           :type="activeField!!.type"
           :meta="meta"
@@ -71,3 +76,24 @@ function chooseField(fieldName: string | null) {
     </div>
   </v-card>
 </template>
+
+<style scoped>
+.predicate-builder-card {
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.predicate-field {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.predicate-hint {
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+</style>

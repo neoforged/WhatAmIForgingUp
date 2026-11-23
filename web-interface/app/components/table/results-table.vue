@@ -1,8 +1,8 @@
 <template>
-  <v-card title="Results" flat>
+  <v-card title="Results" flat class="results-card">
     <template v-slot:text>
-      <v-row>
-        <v-col sm="8" cols="12">
+      <div class="results-toolbar" :class="{ 'has-additional-columns': additionalColumns.length > 0 }">
+        <div class="search-control">
           <v-text-field
               v-model="search"
               label="Search"
@@ -13,35 +13,39 @@
               single-line
               clearable
           ></v-text-field>
-        </v-col>
+        </div>
 
-        <v-col :sm="additionalColumns.length > 0 ? 2 : 4" cols="12">
+        <div class="filter-control">
           <v-select
               v-model="groups.groupBy.value"
               label="Group by"
+              variant="outlined"
               density="compact"
               :items="groups.names"
               hide-details
               clearable
           />
-        </v-col>
+        </div>
 
-        <v-col sm="2" cols="12">
+        <div v-if="additionalColumns.length > 0" class="filter-control additional-control">
           <v-select
-              v-if="additionalColumns.length > 0"
               v-model="selectedAdditionalColumns"
               label="Additional columns"
+              variant="outlined"
               :items="additionalColumns"
               multiple
               return-object
               density="compact"
+              hide-details
               clearable
           />
-        </v-col>
-      </v-row>
+        </div>
+      </div>
     </template>
 
+    <div class="results-table-scroll">
     <v-data-table density="compact"
+                  class="results-table"
                   :items="computedItems"
                   :loading="loading"
                   :search="search"
@@ -86,6 +90,7 @@
         </v-btn>
       </template>
     </v-data-table>
+    </div>
     <v-snackbar v-model="displaySourcesDownloadProgress" location="bottom right">
       <v-progress
           value-format="[value] out of [max] mods"
@@ -252,3 +257,108 @@ const groups = grouper(props.columns.map((c, idx) => ({
   groupable: c.groupable
 })).filter(c => c.groupable))
 </script>
+
+<style scoped>
+.results-card {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  background-color: var(--waifu-surface);
+}
+
+.results-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px);
+  align-items: end;
+  gap: 10px;
+  margin: 10px;
+}
+
+.results-toolbar.has-additional-columns {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) minmax(150px, 220px);
+}
+
+.search-control,
+.filter-control {
+  min-width: 0;
+  height: 40px;
+}
+
+.results-toolbar :deep(.v-input),
+.results-toolbar :deep(.v-input__control),
+.results-toolbar :deep(.v-field),
+.results-toolbar :deep(.v-field__input) {
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+}
+
+.results-toolbar :deep(.v-field__input) {
+  align-items: center;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  overflow: hidden;
+}
+
+.results-toolbar :deep(.v-select__selection) {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.results-toolbar :deep(.v-field) {
+  border-radius: 8px;
+}
+
+.results-toolbar :deep(.v-field__outline) {
+  --v-field-border-opacity: 0.14;
+}
+
+.results-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.results-table {
+  min-width: 640px;
+  background-color: var(--waifu-surface)
+}
+
+.results-table :deep(th) {
+  background: rgba(255, 255, 255, 0.025);
+  white-space: nowrap;
+}
+
+.results-table :deep(td) {
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .results-card :deep(.v-card-text) {
+    padding: 12px;
+  }
+
+  .results-toolbar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .results-toolbar.has-additional-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .search-control,
+  .filter-control,
+  .additional-control {
+    width: 100%;
+  }
+
+  .results-table {
+    min-width: 560px;
+  }
+}
+</style>
